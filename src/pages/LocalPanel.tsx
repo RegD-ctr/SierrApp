@@ -1,10 +1,6 @@
 import { useState, useRef } from 'react'
-<<<<<<< Updated upstream
 import logoImg from '@/imports/logo.jpeg'
-=======
-import logoImg from '@/imports/logo.jpg'
 import LocalOrderDetail from '@/components/LocalOrderDetail'
->>>>>>> Stashed changes
 
 type Role = 'usuario' | 'local' | 'repartidor'
 type Filter = 'todos' | 'disponibles' | 'agotados'

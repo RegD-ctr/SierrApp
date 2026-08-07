@@ -1,10 +1,6 @@
 import { useState } from 'react'
-<<<<<<< Updated upstream
 import logoImg from '@/imports/logo.jpeg'
-=======
-import logoImg from '@/imports/logo.jpg'
 import EarningsRepartidor from '@/pages/EarningsRepartidor'
->>>>>>> Stashed changes
 
 type RepView = 'mapa' | 'ordenes' | 'activa' | 'historial' | 'perfil' | 'ganancias'
 type OrderStatus = 'nueva' | 'dirigete' | 'esperando' | 'recibido' | 'en_camino' | 'entregado'
