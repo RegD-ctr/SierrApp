@@ -20,7 +20,7 @@ const allCategories = [
   { icon: '🥪', label: 'Sandwiches' },
 ]
 
-const allRestaurants = [
+const exploreRestaurants = [
   { id: 1, name: 'El Rincón del Sabor', cat: 'Tacos', rating: 4.8, time: '25-35 min', price: '$$', img: 'https://images.unsplash.com/photo-1551504734-5ee1c4a1479b?crop=entropy&cs=tinysrgb&fit=crop&fm=jpg&w=400&h=200' },
   { id: 2, name: 'Sierra Burger Co.', cat: 'Hamburguesas', rating: 4.6, time: '20-30 min', price: '$$', img: 'https://images.unsplash.com/photo-1512152272829-e3139592d56f?crop=entropy&cs=tinysrgb&fit=crop&fm=jpg&w=400&h=200' },
   { id: 3, name: 'Sakura Sushi', cat: 'Sushi', rating: 4.9, time: '30-45 min', price: '$$$', img: 'https://images.unsplash.com/photo-1579584425555-c3ce17fd4351?crop=entropy&cs=tinysrgb&fit=crop&fm=jpg&w=400&h=200' },
@@ -38,7 +38,7 @@ export default function Explorar({ onSelectRestaurant }: { onSelectRestaurant?: 
   const [activeFilter, setActiveFilter] = useState('Más populares')
   const [activeCategory, setActiveCategory] = useState<string | null>(null)
 
-  const filtered = allRestaurants.filter(r => {
+  const filtered = exploreRestaurants.filter(r => {
     const matchSearch = r.name.toLowerCase().includes(search.toLowerCase()) || r.cat.toLowerCase().includes(search.toLowerCase())
     const matchCat = !activeCategory || r.cat === activeCategory
     return matchSearch && matchCat
@@ -134,7 +134,7 @@ export default function Explorar({ onSelectRestaurant }: { onSelectRestaurant?: 
               <div
                 key={r.id}
                 onClick={() => {
-                  const full = (allRestaurants as import('@/data').Restaurant[]).find(x => x.name === r.name)
+                  const full = allRestaurants.find(x => x.name === r.name)
                   if (full && onSelectRestaurant) onSelectRestaurant(full)
                 }}
                 className="flex gap-3 bg-[#142a17] border border-[#2a4830] rounded-2xl overflow-hidden hover:border-[#5bc827]/40 transition-all cursor-pointer"

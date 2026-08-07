@@ -363,7 +363,7 @@ export default function LocalPanel({ onLogout }: Props) {
                   <label className="text-[#a8d89a] text-xs font-semibold block mb-1">{field.label}</label>
                   {field.type === 'textarea' ? (
                     <textarea
-                      value={(form as Record<string, string>)[field.key] as string}
+                      value={(form as Record<string, any>)[field.key] as string}
                       onChange={e => setForm(f => ({ ...f, [field.key]: e.target.value }))}
                       placeholder={field.placeholder}
                       rows={2}
@@ -372,7 +372,7 @@ export default function LocalPanel({ onLogout }: Props) {
                   ) : (
                     <input
                       type={field.type}
-                      value={(form as Record<string, string>)[field.key] as string}
+                      value={(form as Record<string, any>)[field.key] as string}
                       onChange={e => setForm(f => ({ ...f, [field.key]: e.target.value }))}
                       placeholder={field.placeholder}
                       className="w-full bg-[#142a17] border border-[#2a4830] focus:border-[#5bc827] rounded-xl px-4 py-2.5 text-sm text-white placeholder-[#7aaa70] outline-none transition-colors"
