@@ -6,7 +6,7 @@ export default function Onboarding({ onComplete }: { onComplete: () => void }) {
   const slides = [
     {
       title: 'Tus antojos,\na la puerta',
-      desc: 'Encuentra los mejores restaurantes locales con envío rápido y seguro.',
+      desc: 'Encuentra los mejores restaurantes locales con envío rápido y seguro. \n En el Salto Pueblo Nuevo Durango.',
       emoji: '🍔',
     },
     {
