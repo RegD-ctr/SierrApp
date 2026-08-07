@@ -1,5 +1,10 @@
 import { useState, useRef } from 'react'
+<<<<<<< Updated upstream
 import logoImg from '@/imports/logo.jpeg'
+=======
+import logoImg from '@/imports/logo.jpg'
+import LocalOrderDetail from '@/components/LocalOrderDetail'
+>>>>>>> Stashed changes
 
 type Role = 'usuario' | 'local' | 'repartidor'
 type Filter = 'todos' | 'disponibles' | 'agotados'
@@ -41,6 +46,7 @@ export default function LocalPanel({ onLogout }: Props) {
   const [showForm, setShowForm] = useState(false)
   const [editId, setEditId] = useState<number | null>(null)
   const [confirmSoldOut, setConfirmSoldOut] = useState<number | null>(null)
+  const [selectedOrder, setSelectedOrder] = useState<any | null>(null)
 
   const emptyForm = { nombre: '', descripcion: '', categoria: categorias[0], precio: '', imagen: null as string | null, disponible: true }
   const [form, setForm] = useState(emptyForm)
@@ -88,23 +94,44 @@ export default function LocalPanel({ onLogout }: Props) {
     { icon: '👤', label: 'Perfil', view: 'perfil' },
   ]
 
+  if (selectedOrder) {
+    return (
+      <LocalOrderDetail 
+        orden={{
+          id: selectedOrder.id,
+          cliente: selectedOrder.cliente,
+          hora: selectedOrder.hora,
+          estado: selectedOrder.status === 'Nuevo pedido' ? 'pendiente' : selectedOrder.status === 'Preparando' ? 'preparando' : 'listo',
+          productos: selectedOrder.items.map((i: string) => {
+            const parts = i.split(' x')
+            return { nombre: parts[0], cantidad: parseInt(parts[1] || '1') }
+          }),
+          total: selectedOrder.total
+        }}
+        onAceptar={() => setSelectedOrder(null)}
+        onRechazar={() => setSelectedOrder(null)}
+        onBack={() => setSelectedOrder(null)}
+      />
+    )
+  }
+
   return (
-    <div className="min-h-screen bg-[#0d1a0f] text-white">
+    <div className="min-h-screen bg-[#1a1b1e] text-white">
       {/* Header */}
-      <header className="sticky top-0 z-50 bg-[#0d1a0f]/95 backdrop-blur-sm border-b border-[#2a4830]">
+      <header className="sticky top-0 z-50 bg-[#1a1b1e]/95 backdrop-blur-sm border-b border-[#35373b]">
         <div className="max-w-5xl mx-auto px-4 py-3 flex items-center justify-between gap-3">
           <div className="flex items-center gap-2">
             <img src={logoImg} alt="Sierra App" className="w-9 h-9 rounded-lg object-cover" />
             <div>
               <p className="text-[#5bc827] text-xs font-bold tracking-widest uppercase" style={{ fontFamily: 'Barlow Condensed, sans-serif' }}>Sierra App</p>
-              <p className="text-[#7aaa70] text-[10px]">Panel de Local</p>
+              <p className="text-[#9a9da3] text-[10px]">Panel de Local</p>
             </div>
           </div>
           <div className="flex items-center gap-2">
             <div className="w-2 h-2 rounded-full bg-[#5bc827] animate-pulse" />
             <span className="text-[#5bc827] text-xs font-semibold">Abierto</span>
-            <span className="text-[#2a4830] mx-1">|</span>
-            <span className="text-[#7aaa70] text-xs">Sierra Burger Co.</span>
+            <span className="text-[#35373b] mx-1">|</span>
+            <span className="text-[#9a9da3] text-xs">Sierra Burger Co.</span>
           </div>
         </div>
       </header>
@@ -117,17 +144,17 @@ export default function LocalPanel({ onLogout }: Props) {
             <h1 className="text-3xl font-bold text-white uppercase mb-1" style={{ fontFamily: 'Barlow Condensed, sans-serif' }}>
               ¡Buen día, Sierra Burger! 👋
             </h1>
-            <p className="text-[#7aaa70] text-sm mb-6">Resumen de tu negocio hoy</p>
+            <p className="text-[#9a9da3] text-sm mb-6">Resumen de tu negocio hoy</p>
 
             <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 mb-7">
               {statsData.map(s => (
-                <div key={s.label} className="bg-[#142a17] border border-[#2a4830] rounded-2xl p-4">
+                <div key={s.label} className="bg-[#232427] border border-[#35373b] rounded-2xl p-4">
                   <div className="flex items-center justify-between mb-2">
                     <span className="text-xl">{s.icon}</span>
                     {s.trend && <span className="text-[#5bc827] text-[10px] font-bold">{s.trend}</span>}
                   </div>
                   <p className="text-white font-bold text-xl" style={{ fontFamily: 'Barlow Condensed, sans-serif' }}>{s.value}</p>
-                  <p className="text-[#7aaa70] text-[10px]">{s.label}</p>
+                  <p className="text-[#9a9da3] text-[10px]">{s.label}</p>
                 </div>
               ))}
             </div>
@@ -142,15 +169,15 @@ export default function LocalPanel({ onLogout }: Props) {
                 <button
                   key={a.label}
                   onClick={a.action}
-                  className="bg-[#142a17] border border-[#2a4830] hover:border-[#5bc827]/60 rounded-2xl p-5 flex flex-col items-start gap-2 transition-all hover:bg-[#1a3320] text-left group"
+                  className="bg-[#232427] border border-[#35373b] hover:border-[#5bc827]/60 rounded-2xl p-5 flex flex-col items-start gap-2 transition-all hover:bg-[#1a3320] text-left group"
                 >
                   <span className="text-2xl">{a.icon}</span>
-                  <span className="text-sm font-semibold text-[#a8d89a] group-hover:text-white transition-colors">{a.label}</span>
+                  <span className="text-sm font-semibold text-[#c4c6ca] group-hover:text-white transition-colors">{a.label}</span>
                 </button>
               ))}
             </div>
 
-            <div className="mt-6 bg-[#142a17] border border-[#5bc827]/30 rounded-2xl p-4">
+            <div className="mt-6 bg-[#232427] border border-[#5bc827]/30 rounded-2xl p-4">
               <div className="flex items-center gap-2 mb-3">
                 <div className="w-2 h-2 rounded-full bg-[#5bc827] animate-pulse" />
                 <h3 className="text-sm font-bold text-white">3 pedidos activos</h3>
@@ -160,10 +187,10 @@ export default function LocalPanel({ onLogout }: Props) {
                 { id: '#SRR-4820', items: 'Combo Doble x1', status: 'Listo para recoger' },
                 { id: '#SRR-4819', items: 'Burger Clásica x1, Refresco x1', status: 'Nuevo pedido' },
               ].map(p => (
-                <div key={p.id} className="flex items-center justify-between py-2 border-b border-[#2a4830] last:border-0">
+                <div key={p.id} className="flex items-center justify-between py-2 border-b border-[#35373b] last:border-0">
                   <div>
                     <span className="text-xs font-bold text-[#5bc827]">{p.id}</span>
-                    <p className="text-[#7aaa70] text-[10px]">{p.items}</p>
+                    <p className="text-[#9a9da3] text-[10px]">{p.items}</p>
                   </div>
                   <span className={`text-[10px] font-bold px-2 py-0.5 rounded-full ${
                     p.status === 'Nuevo pedido' ? 'bg-yellow-900/40 text-yellow-400' :
@@ -187,20 +214,20 @@ export default function LocalPanel({ onLogout }: Props) {
               </h1>
               <button
                 onClick={openAdd}
-                className="bg-[#5bc827] hover:bg-[#7ed944] text-[#0d1a0f] font-bold text-sm px-4 py-2 rounded-full flex items-center gap-1.5 transition-all hover:scale-105 active:scale-95"
+                className="bg-[#5bc827] hover:bg-[#7ed944] text-[#1a1b1e] font-bold text-sm px-4 py-2 rounded-full flex items-center gap-1.5 transition-all hover:scale-105 active:scale-95"
               >
                 <span className="text-base leading-none">+</span> Agregar platillo
               </button>
             </div>
 
             {/* Filters */}
-            <div className="flex bg-[#142a17] rounded-full p-1 w-fit gap-1 mb-5">
+            <div className="flex bg-[#232427] rounded-full p-1 w-fit gap-1 mb-5">
               {(['todos', 'disponibles', 'agotados'] as Filter[]).map(f => (
                 <button
                   key={f}
                   onClick={() => setFilter(f)}
                   className={`px-4 py-1.5 rounded-full text-xs font-bold capitalize transition-all ${
-                    filter === f ? 'bg-[#5bc827] text-[#0d1a0f]' : 'text-[#7aaa70] hover:text-white'
+                    filter === f ? 'bg-[#5bc827] text-[#1a1b1e]' : 'text-[#9a9da3] hover:text-white'
                   }`}
                 >
                   {f.charAt(0).toUpperCase() + f.slice(1)}
@@ -215,7 +242,7 @@ export default function LocalPanel({ onLogout }: Props) {
               <div className="flex flex-col items-center justify-center py-16 text-center">
                 <span className="text-5xl mb-3">🍽️</span>
                 <p className="text-white font-semibold">Sin platillos {filter !== 'todos' ? `${filter}` : ''}</p>
-                <p className="text-[#7aaa70] text-sm mt-1">
+                <p className="text-[#9a9da3] text-sm mt-1">
                   {filter === 'todos' ? 'Agrega tu primer platillo.' : 'Cambia el filtro para ver otros.'}
                 </p>
               </div>
@@ -244,7 +271,7 @@ export default function LocalPanel({ onLogout }: Props) {
                 { id: '#SRR-4820', cliente: 'María López', items: ['Combo Doble x1'], total: '$190', hora: '8:38 pm', status: 'Listo para recoger', statusColor: 'bg-[#5bc827]/20 text-[#5bc827]' },
                 { id: '#SRR-4819', cliente: 'Carlos R.', items: ['Burger Clásica x1', 'Refresco x1'], total: '$150', hora: '8:31 pm', status: 'Nuevo pedido', statusColor: 'bg-yellow-900/40 text-yellow-400' },
               ].map(order => (
-                <div key={order.id} className="bg-[#142a17] border border-[#2a4830] rounded-2xl p-4">
+                <div key={order.id} onClick={() => setSelectedOrder(order)} className="bg-[#232427] border border-[#35373b] rounded-2xl p-4 cursor-pointer hover:border-[#5bc827]/50 transition-colors">
                   <div className="flex items-start justify-between mb-2">
                     <div>
                       <span className="text-[#5bc827] text-sm font-bold">{order.id}</span>
@@ -252,12 +279,12 @@ export default function LocalPanel({ onLogout }: Props) {
                     </div>
                     <span className={`text-[10px] font-bold px-2 py-1 rounded-full ${order.statusColor}`}>{order.status}</span>
                   </div>
-                  <p className="text-[#7aaa70] text-xs mb-2">{order.items.join(' · ')}</p>
+                  <p className="text-[#9a9da3] text-xs mb-2">{order.items.join(' · ')}</p>
                   <div className="flex items-center justify-between">
-                    <span className="text-[10px] text-[#7aaa70]">⏱ {order.hora}</span>
+                    <span className="text-[10px] text-[#9a9da3]">⏱ {order.hora}</span>
                     <div className="flex items-center gap-2">
                       <span className="text-[#5bc827] font-bold text-sm">{order.total}</span>
-                      <button className="bg-[#5bc827] hover:bg-[#7ed944] text-[#0d1a0f] text-xs font-bold px-3 py-1 rounded-full transition-colors">
+                      <button className="bg-[#5bc827] hover:bg-[#7ed944] text-[#1a1b1e] text-xs font-bold px-3 py-1 rounded-full transition-colors">
                         Marcar listo
                       </button>
                     </div>
@@ -272,11 +299,11 @@ export default function LocalPanel({ onLogout }: Props) {
         {view === 'perfil' && (
           <div className="pt-5">
             <h1 className="text-3xl font-bold text-white uppercase mb-5" style={{ fontFamily: 'Barlow Condensed, sans-serif' }}>Mi Negocio</h1>
-            <div className="bg-[#142a17] border border-[#2a4830] rounded-2xl p-5 mb-4 flex items-center gap-4">
+            <div className="bg-[#232427] border border-[#35373b] rounded-2xl p-5 mb-4 flex items-center gap-4">
               <div className="w-16 h-16 bg-[#5bc827]/20 border-2 border-[#5bc827] rounded-2xl flex items-center justify-center text-2xl">🏪</div>
               <div>
                 <h2 className="text-white font-bold text-lg">Sierra Burger Co.</h2>
-                <p className="text-[#7aaa70] text-xs">Hamburguesas · Centro Sierra</p>
+                <p className="text-[#9a9da3] text-xs">Hamburguesas · Centro Sierra</p>
                 <div className="flex items-center gap-1 mt-1">
                   <span className="w-1.5 h-1.5 rounded-full bg-[#5bc827]" />
                   <span className="text-[#5bc827] text-[10px] font-bold">Verificado</span>
@@ -289,13 +316,13 @@ export default function LocalPanel({ onLogout }: Props) {
               { icon: '📞', label: 'Teléfono', sub: '+52 614 000 0000' },
               { icon: '🏦', label: 'Datos bancarios', sub: 'Cuenta registrada' },
             ].map(item => (
-              <button key={item.label} className="w-full flex items-center gap-3 px-3 py-3.5 rounded-xl hover:bg-[#142a17] transition-colors text-left">
+              <button key={item.label} className="w-full flex items-center gap-3 px-3 py-3.5 rounded-xl hover:bg-[#232427] transition-colors text-left">
                 <span className="text-xl w-7 text-center">{item.icon}</span>
                 <div className="flex-1">
                   <p className="text-sm text-white font-medium">{item.label}</p>
-                  <p className="text-[10px] text-[#7aaa70]">{item.sub}</p>
+                  <p className="text-[10px] text-[#9a9da3]">{item.sub}</p>
                 </div>
-                <svg className="w-4 h-4 text-[#2a4830]" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <svg className="w-4 h-4 text-[#35373b]" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
                 </svg>
               </button>
@@ -310,12 +337,12 @@ export default function LocalPanel({ onLogout }: Props) {
       </main>
 
       {/* Bottom Nav */}
-      <nav className="fixed bottom-0 left-0 right-0 bg-[#0d1a0f]/95 backdrop-blur-sm border-t border-[#2a4830] flex justify-around py-2 z-50">
+      <nav className="fixed bottom-0 left-0 right-0 bg-[#1a1b1e]/95 backdrop-blur-sm border-t border-[#35373b] flex justify-around py-2 z-50">
         {navItems.map(item => (
           <button
             key={item.view}
             onClick={() => setView(item.view)}
-            className={`flex flex-col items-center gap-0.5 px-4 py-1 transition-colors ${view === item.view ? 'text-[#5bc827]' : 'text-[#7aaa70]'}`}
+            className={`flex flex-col items-center gap-0.5 px-4 py-1 transition-colors ${view === item.view ? 'text-[#5bc827]' : 'text-[#9a9da3]'}`}
           >
             <span className="text-xl">{item.icon}</span>
             <span className="text-[10px] font-medium">{item.label}</span>
@@ -327,25 +354,25 @@ export default function LocalPanel({ onLogout }: Props) {
       {/* Add/Edit Form Modal */}
       {showForm && (
         <div className="fixed inset-0 bg-black/70 z-50 flex items-end sm:items-center justify-center p-0 sm:p-4">
-          <div className="bg-[#0d1a0f] border border-[#2a4830] rounded-t-3xl sm:rounded-2xl w-full sm:max-w-md max-h-[90vh] overflow-y-auto">
-            <div className="px-5 pt-5 pb-2 flex items-center justify-between border-b border-[#2a4830]">
+          <div className="bg-[#1a1b1e] border border-[#35373b] rounded-t-3xl sm:rounded-2xl w-full sm:max-w-md max-h-[90vh] overflow-y-auto">
+            <div className="px-5 pt-5 pb-2 flex items-center justify-between border-b border-[#35373b]">
               <h2 className="text-xl font-bold text-white uppercase" style={{ fontFamily: 'Barlow Condensed, sans-serif' }}>
                 {editId !== null ? 'Editar platillo' : 'Nuevo platillo'}
               </h2>
-              <button onClick={() => setShowForm(false)} className="text-[#7aaa70] hover:text-white transition-colors text-xl">✕</button>
+              <button onClick={() => setShowForm(false)} className="text-[#9a9da3] hover:text-white transition-colors text-xl">✕</button>
             </div>
             <div className="px-5 py-4 space-y-3">
               {/* Image upload */}
               <div>
-                <label className="text-[#a8d89a] text-xs font-semibold block mb-1">Fotografía</label>
+                <label className="text-[#c4c6ca] text-xs font-semibold block mb-1">Fotografía</label>
                 <div
                   onClick={() => fileRef.current?.click()}
-                  className="w-full h-32 rounded-xl border-2 border-dashed border-[#2a4830] hover:border-[#5bc827] flex items-center justify-center cursor-pointer overflow-hidden transition-colors"
+                  className="w-full h-32 rounded-xl border-2 border-dashed border-[#35373b] hover:border-[#5bc827] flex items-center justify-center cursor-pointer overflow-hidden transition-colors"
                 >
                   {form.imagen ? (
                     <img src={form.imagen} alt="preview" className="w-full h-full object-cover" />
                   ) : (
-                    <div className="flex flex-col items-center gap-1 text-[#7aaa70]">
+                    <div className="flex flex-col items-center gap-1 text-[#9a9da3]">
                       <span className="text-3xl">📷</span>
                       <span className="text-xs">Subir imagen</span>
                     </div>
@@ -360,14 +387,14 @@ export default function LocalPanel({ onLogout }: Props) {
                 { key: 'precio', label: 'Precio ($)', placeholder: '0.00', type: 'number' },
               ].map(field => (
                 <div key={field.key}>
-                  <label className="text-[#a8d89a] text-xs font-semibold block mb-1">{field.label}</label>
+                  <label className="text-[#c4c6ca] text-xs font-semibold block mb-1">{field.label}</label>
                   {field.type === 'textarea' ? (
                     <textarea
                       value={(form as Record<string, any>)[field.key] as string}
                       onChange={e => setForm(f => ({ ...f, [field.key]: e.target.value }))}
                       placeholder={field.placeholder}
                       rows={2}
-                      className="w-full bg-[#142a17] border border-[#2a4830] focus:border-[#5bc827] rounded-xl px-4 py-2.5 text-sm text-white placeholder-[#7aaa70] outline-none transition-colors resize-none"
+                      className="w-full bg-[#232427] border border-[#35373b] focus:border-[#5bc827] rounded-xl px-4 py-2.5 text-sm text-white placeholder-[#9a9da3] outline-none transition-colors resize-none"
                     />
                   ) : (
                     <input
@@ -375,31 +402,31 @@ export default function LocalPanel({ onLogout }: Props) {
                       value={(form as Record<string, any>)[field.key] as string}
                       onChange={e => setForm(f => ({ ...f, [field.key]: e.target.value }))}
                       placeholder={field.placeholder}
-                      className="w-full bg-[#142a17] border border-[#2a4830] focus:border-[#5bc827] rounded-xl px-4 py-2.5 text-sm text-white placeholder-[#7aaa70] outline-none transition-colors"
+                      className="w-full bg-[#232427] border border-[#35373b] focus:border-[#5bc827] rounded-xl px-4 py-2.5 text-sm text-white placeholder-[#9a9da3] outline-none transition-colors"
                     />
                   )}
                 </div>
               ))}
 
               <div>
-                <label className="text-[#a8d89a] text-xs font-semibold block mb-1">Categoría</label>
+                <label className="text-[#c4c6ca] text-xs font-semibold block mb-1">Categoría</label>
                 <select
                   value={form.categoria}
                   onChange={e => setForm(f => ({ ...f, categoria: e.target.value }))}
-                  className="w-full bg-[#142a17] border border-[#2a4830] focus:border-[#5bc827] rounded-xl px-4 py-2.5 text-sm text-white outline-none transition-colors"
+                  className="w-full bg-[#232427] border border-[#35373b] focus:border-[#5bc827] rounded-xl px-4 py-2.5 text-sm text-white outline-none transition-colors"
                 >
                   {categorias.map(c => <option key={c} value={c}>{c}</option>)}
                 </select>
               </div>
 
-              <div className="flex items-center justify-between bg-[#142a17] border border-[#2a4830] rounded-xl px-4 py-3">
+              <div className="flex items-center justify-between bg-[#232427] border border-[#35373b] rounded-xl px-4 py-3">
                 <div>
                   <p className="text-white text-sm font-semibold">Disponible</p>
-                  <p className="text-[#7aaa70] text-xs">Visible para clientes</p>
+                  <p className="text-[#9a9da3] text-xs">Visible para clientes</p>
                 </div>
                 <button
                   onClick={() => setForm(f => ({ ...f, disponible: !f.disponible }))}
-                  className={`w-12 h-6 rounded-full transition-all relative ${form.disponible ? 'bg-[#5bc827]' : 'bg-[#2a4830]'}`}
+                  className={`w-12 h-6 rounded-full transition-all relative ${form.disponible ? 'bg-[#5bc827]' : 'bg-[#35373b]'}`}
                 >
                   <span className={`absolute top-1 w-4 h-4 rounded-full bg-white transition-all ${form.disponible ? 'left-7' : 'left-1'}`} />
                 </button>
@@ -408,13 +435,13 @@ export default function LocalPanel({ onLogout }: Props) {
               <div className="flex gap-3 pt-2">
                 <button
                   onClick={() => setShowForm(false)}
-                  className="flex-1 py-3 rounded-xl border border-[#2a4830] text-[#7aaa70] text-sm font-semibold hover:border-[#5bc827]/50 hover:text-white transition-colors"
+                  className="flex-1 py-3 rounded-xl border border-[#35373b] text-[#9a9da3] text-sm font-semibold hover:border-[#5bc827]/50 hover:text-white transition-colors"
                 >
                   Cancelar
                 </button>
                 <button
                   onClick={handleSave}
-                  className="flex-1 py-3 rounded-xl bg-[#5bc827] hover:bg-[#7ed944] text-[#0d1a0f] font-bold text-sm transition-all hover:scale-[1.02] active:scale-[0.98]"
+                  className="flex-1 py-3 rounded-xl bg-[#5bc827] hover:bg-[#7ed944] text-[#1a1b1e] font-bold text-sm transition-all hover:scale-[1.02] active:scale-[0.98]"
                 >
                   Guardar platillo
                 </button>
@@ -427,12 +454,12 @@ export default function LocalPanel({ onLogout }: Props) {
       {/* Sold-out confirmation */}
       {confirmSoldOut !== null && (
         <div className="fixed inset-0 bg-black/70 z-50 flex items-center justify-center p-4">
-          <div className="bg-[#0d1a0f] border border-[#2a4830] rounded-2xl w-full max-w-sm p-6 text-center">
+          <div className="bg-[#1a1b1e] border border-[#35373b] rounded-2xl w-full max-w-sm p-6 text-center">
             <span className="text-4xl block mb-3">🚫</span>
             <h3 className="text-white font-bold text-lg mb-1">¿Marcar como agotado?</h3>
-            <p className="text-[#7aaa70] text-sm mb-5">El platillo no podrá ser ordenado por clientes hasta que lo vuelvas a habilitar.</p>
+            <p className="text-[#9a9da3] text-sm mb-5">El platillo no podrá ser ordenado por clientes hasta que lo vuelvas a habilitar.</p>
             <div className="flex gap-3">
-              <button onClick={() => setConfirmSoldOut(null)} className="flex-1 py-2.5 rounded-xl border border-[#2a4830] text-[#7aaa70] text-sm font-semibold hover:text-white transition-colors">
+              <button onClick={() => setConfirmSoldOut(null)} className="flex-1 py-2.5 rounded-xl border border-[#35373b] text-[#9a9da3] text-sm font-semibold hover:text-white transition-colors">
                 Cancelar
               </button>
               <button
@@ -451,7 +478,7 @@ export default function LocalPanel({ onLogout }: Props) {
 
 function PlatilloCard({ p, onEdit, onToggle }: { p: Platillo; onEdit: () => void; onToggle: () => void }) {
   return (
-    <div className={`bg-[#142a17] border rounded-2xl overflow-hidden transition-all ${p.disponible ? 'border-[#2a4830]' : 'border-red-900/50 opacity-70'}`}>
+    <div className={`bg-[#232427] border rounded-2xl overflow-hidden transition-all ${p.disponible ? 'border-[#35373b]' : 'border-red-900/50 opacity-70'}`}>
       <div className="relative h-36 bg-[#1a3320] overflow-hidden">
         {p.imagen ? (
           <img src={p.imagen} alt={p.nombre} className="w-full h-full object-cover" />
@@ -463,7 +490,7 @@ function PlatilloCard({ p, onEdit, onToggle }: { p: Platillo; onEdit: () => void
             <span className="bg-red-900/80 text-red-400 text-xs font-bold px-3 py-1 rounded-full border border-red-800">AGOTADO</span>
           </div>
         )}
-        <span className="absolute top-2 left-2 bg-[#0d1a0f]/80 text-[#5bc827] text-[10px] px-2 py-0.5 rounded-full border border-[#2a4830]">
+        <span className="absolute top-2 left-2 bg-[#1a1b1e]/80 text-[#5bc827] text-[10px] px-2 py-0.5 rounded-full border border-[#35373b]">
           {p.categoria}
         </span>
       </div>
@@ -472,11 +499,11 @@ function PlatilloCard({ p, onEdit, onToggle }: { p: Platillo; onEdit: () => void
           <h3 className="font-bold text-sm text-white leading-tight">{p.nombre}</h3>
           <span className="text-[#5bc827] font-bold text-sm shrink-0">${p.precio}</span>
         </div>
-        <p className="text-[#7aaa70] text-xs mb-3 line-clamp-2">{p.descripcion}</p>
+        <p className="text-[#9a9da3] text-xs mb-3 line-clamp-2">{p.descripcion}</p>
         <div className="flex gap-2">
           <button
             onClick={onEdit}
-            className="flex-1 py-1.5 rounded-lg border border-[#2a4830] hover:border-[#5bc827]/60 text-[#a8d89a] text-xs font-semibold transition-colors hover:text-white"
+            className="flex-1 py-1.5 rounded-lg border border-[#35373b] hover:border-[#5bc827]/60 text-[#c4c6ca] text-xs font-semibold transition-colors hover:text-white"
           >
             ✏️ Editar
           </button>

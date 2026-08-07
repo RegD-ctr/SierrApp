@@ -102,21 +102,21 @@ export default function CustomizeModal({ platillo, restaurant, onClose, onAdd }:
 
   return (
     <div className="fixed inset-0 bg-black/70 z-50 flex items-end sm:items-center justify-center p-0 sm:p-4">
-      <div className="bg-[#0d1a0f] border border-[#2a4830] rounded-t-3xl sm:rounded-2xl w-full sm:max-w-md max-h-[90vh] flex flex-col overflow-hidden">
+      <div className="bg-[#1a1b1e] border border-[#35373b] rounded-t-3xl sm:rounded-2xl w-full sm:max-w-md max-h-[90vh] flex flex-col overflow-hidden">
         {/* Image header */}
         <div className="relative h-40 shrink-0">
           {platillo.imagen ? (
             <img src={platillo.imagen} alt={platillo.nombre} className="w-full h-full object-cover" />
           ) : (
-            <div className="w-full h-full bg-[#142a17] flex items-center justify-center text-5xl opacity-40">🍽️</div>
+            <div className="w-full h-full bg-[#232427] flex items-center justify-center text-5xl opacity-40">🍽️</div>
           )}
-          <div className="absolute inset-0 bg-gradient-to-t from-[#0d1a0f] to-transparent" />
-          <button onClick={onClose} className="absolute top-3 right-3 bg-[#0d1a0f]/70 rounded-full w-8 h-8 flex items-center justify-center text-white hover:bg-[#0d1a0f] transition-colors">
+          <div className="absolute inset-0 bg-gradient-to-t from-[#1a1b1e] to-transparent" />
+          <button onClick={onClose} className="absolute top-3 right-3 bg-[#1a1b1e]/70 rounded-full w-8 h-8 flex items-center justify-center text-white hover:bg-[#1a1b1e] transition-colors">
             ✕
           </button>
           <div className="absolute bottom-3 left-4 right-4">
             <h2 className="text-white font-bold text-lg leading-tight">{platillo.nombre}</h2>
-            <p className="text-[#7aaa70] text-xs">{platillo.descripcion}</p>
+            <p className="text-[#9a9da3] text-xs">{platillo.descripcion}</p>
           </div>
         </div>
 
@@ -131,7 +131,7 @@ export default function CustomizeModal({ platillo, restaurant, onClose, onAdd }:
                     {missingRequired.includes(group.id) ? '¡Requerido!' : 'Obligatorio'}
                   </span>
                 )}
-                {!group.obligatoria && <span className="text-[#7aaa70] text-[10px]">Opcional</span>}
+                {!group.obligatoria && <span className="text-[#9a9da3] text-[10px]">Opcional</span>}
               </div>
               <div className="space-y-1.5">
                 {group.opciones.map(opt => {
@@ -144,19 +144,19 @@ export default function CustomizeModal({ platillo, restaurant, onClose, onAdd }:
                       key={opt.id}
                       onClick={() => group.tipo === 'radio' ? handleRadio(group.id, opt.id) : handleCheckbox(group.id, opt.id)}
                       className={`w-full flex items-center justify-between px-4 py-2.5 rounded-xl border transition-all text-left ${
-                        isSelected ? 'bg-[#5bc827]/15 border-[#5bc827] text-white' : 'bg-[#142a17] border-[#2a4830] text-[#a8d89a] hover:border-[#5bc827]/50'
+                        isSelected ? 'bg-[#5bc827]/15 border-[#5bc827] text-white' : 'bg-[#232427] border-[#35373b] text-[#c4c6ca] hover:border-[#5bc827]/50'
                       }`}
                     >
                       <div className="flex items-center gap-2.5">
                         <div className={`w-4 h-4 shrink-0 flex items-center justify-center border transition-all ${
                           group.tipo === 'radio' ? 'rounded-full' : 'rounded'
-                        } ${isSelected ? 'border-[#5bc827] bg-[#5bc827]' : 'border-[#2a4830]'}`}>
-                          {isSelected && <span className="text-[#0d1a0f] text-[8px] font-black">✓</span>}
+                        } ${isSelected ? 'border-[#5bc827] bg-[#5bc827]' : 'border-[#35373b]'}`}>
+                          {isSelected && <span className="text-[#1a1b1e] text-[8px] font-black">✓</span>}
                         </div>
                         <span className="text-sm">{opt.label}</span>
                       </div>
                       {opt.extra !== 0 && (
-                        <span className={`text-xs font-semibold ${opt.extra > 0 ? 'text-[#5bc827]' : 'text-[#7aaa70]'}`}>
+                        <span className={`text-xs font-semibold ${opt.extra > 0 ? 'text-[#5bc827]' : 'text-[#9a9da3]'}`}>
                           {opt.extra > 0 ? `+$${opt.extra}` : `-$${Math.abs(opt.extra)}`}
                         </span>
                       )}
@@ -169,36 +169,36 @@ export default function CustomizeModal({ platillo, restaurant, onClose, onAdd }:
 
           {/* Notas */}
           <div className="mb-3">
-            <label className="text-[#a8d89a] text-xs font-semibold block mb-1">
-              Instrucciones especiales <span className="text-[#7aaa70] font-normal">(opcional)</span>
+            <label className="text-[#c4c6ca] text-xs font-semibold block mb-1">
+              Instrucciones especiales <span className="text-[#9a9da3] font-normal">(opcional)</span>
             </label>
             <textarea
               value={notas}
               onChange={e => setNotas(e.target.value)}
               placeholder="Ej: sin cebolla, extra picante, alergias..."
               rows={2}
-              className="w-full bg-[#142a17] border border-[#2a4830] focus:border-[#5bc827] rounded-xl px-4 py-2.5 text-sm text-white placeholder-[#7aaa70] outline-none transition-colors resize-none"
+              className="w-full bg-[#232427] border border-[#35373b] focus:border-[#5bc827] rounded-xl px-4 py-2.5 text-sm text-white placeholder-[#9a9da3] outline-none transition-colors resize-none"
             />
           </div>
         </div>
 
         {/* Footer */}
-        <div className="px-4 pb-5 pt-3 border-t border-[#2a4830] bg-[#0d1a0f] shrink-0">
+        <div className="px-4 pb-5 pt-3 border-t border-[#35373b] bg-[#1a1b1e] shrink-0">
           {/* Quantity */}
           <div className="flex items-center justify-between mb-3">
-            <span className="text-[#a8d89a] text-sm font-semibold">Cantidad</span>
-            <div className="flex items-center gap-3 bg-[#142a17] border border-[#2a4830] rounded-full px-2 py-1">
-              <button onClick={() => setCantidad(c => Math.max(1, c - 1))} className="w-7 h-7 rounded-full flex items-center justify-center text-[#5bc827] hover:bg-[#0d1a0f] transition-colors font-bold text-lg leading-none">−</button>
+            <span className="text-[#c4c6ca] text-sm font-semibold">Cantidad</span>
+            <div className="flex items-center gap-3 bg-[#232427] border border-[#35373b] rounded-full px-2 py-1">
+              <button onClick={() => setCantidad(c => Math.max(1, c - 1))} className="w-7 h-7 rounded-full flex items-center justify-center text-[#5bc827] hover:bg-[#1a1b1e] transition-colors font-bold text-lg leading-none">−</button>
               <span className="text-white font-bold text-base w-6 text-center">{cantidad}</span>
-              <button onClick={() => setCantidad(c => c + 1)} className="w-7 h-7 rounded-full flex items-center justify-center text-[#5bc827] hover:bg-[#0d1a0f] transition-colors font-bold text-lg leading-none">+</button>
+              <button onClick={() => setCantidad(c => c + 1)} className="w-7 h-7 rounded-full flex items-center justify-center text-[#5bc827] hover:bg-[#1a1b1e] transition-colors font-bold text-lg leading-none">+</button>
             </div>
           </div>
           <button
             onClick={handleAdd}
-            className="w-full py-3.5 rounded-xl bg-[#5bc827] hover:bg-[#7ed944] text-[#0d1a0f] font-bold text-base transition-all hover:scale-[1.01] active:scale-[0.98] shadow-lg shadow-[#5bc827]/20 flex items-center justify-center gap-2"
+            className="w-full py-3.5 rounded-xl bg-[#5bc827] hover:bg-[#7ed944] text-[#1a1b1e] font-bold text-base transition-all hover:scale-[1.01] active:scale-[0.98] shadow-lg shadow-[#5bc827]/20 flex items-center justify-center gap-2"
           >
             <span>Agregar al carrito</span>
-            <span className="bg-[#0d1a0f]/20 px-2 py-0.5 rounded-full text-sm">${totalPrice.toFixed(0)}</span>
+            <span className="bg-[#1a1b1e]/20 px-2 py-0.5 rounded-full text-sm">${totalPrice.toFixed(0)}</span>
           </button>
         </div>
       </div>

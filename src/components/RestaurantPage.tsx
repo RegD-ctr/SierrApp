@@ -34,16 +34,16 @@ export default function RestaurantPage({ restaurant, onBack, onAddToCart }: Prop
   }
 
   return (
-    <div className="min-h-screen bg-[#0d1a0f] pb-24">
+    <div className="min-h-screen bg-[#1a1b1e] pb-24">
       {/* Cover */}
-      <div className="relative h-52 bg-[#142a17]">
+      <div className="relative h-52 bg-[#232427]">
         <img src={restaurant.coverImg} alt={restaurant.name} className="w-full h-full object-cover" />
-        <div className="absolute inset-0 bg-gradient-to-t from-[#0d1a0f] via-[#0d1a0f]/30 to-transparent" />
+        <div className="absolute inset-0 bg-gradient-to-t from-[#1a1b1e] via-[#1a1b1e]/30 to-transparent" />
 
         {/* Back button */}
         <button
           onClick={onBack}
-          className="absolute top-4 left-4 bg-[#0d1a0f]/70 hover:bg-[#0d1a0f] backdrop-blur-sm border border-[#2a4830] rounded-full p-2 text-white transition-colors"
+          className="absolute top-4 left-4 bg-[#1a1b1e]/70 hover:bg-[#1a1b1e] backdrop-blur-sm border border-[#35373b] rounded-full p-2 text-white transition-colors"
         >
           <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" />
@@ -53,9 +53,9 @@ export default function RestaurantPage({ restaurant, onBack, onAddToCart }: Prop
 
       <div className="px-4 max-w-5xl mx-auto">
         {/* Restaurant info */}
-        <div className="bg-[#142a17] border border-[#2a4830] rounded-2xl p-4 -mt-6 relative z-10 mb-5">
+        <div className="bg-[#232427] border border-[#35373b] rounded-2xl p-4 -mt-6 relative z-10 mb-5">
           <div className="flex items-start gap-3">
-            <div className="w-14 h-14 rounded-xl bg-[#0d1a0f] border border-[#2a4830] flex items-center justify-center text-2xl shrink-0">
+            <div className="w-14 h-14 rounded-xl bg-[#1a1b1e] border border-[#35373b] flex items-center justify-center text-2xl shrink-0">
               {restaurant.category.includes('Sushi') ? '🍣' :
                restaurant.category.includes('Burger') || restaurant.category.includes('Hamb') ? '🍔' :
                restaurant.category.includes('Pizza') || restaurant.category.includes('Italian') ? '🍕' :
@@ -71,20 +71,20 @@ export default function RestaurantPage({ restaurant, onBack, onAddToCart }: Prop
                   {restaurant.isOpen ? '● Abierto' : '● Cerrado'}
                 </span>
               </div>
-              <p className="text-[#7aaa70] text-xs mt-0.5">{restaurant.category}</p>
-              <p className="text-[#7aaa70] text-xs mt-0.5">📍 {restaurant.address}</p>
+              <p className="text-[#9a9da3] text-xs mt-0.5">{restaurant.category}</p>
+              <p className="text-[#9a9da3] text-xs mt-0.5">📍 {restaurant.address}</p>
               <div className="flex items-center gap-3 mt-2 flex-wrap">
                 <div className="flex items-center gap-1">
                   {[1,2,3,4,5].map(n => (
-                    <span key={n} className={`text-xs ${n <= Math.round(restaurant.rating) ? 'text-[#5bc827]' : 'text-[#2a4830]'}`}>★</span>
+                    <span key={n} className={`text-xs ${n <= Math.round(restaurant.rating) ? 'text-[#5bc827]' : 'text-[#35373b]'}`}>★</span>
                   ))}
                   <span className="text-white text-xs font-bold ml-1">{restaurant.rating}</span>
-                  <span className="text-[#7aaa70] text-xs">({restaurant.reviews})</span>
+                  <span className="text-[#9a9da3] text-xs">({restaurant.reviews})</span>
                 </div>
-                <span className="text-[#2a4830]">·</span>
-                <span className="text-[#7aaa70] text-xs">⏱ {restaurant.time}</span>
-                <span className="text-[#2a4830]">·</span>
-                <span className={`text-xs font-semibold ${restaurant.deliveryFee === 0 ? 'text-[#5bc827]' : 'text-[#7aaa70]'}`}>
+                <span className="text-[#35373b]">·</span>
+                <span className="text-[#9a9da3] text-xs">⏱ {restaurant.time}</span>
+                <span className="text-[#35373b]">·</span>
+                <span className={`text-xs font-semibold ${restaurant.deliveryFee === 0 ? 'text-[#5bc827]' : 'text-[#9a9da3]'}`}>
                   {restaurant.deliveryFee === 0 ? 'Envío gratis' : `Envío $${restaurant.deliveryFee}`}
                 </span>
               </div>
@@ -103,7 +103,7 @@ export default function RestaurantPage({ restaurant, onBack, onAddToCart }: Prop
           <div className="flex flex-col items-center justify-center py-12 text-center">
             <span className="text-5xl mb-3">🔒</span>
             <p className="text-white font-semibold">Restaurante cerrado</p>
-            <p className="text-[#7aaa70] text-sm mt-1">Vuelve en su horario de atención</p>
+            <p className="text-[#9a9da3] text-sm mt-1">Vuelve en su horario de atención</p>
           </div>
         ) : categories.length === 0 ? (
           <div className="flex flex-col items-center justify-center py-12 text-center">
@@ -116,7 +116,7 @@ export default function RestaurantPage({ restaurant, onBack, onAddToCart }: Prop
             return (
               <div key={cat} className="mb-7">
                 <h2
-                  className="text-xl font-bold text-white uppercase mb-3 border-b border-[#2a4830] pb-2"
+                  className="text-xl font-bold text-white uppercase mb-3 border-b border-[#35373b] pb-2"
                   style={{ fontFamily: 'Barlow Condensed, sans-serif' }}
                 >
                   {cat}
@@ -147,7 +147,7 @@ export default function RestaurantPage({ restaurant, onBack, onAddToCart }: Prop
 
 function PlatilloRow({ p, onAgregar }: { p: Platillo; onAgregar: () => void }) {
   return (
-    <div className={`flex gap-3 bg-[#142a17] border rounded-2xl p-3 transition-all ${p.disponible ? 'border-[#2a4830] hover:border-[#5bc827]/30' : 'border-[#2a4830] opacity-60'}`}>
+    <div className={`flex gap-3 bg-[#232427] border rounded-2xl p-3 transition-all ${p.disponible ? 'border-[#35373b] hover:border-[#5bc827]/30' : 'border-[#35373b] opacity-60'}`}>
       <div className="relative shrink-0">
         {p.imagen ? (
           <img src={p.imagen} alt={p.nombre} className="w-20 h-20 rounded-xl object-cover" />
@@ -163,7 +163,7 @@ function PlatilloRow({ p, onAgregar }: { p: Platillo; onAgregar: () => void }) {
       <div className="flex-1 flex flex-col justify-between">
         <div>
           <h3 className="text-white font-semibold text-sm leading-tight">{p.nombre}</h3>
-          <p className="text-[#7aaa70] text-xs mt-0.5 line-clamp-2">{p.descripcion}</p>
+          <p className="text-[#9a9da3] text-xs mt-0.5 line-clamp-2">{p.descripcion}</p>
           {p.opciones && p.opciones.length > 0 && (
             <p className="text-[#5bc827] text-[10px] mt-0.5">✦ Personalizable</p>
           )}
@@ -175,8 +175,8 @@ function PlatilloRow({ p, onAgregar }: { p: Platillo; onAgregar: () => void }) {
             disabled={!p.disponible}
             className={`rounded-full w-8 h-8 flex items-center justify-center text-xl font-bold transition-all leading-none ${
               p.disponible
-                ? 'bg-[#5bc827] hover:bg-[#7ed944] text-[#0d1a0f] hover:scale-110 active:scale-95'
-                : 'bg-[#2a4830] text-[#7aaa70] cursor-not-allowed'
+                ? 'bg-[#5bc827] hover:bg-[#7ed944] text-[#1a1b1e] hover:scale-110 active:scale-95'
+                : 'bg-[#35373b] text-[#9a9da3] cursor-not-allowed'
             }`}
           >
             +

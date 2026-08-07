@@ -65,24 +65,24 @@ export default function Pedidos() {
   const [ratings, setRatings] = useState<Record<string, number>>({})
 
   return (
-    <div className="min-h-screen bg-[#0d1a0f] pb-24">
+    <div className="min-h-screen bg-[#1a1b1e] pb-24">
       {/* Header */}
-      <div className="sticky top-0 z-20 bg-[#0d1a0f]/95 backdrop-blur-sm border-b border-[#2a4830] px-4 py-3">
+      <div className="sticky top-0 z-20 bg-[#1a1b1e]/95 backdrop-blur-sm border-b border-[#35373b] px-4 py-3">
         <h1
           className="text-2xl font-bold text-white uppercase mb-3"
           style={{ fontFamily: 'Barlow Condensed, sans-serif' }}
         >
           Mis Pedidos
         </h1>
-        <div className="flex bg-[#142a17] rounded-full p-1 w-fit gap-1">
+        <div className="flex bg-[#232427] rounded-full p-1 w-fit gap-1">
           {(['activo', 'historial'] as Tab[]).map(t => (
             <button
               key={t}
               onClick={() => setTab(t)}
               className={`px-5 py-1.5 rounded-full text-xs font-bold capitalize transition-all ${
                 tab === t
-                  ? 'bg-[#5bc827] text-[#0d1a0f]'
-                  : 'text-[#7aaa70] hover:text-white'
+                  ? 'bg-[#5bc827] text-[#1a1b1e]'
+                  : 'text-[#9a9da3] hover:text-white'
               }`}
             >
               {t === 'activo' ? 'En curso' : 'Historial'}
@@ -104,14 +104,14 @@ export default function Pedidos() {
               <span className="text-[#5bc827] text-xs font-semibold">1 pedido activo</span>
             </div>
 
-            <div className="bg-[#142a17] border border-[#5bc827]/30 rounded-2xl overflow-hidden">
+            <div className="bg-[#232427] border border-[#5bc827]/30 rounded-2xl overflow-hidden">
               {/* Order header */}
-              <div className="px-4 pt-4 pb-3 border-b border-[#2a4830]">
+              <div className="px-4 pt-4 pb-3 border-b border-[#35373b]">
                 <div className="flex items-center justify-between mb-1">
                   <span className="font-bold text-white text-sm">{activeOrder.restaurant}</span>
-                  <span className="text-[#7aaa70] text-xs">{activeOrder.id}</span>
+                  <span className="text-[#9a9da3] text-xs">{activeOrder.id}</span>
                 </div>
-                <p className="text-[#7aaa70] text-xs">{activeOrder.items.join(' · ')}</p>
+                <p className="text-[#9a9da3] text-xs">{activeOrder.items.join(' · ')}</p>
                 <p className="text-[#5bc827] font-bold text-sm mt-1">{activeOrder.total}</p>
               </div>
 
@@ -119,7 +119,7 @@ export default function Pedidos() {
               <div className="px-4 py-4">
                 <div className="relative">
                   {/* Line */}
-                  <div className="absolute left-4 top-5 bottom-5 w-0.5 bg-[#2a4830]" />
+                  <div className="absolute left-4 top-5 bottom-5 w-0.5 bg-[#35373b]" />
                   <div
                     className="absolute left-4 top-5 w-0.5 bg-[#5bc827] transition-all duration-700"
                     style={{ height: `${((activeOrder.status - 1) / (activeOrder.statuses.length - 1)) * 100}%` }}
@@ -134,14 +134,14 @@ export default function Pedidos() {
                             done
                               ? 'bg-[#5bc827] border-[#5bc827]'
                               : current
-                              ? 'bg-[#142a17] border-[#5bc827] animate-pulse'
-                              : 'bg-[#142a17] border-[#2a4830]'
+                              ? 'bg-[#232427] border-[#5bc827] animate-pulse'
+                              : 'bg-[#232427] border-[#35373b]'
                           }`}>
                             {s.icon}
                           </div>
                           <div className="flex-1">
-                            <p className={`text-sm font-semibold ${done ? 'text-white' : 'text-[#7aaa70]'}`}>{s.label}</p>
-                            {s.time && <p className="text-[#7aaa70] text-xs">{s.time}</p>}
+                            <p className={`text-sm font-semibold ${done ? 'text-white' : 'text-[#9a9da3]'}`}>{s.label}</p>
+                            {s.time && <p className="text-[#9a9da3] text-xs">{s.time}</p>}
                           </div>
                         </div>
                       )
@@ -151,18 +151,18 @@ export default function Pedidos() {
               </div>
 
               {/* Driver */}
-              <div className="mx-4 mb-4 p-3 bg-[#0d1a0f] rounded-xl flex items-center justify-between border border-[#2a4830]">
+              <div className="mx-4 mb-4 p-3 bg-[#1a1b1e] rounded-xl flex items-center justify-between border border-[#35373b]">
                 <div className="flex items-center gap-2">
-                  <div className="w-9 h-9 bg-[#5bc827] rounded-full flex items-center justify-center text-[#0d1a0f] font-bold text-sm">
+                  <div className="w-9 h-9 bg-[#5bc827] rounded-full flex items-center justify-center text-[#1a1b1e] font-bold text-sm">
                     {activeOrder.driver.name[0]}
                   </div>
                   <div>
                     <p className="text-white text-xs font-semibold">{activeOrder.driver.name}</p>
-                    <p className="text-[#7aaa70] text-[10px]">★ {activeOrder.driver.rating} · Tu repartidor</p>
+                    <p className="text-[#9a9da3] text-[10px]">★ {activeOrder.driver.rating} · Tu repartidor</p>
                   </div>
                 </div>
                 <div className="flex gap-2">
-                  <button className="bg-[#142a17] border border-[#2a4830] rounded-full px-3 py-1.5 text-[10px] text-[#a8d89a] hover:border-[#5bc827] transition-colors">
+                  <button className="bg-[#232427] border border-[#35373b] rounded-full px-3 py-1.5 text-[10px] text-[#c4c6ca] hover:border-[#5bc827] transition-colors">
                     📞 Llamar
                   </button>
                   <div className="bg-[#5bc827]/20 text-[#5bc827] border border-[#5bc827]/30 rounded-full px-3 py-1.5 text-[10px] font-bold">
@@ -178,7 +178,7 @@ export default function Pedidos() {
         {tab === 'historial' && (
           <div className="space-y-3">
             {history.map(order => (
-              <div key={order.id} className="bg-[#142a17] border border-[#2a4830] rounded-2xl overflow-hidden">
+              <div key={order.id} className="bg-[#232427] border border-[#35373b] rounded-2xl overflow-hidden">
                 <div className="flex gap-3 p-3">
                   <img src={order.img} alt={order.restaurant} className="w-14 h-14 rounded-xl object-cover shrink-0" />
                   <div className="flex-1">
@@ -192,29 +192,29 @@ export default function Pedidos() {
                         {order.status}
                       </span>
                     </div>
-                    <p className="text-[#7aaa70] text-xs mt-0.5 truncate">{order.items.join(', ')}</p>
+                    <p className="text-[#9a9da3] text-xs mt-0.5 truncate">{order.items.join(', ')}</p>
                     <div className="flex items-center justify-between mt-1">
-                      <span className="text-[10px] text-[#7aaa70]">{order.date}</span>
+                      <span className="text-[10px] text-[#9a9da3]">{order.date}</span>
                       <span className="text-[#5bc827] text-xs font-bold">{order.total}</span>
                     </div>
                   </div>
                 </div>
 
                 {order.status === 'Entregado' && (
-                  <div className="border-t border-[#2a4830] px-3 py-2 flex items-center justify-between">
+                  <div className="border-t border-[#35373b] px-3 py-2 flex items-center justify-between">
                     <div className="flex items-center gap-1">
                       {[1, 2, 3, 4, 5].map(n => (
                         <button
                           key={n}
                           onClick={() => setRatings(r => ({ ...r, [order.id]: n }))}
                           className={`text-base transition-transform hover:scale-125 ${
-                            n <= (ratings[order.id] ?? order.rating ?? 0) ? 'text-[#5bc827]' : 'text-[#2a4830]'
+                            n <= (ratings[order.id] ?? order.rating ?? 0) ? 'text-[#5bc827]' : 'text-[#35373b]'
                           }`}
                         >
                           ★
                         </button>
                       ))}
-                      <span className="text-[#7aaa70] text-[10px] ml-1">
+                      <span className="text-[#9a9da3] text-[10px] ml-1">
                         {ratings[order.id] ? 'Gracias!' : 'Calificar'}
                       </span>
                     </div>

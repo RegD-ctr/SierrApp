@@ -45,9 +45,9 @@ export default function Explorar({ onSelectRestaurant }: { onSelectRestaurant?: 
   })
 
   return (
-    <div className="min-h-screen bg-[#0d1a0f] pb-24">
+    <div className="min-h-screen bg-[#1a1b1e] pb-24">
       {/* Header */}
-      <div className="sticky top-0 z-20 bg-[#0d1a0f]/95 backdrop-blur-sm border-b border-[#2a4830] px-4 py-3">
+      <div className="sticky top-0 z-20 bg-[#1a1b1e]/95 backdrop-blur-sm border-b border-[#35373b] px-4 py-3">
         <h1
           className="text-2xl font-bold text-white uppercase mb-3"
           style={{ fontFamily: 'Barlow Condensed, sans-serif' }}
@@ -55,7 +55,7 @@ export default function Explorar({ onSelectRestaurant }: { onSelectRestaurant?: 
           Explorar
         </h1>
         <div className="relative">
-          <svg className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-[#7aaa70]" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+          <svg className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-[#9a9da3]" fill="none" stroke="currentColor" viewBox="0 0 24 24">
             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
           </svg>
           <input
@@ -63,10 +63,10 @@ export default function Explorar({ onSelectRestaurant }: { onSelectRestaurant?: 
             placeholder="Restaurantes, comida, categorías..."
             value={search}
             onChange={e => setSearch(e.target.value)}
-            className="w-full bg-[#142a17] border border-[#2a4830] focus:border-[#5bc827] rounded-full py-2.5 pl-9 pr-4 text-sm text-white placeholder-[#7aaa70] outline-none transition-colors"
+            className="w-full bg-[#232427] border border-[#35373b] focus:border-[#5bc827] rounded-full py-2.5 pl-9 pr-4 text-sm text-white placeholder-[#9a9da3] outline-none transition-colors"
           />
           {search && (
-            <button onClick={() => setSearch('')} className="absolute right-3 top-1/2 -translate-y-1/2 text-[#7aaa70] hover:text-white">
+            <button onClick={() => setSearch('')} className="absolute right-3 top-1/2 -translate-y-1/2 text-[#9a9da3] hover:text-white">
               ✕
             </button>
           )}
@@ -75,7 +75,7 @@ export default function Explorar({ onSelectRestaurant }: { onSelectRestaurant?: 
 
       <div className="px-4 pt-5">
         {/* Categories grid */}
-        <h2 className="text-sm font-semibold text-[#a8d89a] uppercase tracking-widest mb-3">Categorías</h2>
+        <h2 className="text-sm font-semibold text-[#c4c6ca] uppercase tracking-widest mb-3">Categorías</h2>
         <div className="grid grid-cols-4 sm:grid-cols-8 gap-2 mb-6">
           {allCategories.map(cat => (
             <button
@@ -83,8 +83,8 @@ export default function Explorar({ onSelectRestaurant }: { onSelectRestaurant?: 
               onClick={() => setActiveCategory(activeCategory === cat.label ? null : cat.label)}
               className={`flex flex-col items-center gap-1 py-3 rounded-xl border transition-all ${
                 activeCategory === cat.label
-                  ? 'bg-[#5bc827] border-[#5bc827] text-[#0d1a0f]'
-                  : 'bg-[#142a17] border-[#2a4830] text-[#a8d89a] hover:border-[#5bc827]/50'
+                  ? 'bg-[#5bc827] border-[#5bc827] text-[#1a1b1e]'
+                  : 'bg-[#232427] border-[#35373b] text-[#c4c6ca] hover:border-[#5bc827]/50'
               }`}
             >
               <span className="text-xl">{cat.icon}</span>
@@ -102,7 +102,7 @@ export default function Explorar({ onSelectRestaurant }: { onSelectRestaurant?: 
               className={`flex-shrink-0 text-xs font-semibold px-4 py-1.5 rounded-full border transition-colors ${
                 activeFilter === f
                   ? 'bg-[#5bc827]/20 border-[#5bc827] text-[#5bc827]'
-                  : 'bg-[#142a17] border-[#2a4830] text-[#7aaa70] hover:border-[#5bc827]/50'
+                  : 'bg-[#232427] border-[#35373b] text-[#9a9da3] hover:border-[#5bc827]/50'
               }`}
             >
               {f}
@@ -112,7 +112,7 @@ export default function Explorar({ onSelectRestaurant }: { onSelectRestaurant?: 
 
         {/* Results */}
         <div className="flex items-center justify-between mb-3">
-          <span className="text-[#7aaa70] text-xs">
+          <span className="text-[#9a9da3] text-xs">
             {filtered.length} resultados{activeCategory ? ` en ${activeCategory}` : ''}
           </span>
           {activeCategory && (
@@ -126,7 +126,7 @@ export default function Explorar({ onSelectRestaurant }: { onSelectRestaurant?: 
           <div className="flex flex-col items-center justify-center py-16 text-center">
             <span className="text-5xl mb-3">🔍</span>
             <p className="text-white font-semibold">Sin resultados</p>
-            <p className="text-[#7aaa70] text-sm mt-1">Intenta con otra búsqueda o categoría</p>
+            <p className="text-[#9a9da3] text-sm mt-1">Intenta con otra búsqueda o categoría</p>
           </div>
         ) : (
           <div className="space-y-3">
@@ -137,7 +137,7 @@ export default function Explorar({ onSelectRestaurant }: { onSelectRestaurant?: 
                   const full = allRestaurants.find(x => x.name === r.name)
                   if (full && onSelectRestaurant) onSelectRestaurant(full)
                 }}
-                className="flex gap-3 bg-[#142a17] border border-[#2a4830] rounded-2xl overflow-hidden hover:border-[#5bc827]/40 transition-all cursor-pointer"
+                className="flex gap-3 bg-[#232427] border border-[#35373b] rounded-2xl overflow-hidden hover:border-[#5bc827]/40 transition-all cursor-pointer"
               >
                 <img src={r.img} alt={r.name} className="w-24 h-24 object-cover shrink-0" />
                 <div className="flex flex-col justify-center py-2 pr-3 flex-1">
@@ -148,10 +148,10 @@ export default function Explorar({ onSelectRestaurant }: { onSelectRestaurant?: 
                       <span className="text-xs text-white font-semibold">{r.rating}</span>
                     </div>
                   </div>
-                  <p className="text-[#7aaa70] text-xs mt-0.5">{r.cat}</p>
-                  <div className="flex items-center gap-2 mt-2 text-[10px] text-[#7aaa70]">
+                  <p className="text-[#9a9da3] text-xs mt-0.5">{r.cat}</p>
+                  <div className="flex items-center gap-2 mt-2 text-[10px] text-[#9a9da3]">
                     <span>⏱ {r.time}</span>
-                    <span className="text-[#2a4830]">·</span>
+                    <span className="text-[#35373b]">·</span>
                     <span>{r.price}</span>
                   </div>
                 </div>
