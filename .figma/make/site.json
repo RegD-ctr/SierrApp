@@ -1,0 +1,10 @@
+{
+  "description": "This delivery service platform connects users with local restaurants and stores, providing a seamless ordering experience with a vibrant, branded interface.",
+  "robots": {
+    "index": false
+  },
+  "accessibility": {
+    "addBypassLinks": false,
+    "ignoreReducedMotion": false
+  }
+}

@@ -1,0 +1,47 @@
+@import url('https://fonts.googleapis.com/css2?family=Barlow+Condensed:wght@600;700;800&family=Poppins:wght@400;500;600;700&display=swap');
+@import 'tailwindcss';
+
+@theme {
+  --color-brand: #5bc827;
+  --color-brand-light: #7ed944;
+  --color-brand-dark: #3d8c18;
+  --color-forest: #0d1a0f;
+  --color-forest-mid: #142a17;
+  --color-forest-card: #1a3320;
+  --color-forest-border: #2a4830;
+}
+
+:root {
+  --background: #0d1a0f;
+  --foreground: #f0f7ee;
+  --card: #1a3320;
+  --card-foreground: #f0f7ee;
+  --primary: #5bc827;
+  --primary-foreground: #0d1a0f;
+  --secondary: #142a17;
+  --secondary-foreground: #a8d89a;
+  --muted: #1a3320;
+  --muted-foreground: #7aaa70;
+  --accent: #5bc827;
+  --accent-foreground: #0d1a0f;
+  --border: #2a4830;
+  --ring: #5bc827;
+  --radius: 0.75rem;
+}
+
+* {
+  scrollbar-width: none;
+}
+*::-webkit-scrollbar {
+  display: none;
+}
+
+body {
+  background-color: var(--background);
+  color: var(--foreground);
+  font-family: 'Poppins', sans-serif;
+}
+
+.font-display {
+  font-family: 'Barlow Condensed', sans-serif;
+}
