@@ -1,5 +1,5 @@
 import { useState } from 'react'
-import logoImg from '@/imports/WhatsApp_Image_2026-08-04_at_3.46.56_PM-1.jpeg'
+import logoImg from '@/imports/logo.jpeg'
 
 type RepView = 'mapa' | 'ordenes' | 'activa' | 'historial' | 'perfil'
 type OrderStatus = 'nueva' | 'dirigete' | 'esperando' | 'recibido' | 'en_camino' | 'entregado'
