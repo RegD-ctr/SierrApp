@@ -17,7 +17,7 @@ const adminRole = { id: 'admin' as Role, label: 'Administrador', desc: 'Panel de
 
 const roles = [
   { id: 'usuario' as Role, label: 'Usuario', desc: 'Pide comida, súper y más', icon: '👤', border: 'border-[#5bc827]', text: 'text-[#5bc827]', gradient: 'from-[#5bc827] to-[#3d8c18]' },
-  { id: 'local' as Role,   label: 'Local Asociado', desc: 'Administra tu negocio', icon: '🏪', border: 'border-[#2a8c3a]', text: 'text-[#4dbd5a]', gradient: 'from-[#1a5c27] to-[#0d3318]' },
+  { id: 'local' as Role,   label: 'Colaborador', desc: 'Administra tu negocio', icon: '🏪', border: 'border-[#2a8c3a]', text: 'text-[#4dbd5a]', gradient: 'from-[#1a5c27] to-[#0d3318]' },
 ]
 
 function genMatricula() {
