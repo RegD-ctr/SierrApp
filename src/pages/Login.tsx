@@ -16,7 +16,7 @@ const repartidorRole = { id: 'repartidor' as Role, label: 'Repartidor', desc: 'G
 const adminRole = { id: 'admin' as Role, label: 'Administrador', desc: 'Panel de control', icon: '🛡️', border: 'border-[#d9a05b]', text: 'text-[#d9a05b]', gradient: 'from-[#5e4526] to-[#2d2112]' }
 
 const roles = [
-  { id: 'usuario' as Role, label: 'Usuario', desc: 'Pide comida, súper y más', icon: '🛵', border: 'border-[#5bc827]', text: 'text-[#5bc827]', gradient: 'from-[#5bc827] to-[#3d8c18]' },
+  { id: 'usuario' as Role, label: 'Usuario', desc: 'Pide comida, súper y más', icon: '👤', border: 'border-[#5bc827]', text: 'text-[#5bc827]', gradient: 'from-[#5bc827] to-[#3d8c18]' },
   { id: 'local' as Role,   label: 'Local Asociado', desc: 'Administra tu negocio', icon: '🏪', border: 'border-[#2a8c3a]', text: 'text-[#4dbd5a]', gradient: 'from-[#1a5c27] to-[#0d3318]' },
 ]
 
