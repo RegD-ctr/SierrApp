@@ -1,7 +1,7 @@
 import { useState, useRef } from 'react'
 import logoImg from '@/imports/logo.jpeg'
 
-export type Role = 'usuario' | 'local' | 'repartidor'
+export type Role = 'usuario' | 'local' | 'repartidor' | 'admin'
 type Screen =
   | 'roleSelect'
   | 'login'
@@ -13,6 +13,7 @@ type Screen =
   | 'register_repartidor_result'
 
 const repartidorRole = { id: 'repartidor' as Role, label: 'Repartidor', desc: 'Gestiona tus entregas', icon: '🏍️', border: 'border-[#7ed944]', text: 'text-[#7ed944]', gradient: 'from-[#35373b] to-[#232427]' }
+const adminRole = { id: 'admin' as Role, label: 'Administrador', desc: 'Panel de control', icon: '🛡️', border: 'border-[#d9a05b]', text: 'text-[#d9a05b]', gradient: 'from-[#5e4526] to-[#2d2112]' }
 
 const roles = [
   { id: 'usuario' as Role, label: 'Usuario', desc: 'Pide comida, súper y más', icon: '🛵', border: 'border-[#5bc827]', text: 'text-[#5bc827]', gradient: 'from-[#5bc827] to-[#3d8c18]' },
@@ -60,7 +61,7 @@ export default function Login({ onLogin }: Props) {
   const [rMatricula] = useState(genMatricula)
   const fotoRef = useRef<HTMLInputElement>(null)
 
-  const activeRole = selectedRole === 'repartidor' ? repartidorRole : roles.find(r => r.id === selectedRole)
+  const activeRole = selectedRole === 'repartidor' ? repartidorRole : selectedRole === 'admin' ? adminRole : roles.find(r => r.id === selectedRole)
 
   const handleFoto = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0]
@@ -93,19 +94,22 @@ export default function Login({ onLogin }: Props) {
   if (screen === 'roleSelect') return (
     <div className="min-h-screen bg-[#1a1b1e] flex flex-col items-center justify-center px-4 relative overflow-hidden">
       {BG}
+      <button onClick={() => { setSelectedRole('admin'); setScreen('login') }} className="absolute bottom-4 right-4 text-[#7aaa70] text-[10px] hover:underline opacity-60 hover:opacity-100 transition-opacity z-10">
+        Acceso administrador
+      </button>
       <div className="relative w-full max-w-sm">
         <LogoHeader />
         <p className="text-center text-[#c4c6ca] text-sm mb-5">¿Cómo quieres ingresar?</p>
         <div className="space-y-3 mb-5">
           {roles.map(role => (
             <button key={role.id} onClick={() => { setSelectedRole(role.id); setScreen('login') }}
-              className={`w-full flex items-center gap-4 p-4 rounded-2xl border ${role.border} bg-[#232427] hover:bg-[#1a3320] transition-all hover:scale-[1.02] active:scale-[0.98] text-left`}>
+              className="w-full flex items-center gap-4 p-4 rounded-2xl border border-[#2a4830] bg-[#142a17] hover:bg-[#1a3320] hover:border-[#5bc827]/50 transition-all hover:scale-[1.02] active:scale-[0.98] text-left">
               <span className="text-3xl">{role.icon}</span>
               <div className="flex-1">
-                <p className={`font-bold text-base ${role.text}`}>{role.label}</p>
+                <p className="font-bold text-base text-white">{role.label}</p>
                 <p className="text-[#9a9da3] text-xs">{role.desc}</p>
               </div>
-              <svg className={`w-4 h-4 ${role.text}`} fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M9 5l7 7-7 7" /></svg>
+              <svg className="w-4 h-4 text-[#5bc827]" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M9 5l7 7-7 7" /></svg>
             </button>
           ))}
         </div>
@@ -176,7 +180,7 @@ export default function Login({ onLogin }: Props) {
             { id: 'local', label: 'Restaurante', desc: 'Registra y administra tu negocio', icon: '🏪', screen: 'register_local' as Screen },
           ].map(opt => (
             <button key={opt.id} onClick={() => setScreen(opt.screen)}
-              className="w-full flex items-center gap-4 p-4 rounded-2xl border border-[#35373b] bg-[#232427] hover:bg-[#1a3320] hover:border-[#5bc827]/50 transition-all text-left">
+              className="w-full flex items-center gap-4 p-4 rounded-2xl border border-[#2a4830] bg-[#142a17] hover:bg-[#1a3320] hover:border-[#5bc827]/50 transition-all text-left">
               <span className="text-3xl">{opt.icon}</span>
               <div className="flex-1">
                 <p className="font-bold text-sm text-white">{opt.label}</p>

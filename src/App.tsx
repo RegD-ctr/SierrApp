@@ -7,6 +7,7 @@ import Pedidos from '@/pages/Pedidos'
 import Perfil from '@/pages/Perfil'
 import LocalPanel from '@/pages/LocalPanel'
 import RepartidorPanel from '@/pages/RepartidorPanel'
+import AdminPanel from '@/pages/AdminPanel'
 import CartDrawer from '@/components/CartDrawer'
 import RestaurantPage from '@/components/RestaurantPage'
 import type { CartItem, Restaurant } from '@/data'
@@ -74,6 +75,7 @@ export default function App() {
   if (!role) return <Login onLogin={(r) => setRole(r)} />
   if (role === 'local') return <LocalPanel onLogout={() => setRole(null)} />
   if (role === 'repartidor') return <RepartidorPanel onLogout={() => setRole(null)} />
+  if (role === 'admin') return <AdminPanel onLogout={() => setRole(null)} />
 
   if (view === 'checkout') return <Checkout items={cartItems} onConfirm={() => { setCartItems([]); setCartOpen(false); setView('order-confirmation') }} onBack={() => setView('inicio')} />
   if (view === 'order-confirmation') return <OrderConfirmation onTrack={() => setView('pedidos')} onHome={() => setView('inicio')} />
