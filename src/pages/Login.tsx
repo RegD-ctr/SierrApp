@@ -12,10 +12,11 @@ type Screen =
   | 'register_repartidor'
   | 'register_repartidor_result'
 
+const repartidorRole = { id: 'repartidor' as Role, label: 'Repartidor', desc: 'Gestiona tus entregas', icon: '🏍️', border: 'border-[#7ed944]', text: 'text-[#7ed944]', gradient: 'from-[#35373b] to-[#232427]' }
+
 const roles = [
   { id: 'usuario' as Role, label: 'Usuario', desc: 'Pide comida, súper y más', icon: '🛵', border: 'border-[#5bc827]', text: 'text-[#5bc827]', gradient: 'from-[#5bc827] to-[#3d8c18]' },
   { id: 'local' as Role,   label: 'Local Asociado', desc: 'Administra tu negocio', icon: '🏪', border: 'border-[#2a8c3a]', text: 'text-[#4dbd5a]', gradient: 'from-[#1a5c27] to-[#0d3318]' },
-  { id: 'repartidor' as Role, label: 'Repartidor', desc: 'Gestiona tus entregas', icon: '🏍️', border: 'border-[#7ed944]', text: 'text-[#7ed944]', gradient: 'from-[#35373b] to-[#232427]' },
 ]
 
 function genMatricula() {
@@ -59,7 +60,7 @@ export default function Login({ onLogin }: Props) {
   const [rMatricula] = useState(genMatricula)
   const fotoRef = useRef<HTMLInputElement>(null)
 
-  const activeRole = roles.find(r => r.id === selectedRole)
+  const activeRole = selectedRole === 'repartidor' ? repartidorRole : roles.find(r => r.id === selectedRole)
 
   const handleFoto = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0]
@@ -114,6 +115,13 @@ export default function Login({ onLogin }: Props) {
             Crear cuenta
           </button>
         </p>
+        <div className="w-full h-px bg-[#35373b] my-5"></div>
+        <p className="text-center text-[#9a9da3] text-sm">
+          ¿Eres o quieres ser repartidor?{' '}
+          <button onClick={() => { setSelectedRole('repartidor'); setScreen('login') }} className="text-[#7ed944] font-semibold hover:underline">
+            Ingresa aquí
+          </button>
+        </p>
       </div>
     </div>
   )
@@ -166,7 +174,6 @@ export default function Login({ onLogin }: Props) {
           {[
             { id: 'usuario', label: 'Usuario / Cliente', desc: 'Realiza pedidos de comida y más', icon: '👤', screen: 'register_usuario' as Screen },
             { id: 'local', label: 'Restaurante', desc: 'Registra y administra tu negocio', icon: '🏪', screen: 'register_local' as Screen },
-            { id: 'repartidor', label: 'Repartidor', desc: 'Únete como repartidor', icon: '🏍️', screen: 'register_repartidor' as Screen },
           ].map(opt => (
             <button key={opt.id} onClick={() => setScreen(opt.screen)}
               className="w-full flex items-center gap-4 p-4 rounded-2xl border border-[#35373b] bg-[#232427] hover:bg-[#1a3320] hover:border-[#5bc827]/50 transition-all text-left">
@@ -179,6 +186,13 @@ export default function Login({ onLogin }: Props) {
             </button>
           ))}
         </div>
+        <div className="w-full h-px bg-[#35373b] my-5"></div>
+        <p className="text-center text-[#9a9da3] text-sm">
+          ¿Eres o quieres ser repartidor?{' '}
+          <button onClick={() => setScreen('register_repartidor')} className="text-[#7ed944] font-semibold hover:underline">
+            Regístrate aquí
+          </button>
+        </p>
       </div>
     </div>
   )
