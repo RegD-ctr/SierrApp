@@ -94,6 +94,9 @@ export default function Login({ onLogin }: Props) {
   if (screen === 'roleSelect') return (
     <div className="min-h-screen bg-[#1a1b1e] flex flex-col items-center justify-center px-4 relative overflow-hidden">
       {BG}
+      <button onClick={() => { setSelectedRole('admin'); setScreen('login') }} className="absolute bottom-4 right-4 text-[#7aaa70] text-[10px] hover:underline opacity-60 hover:opacity-100 transition-opacity z-10">
+        Acceso administrador
+      </button>
       <div className="relative w-full max-w-sm">
         <LogoHeader />
         <p className="text-center text-[#c4c6ca] text-sm mb-5">¿Cómo quieres ingresar?</p>
@@ -123,11 +126,6 @@ export default function Login({ onLogin }: Props) {
             Ingresa aquí
           </button>
         </p>
-        <div className="mt-8 text-center">
-          <button onClick={() => { setSelectedRole('admin'); setScreen('login') }} className="text-[#7aaa70] text-[10px] font-semibold hover:underline opacity-60 hover:opacity-100 transition-opacity">
-            Acceso administrador
-          </button>
-        </div>
       </div>
     </div>
   )
