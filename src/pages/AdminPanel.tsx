@@ -8,6 +8,15 @@ interface Props {
 
 export default function AdminPanel({ onLogout }: Props) {
   const [activeTab, setActiveTab] = useState<Tab>('dashboard')
+  const [comisionLocal, setComisionLocal] = useState<number>(15)
+  const [comisionRepartidor, setComisionRepartidor] = useState<number>(20)
+  const [comisionUsuario, setComisionUsuario] = useState<number>(5)
+  const [showToast, setShowToast] = useState(false)
+
+  const handleSaveConfig = () => {
+    setShowToast(true)
+    setTimeout(() => setShowToast(false), 3000)
+  }
 
   const navItems: { id: Tab, label: string, icon: string }[] = [
     { id: 'dashboard', label: 'Dashboard', icon: '📊' },
@@ -150,21 +159,71 @@ export default function AdminPanel({ onLogout }: Props) {
 
         {activeTab === 'config' && (
           <div>
-            <Title text="Configuración" />
-            <div className="space-y-5">
-              <div className="bg-[#232427] p-5 rounded-xl border border-[#35373b]">
-                <label className="text-[#c4c6ca] text-xs font-semibold block mb-2">Comisión a los locales (%)</label>
-                <input type="number" defaultValue={15} className="w-full bg-[#1a1b1e] border border-[#35373b] focus:border-[#d9a05b] rounded-xl px-4 py-3 text-sm text-white outline-none transition-colors" />
+            <Title text="Comisiones y Ajustes" />
+            
+            <div className="space-y-4">
+              <div className="bg-[#232427] border border-[#35373b] p-5 rounded-2xl">
+                <div className="flex items-center gap-3 mb-3">
+                  <span className="text-2xl">🏪</span>
+                  <div>
+                    <h3 className="font-bold text-white">Comisión del local</h3>
+                    <p className="text-[#9a9da3] text-xs">Porcentaje que se cobra al restaurante por venta.</p>
+                  </div>
+                </div>
+                <div className="flex items-center gap-2">
+                  <input 
+                    type="number" 
+                    value={comisionLocal} 
+                    onChange={e => setComisionLocal(Number(e.target.value))} 
+                    className="w-full bg-[#1a1b1e] border border-[#35373b] focus:border-[#d9a05b] rounded-xl px-4 py-3 text-sm text-white outline-none transition-colors" 
+                  />
+                  <span className="text-[#c4c6ca] font-bold">%</span>
+                </div>
+                <p className="text-[#9a9da3] text-[10px] mt-2">Valor actual: {comisionLocal}%</p>
               </div>
-              <div className="bg-[#232427] p-5 rounded-xl border border-[#35373b]">
-                <label className="text-[#c4c6ca] text-xs font-semibold block mb-2">Costos de uso de los repartidores ($)</label>
-                <input type="number" defaultValue={20} className="w-full bg-[#1a1b1e] border border-[#35373b] focus:border-[#d9a05b] rounded-xl px-4 py-3 text-sm text-white outline-none transition-colors" />
+
+              <div className="bg-[#232427] border border-[#35373b] p-5 rounded-2xl">
+                <div className="flex items-center gap-3 mb-3">
+                  <span className="text-2xl">🏍️</span>
+                  <div>
+                    <h3 className="font-bold text-white">Comisión al repartidor</h3>
+                    <p className="text-[#9a9da3] text-xs">Monto fijo que se paga al repartidor por entrega.</p>
+                  </div>
+                </div>
+                <div className="flex items-center gap-2">
+                  <span className="text-[#c4c6ca] font-bold">$</span>
+                  <input 
+                    type="number" 
+                    value={comisionRepartidor} 
+                    onChange={e => setComisionRepartidor(Number(e.target.value))} 
+                    className="w-full bg-[#1a1b1e] border border-[#35373b] focus:border-[#d9a05b] rounded-xl px-4 py-3 text-sm text-white outline-none transition-colors" 
+                  />
+                </div>
+                <p className="text-[#9a9da3] text-[10px] mt-2">Valor actual: ${comisionRepartidor}</p>
               </div>
-              <div className="bg-[#232427] p-5 rounded-xl border border-[#35373b]">
-                <label className="text-[#c4c6ca] text-xs font-semibold block mb-2">Gastos al usuario ($)</label>
-                <input type="number" defaultValue={10} className="w-full bg-[#1a1b1e] border border-[#35373b] focus:border-[#d9a05b] rounded-xl px-4 py-3 text-sm text-white outline-none transition-colors" />
+
+              <div className="bg-[#232427] border border-[#35373b] p-5 rounded-2xl">
+                <div className="flex items-center gap-3 mb-3">
+                  <span className="text-2xl">👤</span>
+                  <div>
+                    <h3 className="font-bold text-white">Comisión al usuario</h3>
+                    <p className="text-[#9a9da3] text-xs">Monto fijo cobrado como cargo por servicio.</p>
+                  </div>
+                </div>
+                <div className="flex items-center gap-2">
+                  <span className="text-[#c4c6ca] font-bold">$</span>
+                  <input 
+                    type="number" 
+                    value={comisionUsuario} 
+                    onChange={e => setComisionUsuario(Number(e.target.value))} 
+                    className="w-full bg-[#1a1b1e] border border-[#35373b] focus:border-[#d9a05b] rounded-xl px-4 py-3 text-sm text-white outline-none transition-colors" 
+                  />
+                </div>
+                <p className="text-[#9a9da3] text-[10px] mt-2">Valor actual: ${comisionUsuario}</p>
               </div>
-              <div className="bg-[#232427] p-5 rounded-xl border border-[#35373b]">
+
+              {/* Zonas de cobertura */}
+              <div className="bg-[#232427] p-5 rounded-2xl border border-[#35373b] mt-5">
                 <label className="text-[#c4c6ca] text-xs font-semibold block mb-3">Zonas de cobertura activas</label>
                 <div className="flex gap-2 flex-wrap">
                   <span className="bg-[#d9a05b]/20 border border-[#d9a05b]/50 text-[#d9a05b] px-3 py-1.5 rounded-full text-xs font-bold">Norte</span>
@@ -172,8 +231,18 @@ export default function AdminPanel({ onLogout }: Props) {
                   <button className="border border-dashed border-[#9a9da3] text-[#9a9da3] px-3 py-1.5 rounded-full text-xs hover:border-[#d9a05b] hover:text-[#d9a05b] transition-colors">+ Añadir zona</button>
                 </div>
               </div>
-              <button className="w-full py-4 rounded-xl bg-gradient-to-r from-[#d9a05b] to-[#b38346] shadow-lg shadow-[#d9a05b]/20 text-[#1a1b1e] font-bold text-sm mt-2 transition-all hover:scale-[1.02] active:scale-[0.98]">
-                Guardar cambios
+
+              <div className="bg-[#1a1b1e] border border-[#35373b] p-4 rounded-xl mt-5">
+                <p className="text-xs text-[#9a9da3] leading-relaxed">
+                  <span className="text-[#d9a05b] font-bold">Simulación:</span> En un pedido de $200, el local recibe ${(200 * (1 - comisionLocal/100)).toFixed(2)}, el repartidor ${comisionRepartidor}, la plataforma cobra ${comisionUsuario} al usuario y se queda con ${(200 * (comisionLocal/100) + comisionUsuario - comisionRepartidor).toFixed(2)} de comisión total.
+                </p>
+              </div>
+
+              <button 
+                onClick={handleSaveConfig} 
+                className="w-full py-4 rounded-xl bg-gradient-to-r from-[#d9a05b] to-[#b38346] shadow-lg shadow-[#d9a05b]/20 text-[#1a1b1e] font-bold text-sm mt-5 transition-all hover:scale-[1.02] active:scale-[0.98]"
+              >
+                {showToast ? 'Cambios guardados ✓' : 'Guardar cambios'}
               </button>
             </div>
           </div>

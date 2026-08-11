@@ -11,6 +11,7 @@ export default function Checkout({ items, onConfirm, onBack }: Props) {
   const [address, setAddress] = useState('Calle Pino #24, Sierra Norte')
   const [payment, setPayment] = useState('Tarjeta terminada en 4242')
   const [instructions, setInstructions] = useState('')
+  const [showPaymentOptions, setShowPaymentOptions] = useState(false)
 
   const subtotal = items.reduce((s, i) => s + (i.platillo.precio + i.extrasTotal) * i.cantidad, 0)
   const envio = items.length > 0 ? (items[0].restaurant.deliveryFee ?? 0) : 0
@@ -70,30 +71,51 @@ export default function Checkout({ items, onConfirm, onBack }: Props) {
 
         {/* Pago */}
         <section>
-          <h2 className="text-[#9a9da3] text-sm font-semibold mb-3 uppercase tracking-wider">Método de pago</h2>
-          <div className="space-y-2">
-            <div 
-              onClick={() => setPayment('Tarjeta terminada en 4242')}
-              className={`bg-[#232427] border ${payment === 'Tarjeta terminada en 4242' ? 'border-[#5bc827]' : 'border-[#35373b]'} rounded-2xl p-4 flex items-center justify-between cursor-pointer transition-colors`}
-            >
-              <div className="flex items-center gap-3">
-                <span className="text-2xl">💳</span>
-                <p className="font-semibold text-sm">Tarjeta terminada en 4242</p>
-              </div>
-              {payment === 'Tarjeta terminada en 4242' && <span className="text-[#5bc827] font-bold">✓</span>}
-            </div>
-            
-            <div 
-              onClick={() => setPayment('Efectivo')}
-              className={`bg-[#232427] border ${payment === 'Efectivo' ? 'border-[#5bc827]' : 'border-[#35373b]'} rounded-2xl p-4 flex items-center justify-between cursor-pointer transition-colors`}
-            >
-              <div className="flex items-center gap-3">
-                <span className="text-2xl">💵</span>
-                <p className="font-semibold text-sm">Efectivo</p>
-              </div>
-              {payment === 'Efectivo' && <span className="text-[#5bc827] font-bold">✓</span>}
-            </div>
+          <div className="flex justify-between items-center mb-3">
+            <h2 className="text-[#9a9da3] text-sm font-semibold uppercase tracking-wider">Método de pago</h2>
+            {!showPaymentOptions && (
+              <button onClick={() => setShowPaymentOptions(true)} className="text-[#5bc827] text-sm font-semibold">
+                Cambiar
+              </button>
+            )}
           </div>
+          
+          {!showPaymentOptions ? (
+            <div className="bg-[#232427] border border-[#35373b] rounded-2xl p-4 flex items-center justify-between">
+              <div className="flex items-center gap-3">
+                <span className="text-2xl">
+                  {payment === 'Efectivo' ? '💵' : payment === 'Pago en ventanilla' ? '🏧' : '💳'}
+                </span>
+                <p className="font-semibold text-sm">{payment}</p>
+              </div>
+            </div>
+          ) : (
+            <div className="space-y-2">
+              {[
+                { id: 'Tarjeta terminada en 4242', icon: '💳', desc: '' },
+                { id: 'Efectivo', icon: '💵', desc: '' },
+                { id: 'Pago en ventanilla', icon: '🏧', desc: 'Paga directamente en el mostrador del local al recoger o recibir tu pedido' }
+              ].map(opt => (
+                <div 
+                  key={opt.id}
+                  onClick={() => {
+                    setPayment(opt.id)
+                    setShowPaymentOptions(false)
+                  }}
+                  className={`bg-[#232427] border ${payment === opt.id ? 'border-[#5bc827]' : 'border-[#35373b]'} rounded-2xl p-4 flex items-center justify-between cursor-pointer transition-colors`}
+                >
+                  <div className="flex items-center gap-3">
+                    <span className="text-2xl">{opt.icon}</span>
+                    <div>
+                      <p className="font-semibold text-sm">{opt.id}</p>
+                      {opt.desc && <p className="text-[#9a9da3] text-xs mt-0.5">{opt.desc}</p>}
+                    </div>
+                  </div>
+                  {payment === opt.id && <span className="text-[#5bc827] font-bold">✓</span>}
+                </div>
+              ))}
+            </div>
+          )}
         </section>
 
         {/* Instrucciones */}
