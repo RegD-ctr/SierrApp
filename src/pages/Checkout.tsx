@@ -71,12 +71,28 @@ export default function Checkout({ items, onConfirm, onBack }: Props) {
         {/* Pago */}
         <section>
           <h2 className="text-[#9a9da3] text-sm font-semibold mb-3 uppercase tracking-wider">Método de pago</h2>
-          <div className="bg-[#232427] border border-[#35373b] rounded-2xl p-4 flex items-center justify-between cursor-pointer hover:border-[#5bc827]/50 transition-colors">
-            <div className="flex items-center gap-3">
-              <span className="text-2xl">💳</span>
-              <p className="font-semibold text-sm">{payment}</p>
+          <div className="space-y-2">
+            <div 
+              onClick={() => setPayment('Tarjeta terminada en 4242')}
+              className={`bg-[#232427] border ${payment === 'Tarjeta terminada en 4242' ? 'border-[#5bc827]' : 'border-[#35373b]'} rounded-2xl p-4 flex items-center justify-between cursor-pointer transition-colors`}
+            >
+              <div className="flex items-center gap-3">
+                <span className="text-2xl">💳</span>
+                <p className="font-semibold text-sm">Tarjeta terminada en 4242</p>
+              </div>
+              {payment === 'Tarjeta terminada en 4242' && <span className="text-[#5bc827] font-bold">✓</span>}
             </div>
-            <span className="text-[#5bc827] text-sm font-semibold">Cambiar</span>
+            
+            <div 
+              onClick={() => setPayment('Efectivo')}
+              className={`bg-[#232427] border ${payment === 'Efectivo' ? 'border-[#5bc827]' : 'border-[#35373b]'} rounded-2xl p-4 flex items-center justify-between cursor-pointer transition-colors`}
+            >
+              <div className="flex items-center gap-3">
+                <span className="text-2xl">💵</span>
+                <p className="font-semibold text-sm">Efectivo</p>
+              </div>
+              {payment === 'Efectivo' && <span className="text-[#5bc827] font-bold">✓</span>}
+            </div>
           </div>
         </section>
 

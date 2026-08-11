@@ -153,8 +153,16 @@ export default function AdminPanel({ onLogout }: Props) {
             <Title text="Configuración" />
             <div className="space-y-5">
               <div className="bg-[#232427] p-5 rounded-xl border border-[#35373b]">
-                <label className="text-[#c4c6ca] text-xs font-semibold block mb-2">Comisión base de plataforma (%)</label>
+                <label className="text-[#c4c6ca] text-xs font-semibold block mb-2">Comisión a los locales (%)</label>
                 <input type="number" defaultValue={15} className="w-full bg-[#1a1b1e] border border-[#35373b] focus:border-[#d9a05b] rounded-xl px-4 py-3 text-sm text-white outline-none transition-colors" />
+              </div>
+              <div className="bg-[#232427] p-5 rounded-xl border border-[#35373b]">
+                <label className="text-[#c4c6ca] text-xs font-semibold block mb-2">Costos de uso de los repartidores ($)</label>
+                <input type="number" defaultValue={20} className="w-full bg-[#1a1b1e] border border-[#35373b] focus:border-[#d9a05b] rounded-xl px-4 py-3 text-sm text-white outline-none transition-colors" />
+              </div>
+              <div className="bg-[#232427] p-5 rounded-xl border border-[#35373b]">
+                <label className="text-[#c4c6ca] text-xs font-semibold block mb-2">Gastos al usuario ($)</label>
+                <input type="number" defaultValue={10} className="w-full bg-[#1a1b1e] border border-[#35373b] focus:border-[#d9a05b] rounded-xl px-4 py-3 text-sm text-white outline-none transition-colors" />
               </div>
               <div className="bg-[#232427] p-5 rounded-xl border border-[#35373b]">
                 <label className="text-[#c4c6ca] text-xs font-semibold block mb-3">Zonas de cobertura activas</label>
