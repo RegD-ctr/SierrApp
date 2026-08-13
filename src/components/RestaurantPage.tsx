@@ -10,6 +10,12 @@ interface Props {
   onAddToCart: (item: CartItem) => void
 }
 
+/**
+ * Componente que muestra la página detallada de un restaurante.
+ * Lista la información del local, sus categorías y los platillos disponibles para ordenar.
+ * 
+ * @param {Props} props - Propiedades que incluyen la información del restaurante y callbacks.
+ */
 export default function RestaurantPage({ restaurant, onBack, onAddToCart }: Props) {
   const [customizing, setCustomizing] = useState<Platillo | null>(null)
 

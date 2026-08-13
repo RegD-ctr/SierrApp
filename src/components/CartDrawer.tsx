@@ -10,6 +10,12 @@ interface Props {
   onExplore: () => void
 }
 
+/**
+ * Componente que muestra el carrito de compras como un cajón (drawer) lateral.
+ * Permite actualizar cantidades, eliminar productos y proceder al checkout.
+ * 
+ * @param {Props} props - Propiedades que incluyen el estado de apertura, items y callbacks.
+ */
 export default function CartDrawer({ open, onClose, items, onUpdateQty, onRemove, onCheckout, onExplore }: Props) {
   const subtotal = items.reduce((s, i) => s + (i.platillo.precio + i.extrasTotal) * i.cantidad, 0)
   const envio = items.length > 0 ? (items[0].restaurant.deliveryFee ?? 0) : 0
