@@ -31,6 +31,12 @@ interface PerfilProps {
   onNavigate: (view: string) => void
 }
 
+/**
+ * Componente que muestra el perfil de usuario.
+ * Incluye acceso rápido a configuraciones (direcciones, pagos), estadísticas básicas y la opción de cerrar sesión.
+ * 
+ * @param {PerfilProps} props - Propiedades que incluyen rol actual, y callbacks para cerrar sesión y navegar.
+ */
 export default function Perfil({ role, onLogout, onNavigate }: PerfilProps) {
   const roleInfo = roleLabels[role]
 

@@ -7,6 +7,12 @@ interface Props {
   onBack: () => void
 }
 
+/**
+ * Componente para el proceso de pago y finalización del pedido (Checkout).
+ * Muestra el resumen del pedido, dirección de entrega, método de pago e instrucciones especiales.
+ * 
+ * @param {Props} props - Propiedades que incluyen los items, la acción al confirmar y al volver.
+ */
 export default function Checkout({ items, onConfirm, onBack }: Props) {
   const [address, setAddress] = useState('Calle Pino #24, Sierra Norte')
   const [payment, setPayment] = useState('Tarjeta terminada en 4242')

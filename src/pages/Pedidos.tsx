@@ -60,6 +60,10 @@ const history = [
   },
 ]
 
+/**
+ * Componente que muestra los pedidos del usuario.
+ * Permite visualizar el pedido activo actualmente y el historial de pedidos pasados.
+ */
 export default function Pedidos() {
   const [tab, setTab] = useState<Tab>('activo')
   const [ratings, setRatings] = useState<Record<string, number>>({})
