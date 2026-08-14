@@ -32,18 +32,7 @@ export default function PaymentMethods({ onBack }: { onBack: () => void }) {
           </div>
         ))}
         
-        <div className="bg-[#232427] border border-[#35373b] rounded-2xl p-4 flex items-center justify-between">
-          <div className="flex items-center gap-3">
-            <div className="w-10 h-8 bg-[#1a1b1e] rounded flex items-center justify-center border border-[#35373b] text-xl">
-              🏧
-            </div>
-            <div>
-              <p className="font-semibold text-sm">Pago en ventanilla</p>
-              <p className="text-[#9a9da3] text-xs">Disponible en locales participantes</p>
-            </div>
-          </div>
-        </div>
-        
+
         <button className="w-full py-4 border-2 border-dashed border-[#35373b] rounded-2xl text-[#c4c6ca] font-semibold flex items-center justify-center gap-2 hover:border-[#5bc827] hover:text-[#5bc827] transition-colors">
           <span className="text-xl">+</span> Agregar nueva tarjeta
         </button>

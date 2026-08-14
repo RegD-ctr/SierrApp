@@ -71,6 +71,12 @@ const historial: Order[] = [
 
 interface Props { onLogout: () => void }
 
+/**
+ * Componente principal del panel del repartidor.
+ * Permite visualizar y gestionar órdenes, visualizar mapa y ver el historial y perfil.
+ * 
+ * @param {Props} props - Propiedades que incluyen la función para cerrar sesión (onLogout).
+ */
 export default function RepartidorPanel({ onLogout }: Props) {
   const [view, setView] = useState<RepView>('mapa')
   const [orders, setOrders] = useState<Order[]>(sampleOrders)
@@ -81,6 +87,11 @@ export default function RepartidorPanel({ onLogout }: Props) {
 
   const activeOrder = activeOrderId ? orders.find(o => o.id === activeOrderId) ?? null : null
 
+  /**
+   * Avanza el estado de una orden al siguiente estado del flujo establecido (stateFlow).
+   * 
+   * @param {string} orderId - El identificador de la orden.
+   */
   const advanceStatus = (orderId: string) => {
     setOrders(os => os.map(o => {
       if (o.id !== orderId) return o
@@ -90,6 +101,12 @@ export default function RepartidorPanel({ onLogout }: Props) {
     setShowConfirm(null)
   }
 
+  /**
+   * Confirma la entrega exitosa de una orden.
+   * La mueve al historial de órdenes completadas y limpia la orden activa.
+   * 
+   * @param {string} orderId - El identificador de la orden entregada.
+   */
   const confirmDelivery = (orderId: string) => {
     const finished = orders.find(o => o.id === orderId)
     if (finished) setCompletedOrders(c => [{ ...finished, status: 'entregado' }, ...c])
@@ -467,6 +484,11 @@ export default function RepartidorPanel({ onLogout }: Props) {
   )
 }
 
+/**
+ * Componente que muestra una pequeña insignia con el estado actual de una orden.
+ * 
+ * @param {Object} props - Estado actual de la orden.
+ */
 function StatusBadge({ status }: { status: OrderStatus }) {
   const cfg = statusConfig[status]
   return (
@@ -476,6 +498,12 @@ function StatusBadge({ status }: { status: OrderStatus }) {
   )
 }
 
+/**
+ * Componente para mostrar los detalles de la orden que está activa para el repartidor.
+ * Incluye un pequeño mapa e información del cliente y del restaurante.
+ * 
+ * @param {Object} props - Datos de la orden activa y callbacks para cambiar su estado.
+ */
 function OrderDetail({ order, onAdvanceToRecibido, onAdvanceToEntregado }: {
   order: Order
   onAdvanceToRecibido: () => void
