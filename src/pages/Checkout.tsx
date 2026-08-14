@@ -7,6 +7,12 @@ interface Props {
   onBack: () => void
 }
 
+/**
+ * Componente para el proceso de pago y finalización del pedido (Checkout).
+ * Muestra el resumen del pedido, dirección de entrega, método de pago e instrucciones especiales.
+ * 
+ * @param {Props} props - Propiedades que incluyen los items, la acción al confirmar y al volver.
+ */
 export default function Checkout({ items, onConfirm, onBack }: Props) {
   const [address, setAddress] = useState('Calle Pino #24, Sierra Norte')
   const [payment, setPayment] = useState('Tarjeta terminada en 4242')
@@ -84,7 +90,7 @@ export default function Checkout({ items, onConfirm, onBack }: Props) {
             <div className="bg-[#232427] border border-[#35373b] rounded-2xl p-4 flex items-center justify-between">
               <div className="flex items-center gap-3">
                 <span className="text-2xl">
-                  {payment === 'Efectivo' ? '💵' : payment === 'Pago en ventanilla' ? '🏧' : '💳'}
+                  {payment === 'Efectivo' ? '💵' : '💳'}
                 </span>
                 <p className="font-semibold text-sm">{payment}</p>
               </div>
@@ -93,8 +99,7 @@ export default function Checkout({ items, onConfirm, onBack }: Props) {
             <div className="space-y-2">
               {[
                 { id: 'Tarjeta terminada en 4242', icon: '💳', desc: '' },
-                { id: 'Efectivo', icon: '💵', desc: '' },
-                { id: 'Pago en ventanilla', icon: '🏧', desc: 'Paga directamente en el mostrador del local al recoger o recibir tu pedido' }
+                { id: 'Efectivo', icon: '💵', desc: '' }
               ].map(opt => (
                 <div 
                   key={opt.id}

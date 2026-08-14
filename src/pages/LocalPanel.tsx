@@ -35,6 +35,12 @@ interface Props {
   onLogout: () => void
 }
 
+/**
+ * Componente del panel de control para un Local (Restaurante).
+ * Permite gestionar el dashboard, editar/crear platillos, y manejar órdenes entrantes.
+ * 
+ * @param {Props} props - Propiedades que incluyen la función onLogout.
+ */
 export default function LocalPanel({ onLogout }: Props) {
   const [view, setView] = useState<LocalView>('dashboard')
   const [platillos, setPlatillos] = useState<Platillo[]>(initialPlatillos)
@@ -52,14 +58,28 @@ export default function LocalPanel({ onLogout }: Props) {
     filter === 'todos' ? true : filter === 'disponibles' ? p.disponible : !p.disponible
   )
 
+  /**
+   * Abre el formulario modal para agregar un nuevo platillo.
+   * Limpia el formulario y establece el estado para creación.
+   */
   const openAdd = () => { setForm(emptyForm); setEditId(null); setShowForm(true) }
 
+  /**
+   * Abre el formulario modal para editar un platillo existente.
+   * 
+   * @param {Platillo} p - Datos del platillo a editar.
+   */
   const openEdit = (p: Platillo) => {
     setForm({ nombre: p.nombre, descripcion: p.descripcion, categoria: p.categoria, precio: p.precio, imagen: p.imagen, disponible: p.disponible })
     setEditId(p.id)
     setShowForm(true)
   }
 
+  /**
+   * Maneja la subida de una imagen para un platillo y la convierte a formato base64.
+   * 
+   * @param {React.ChangeEvent<HTMLInputElement>} e - Evento del input de archivo.
+   */
   const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0]
     if (!file) return
@@ -68,6 +88,10 @@ export default function LocalPanel({ onLogout }: Props) {
     reader.readAsDataURL(file)
   }
 
+  /**
+   * Guarda los cambios del formulario de platillo (ya sea crear o editar).
+   * Valida campos mínimos y actualiza el estado de platillos.
+   */
   const handleSave = () => {
     if (!form.nombre.trim() || !form.precio.trim()) return
     if (editId !== null) {
@@ -78,6 +102,11 @@ export default function LocalPanel({ onLogout }: Props) {
     setShowForm(false)
   }
 
+  /**
+   * Alterna la disponibilidad (agotado/disponible) de un platillo específico.
+   * 
+   * @param {number} id - Identificador del platillo.
+   */
   const toggleDisponible = (id: number) => {
     setPlatillos(ps => ps.map(p => p.id === id ? { ...p, disponible: !p.disponible } : p))
     setConfirmSoldOut(null)
@@ -472,6 +501,11 @@ export default function LocalPanel({ onLogout }: Props) {
   )
 }
 
+/**
+ * Componente visual que representa la tarjeta de un platillo en el catálogo del local.
+ * 
+ * @param {Object} props - Datos del platillo y funciones para editar o alternar estado.
+ */
 function PlatilloCard({ p, onEdit, onToggle }: { p: Platillo; onEdit: () => void; onToggle: () => void }) {
   return (
     <div className={`bg-[#232427] border rounded-2xl overflow-hidden transition-all ${p.disponible ? 'border-[#35373b]' : 'border-red-900/50 opacity-70'}`}>

@@ -20,6 +20,11 @@ const roles = [
   { id: 'local' as Role,   label: 'Colaborador', desc: 'Administra tu negocio', icon: '🏪', border: 'border-[#2a8c3a]', text: 'text-[#4dbd5a]', gradient: 'from-[#1a5c27] to-[#0d3318]' },
 ]
 
+/**
+ * Genera una matrícula aleatoria para los repartidores.
+ * 
+ * @returns {string} Matrícula con formato REP-XXXXXX
+ */
 function genMatricula() {
   const n = Math.floor(100000 + Math.random() * 900000)
   return `REP-${n}`
@@ -29,6 +34,12 @@ interface Props {
   onLogin: (role: Role) => void
 }
 
+/**
+ * Componente principal para el inicio de sesión y registro de la aplicación.
+ * Gestiona diferentes pantallas de registro y login según el rol seleccionado.
+ * 
+ * @param {Props} props - Propiedades que incluyen la función onLogin.
+ */
 export default function Login({ onLogin }: Props) {
   const [screen, setScreen] = useState<Screen>('roleSelect')
   const [selectedRole, setSelectedRole] = useState<Role | null>(null)
@@ -63,6 +74,12 @@ export default function Login({ onLogin }: Props) {
 
   const activeRole = selectedRole === 'repartidor' ? repartidorRole : selectedRole === 'admin' ? adminRole : roles.find(r => r.id === selectedRole)
 
+  /**
+   * Maneja la subida y previsualización de la fotografía del repartidor.
+   * Convierte la imagen seleccionada a base64 para visualizarla.
+   * 
+   * @param {React.ChangeEvent<HTMLInputElement>} e - Evento de cambio del input de archivo.
+   */
   const handleFoto = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0]
     if (!file) return
@@ -75,6 +92,9 @@ export default function Login({ onLogin }: Props) {
     <div className="absolute inset-0 opacity-5" style={{ backgroundImage: 'radial-gradient(circle, #5bc827 1px, transparent 1px)', backgroundSize: '28px 28px' }} />
   )
 
+  /**
+   * Componente interno que renderiza el encabezado con el logo en las pantallas de login.
+   */
   const LogoHeader = () => (
     <div className="flex flex-col items-center mb-8">
       <img src={logoImg} alt="Sierra App" className="w-20 h-20 rounded-2xl object-cover shadow-2xl shadow-[#5bc827]/20 mb-3" />
@@ -83,6 +103,11 @@ export default function Login({ onLogin }: Props) {
     </div>
   )
 
+  /**
+   * Componente interno para renderizar el botón de retroceso.
+   * 
+   * @param {Object} props - Destino de la navegación (to) y texto del botón (label).
+   */
   const BackBtn = ({ to, label = 'Volver' }: { to: Screen; label?: string }) => (
     <button onClick={() => setScreen(to)} className="flex items-center gap-1 text-[#9a9da3] hover:text-[#5bc827] text-sm mb-5 transition-colors">
       <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" /></svg>
@@ -411,12 +436,20 @@ export default function Login({ onLogin }: Props) {
   return null
 }
 
+/**
+ * Componente auxiliar para los títulos de sección en los formularios de registro.
+ */
 function SectionTitle({ children }: { children: React.ReactNode }) {
   return (
     <p className="text-[#5bc827] text-xs font-bold uppercase tracking-widest pt-2 border-t border-[#35373b]">{children}</p>
   )
 }
 
+/**
+ * Componente reutilizable para los campos de entrada (inputs) en los formularios.
+ * 
+ * @param {Object} props - Propiedades como label, valor, onChange, placeholder, tipo y mensaje de error.
+ */
 function Field({ label, value, onChange, placeholder, type = 'text', error = '' }: {
   label: string; value: string; onChange: (v: string) => void; placeholder: string; type?: string; error?: string
 }) {

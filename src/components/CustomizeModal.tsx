@@ -8,6 +8,12 @@ interface Props {
   onAdd: (item: CartItem) => void
 }
 
+/**
+ * Componente modal para personalizar un platillo antes de agregarlo al carrito.
+ * Permite seleccionar opciones requeridas/opcionales (ej. tamaño, extras), ajustar la cantidad y agregar notas.
+ * 
+ * @param {Props} props - Detalles del platillo, restaurante y callbacks para cerrar o añadir al carrito.
+ */
 export default function CustomizeModal({ platillo, restaurant, onClose, onAdd }: Props) {
   const [selecciones, setSelecciones] = useState<Record<string, string | string[]>>({})
   const [cantidad, setCantidad] = useState(1)

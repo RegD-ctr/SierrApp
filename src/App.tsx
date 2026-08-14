@@ -43,6 +43,11 @@ const navItems: { icon: string; label: string; view: View }[] = [
   { icon: '👤', label: 'Perfil', view: 'perfil' },
 ]
 
+/**
+ * Componente principal de la aplicación Sierra App.
+ * Maneja el estado global de la sesión (rol), la vista activa,
+ * la navegación y el carrito de compras.
+ */
 export default function App() {
   const [role, setRole] = useState<Role | null>(null)
   const [showOnboarding, setShowOnboarding] = useState(true)
@@ -55,6 +60,12 @@ export default function App() {
 
   const cartCount = cartItems.reduce((s, i) => s + i.cantidad, 0)
 
+  /**
+   * Agrega un nuevo artículo al carrito de compras.
+   * Si el artículo ya existe, incrementa su cantidad.
+   * 
+   * @param {CartItem} item - El artículo a agregar al carrito.
+   */
   const addToCart = (item: CartItem) => {
     setCartItems(items => {
       const existing = items.find(i => i.cartId === item.cartId)
@@ -63,12 +74,24 @@ export default function App() {
     })
   }
 
+  /**
+   * Actualiza la cantidad de un artículo en el carrito.
+   * Si la cantidad baja a 0 o menos, el artículo es eliminado automáticamente.
+   * 
+   * @param {string} cartId - Identificador único del artículo en el carrito.
+   * @param {number} delta - Variación en la cantidad (ej. 1 o -1).
+   */
   const updateQty = (cartId: string, delta: number) => {
     setCartItems(items =>
       items.map(i => i.cartId === cartId ? { ...i, cantidad: Math.max(0, i.cantidad + delta) } : i).filter(i => i.cantidad > 0)
     )
   }
 
+  /**
+   * Elimina un artículo específico del carrito utilizando su identificador.
+   * 
+   * @param {string} cartId - Identificador único del artículo.
+   */
   const removeItem = (cartId: string) => setCartItems(items => items.filter(i => i.cartId !== cartId))
 
   if (showOnboarding) return <Onboarding onComplete={() => setShowOnboarding(false)} />
@@ -173,6 +196,12 @@ export default function App() {
   )
 }
 
+/**
+ * Componente de la vista de inicio (Home).
+ * Muestra el hero (banner), promociones, categorías y lista de restaurantes cercanos.
+ * 
+ * @param {Object} props - Propiedades para manejar categorías y selección de restaurantes.
+ */
 function HomeView({
   activeCategory, setActiveCategory, onSelectRestaurant,
 }: {
@@ -256,6 +285,12 @@ function HomeView({
   )
 }
 
+/**
+ * Componente que representa la tarjeta de un restaurante.
+ * Muestra la imagen, información básica (tiempo, costo de envío) y permite marcar como favorito.
+ * 
+ * @param {Object} props - Propiedades: r (información del restaurante) y onClick (acción al presionar la tarjeta).
+ */
 function RestaurantCard({ r, onClick }: { r: Restaurant; onClick: () => void }) {
   const [liked, setLiked] = useState(false)
 

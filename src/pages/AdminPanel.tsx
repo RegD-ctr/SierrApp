@@ -45,6 +45,13 @@ const DATA_INGRESOS: Record<Timeframe, {
   },
 }
 
+/**
+ * Componente principal del Panel de Administración.
+ * Gestiona la navegación entre las diferentes pestañas (dashboard, usuarios, locales, etc.)
+ * y mantiene el estado de las configuraciones de comisiones de la plataforma.
+ * 
+ * @param {Props} props - Propiedades del componente, incluye la función para cerrar sesión.
+ */
 export default function AdminPanel({ onLogout }: Props) {
   const [activeTab, setActiveTab] = useState<Tab>('dashboard')
   const [comisionLocal, setComisionLocal] = useState<number>(15)
@@ -56,6 +63,10 @@ export default function AdminPanel({ onLogout }: Props) {
   const [showIngresosDetails, setShowIngresosDetails] = useState<boolean>(false)
   const [selectedTimeframe, setSelectedTimeframe] = useState<Timeframe>('mes')
 
+  /**
+   * Maneja el evento de guardar la configuración de comisiones.
+   * Muestra una notificación temporal (toast) de éxito durante 3 segundos.
+   */
   const handleSaveConfig = () => {
     setShowToast(true)
     setTimeout(() => setShowToast(false), 3000)
@@ -72,6 +83,10 @@ export default function AdminPanel({ onLogout }: Props) {
     { id: 'config', label: 'Ajustes', icon: '⚙️' },
   ]
 
+  /**
+   * Componente interno que renderiza la barra superior del panel.
+   * Contiene el logo, título y el botón para cerrar sesión.
+   */
   const TopBar = () => (
     <header className="sticky top-0 z-40 bg-[#1a1b1e]/95 backdrop-blur-sm border-b border-[#35373b] px-4 py-3 flex items-center justify-between">
       <div className="flex items-center gap-2">
@@ -87,6 +102,11 @@ export default function AdminPanel({ onLogout }: Props) {
     </header>
   )
 
+  /**
+   * Componente auxiliar para estandarizar el diseño de los títulos de cada sección.
+   * 
+   * @param {Object} props - Propiedades que incluyen el texto del título.
+   */
   const Title = ({ text }: { text: string }) => (
     <h2 className="text-2xl font-bold text-white uppercase tracking-wide mb-4" style={{ fontFamily: 'Barlow Condensed, sans-serif' }}>
       {text}
@@ -445,6 +465,12 @@ export default function AdminPanel({ onLogout }: Props) {
   )
 }
 
+/**
+ * Componente de tarjeta para mostrar estadísticas en el Dashboard.
+ * Muestra un valor numérico junto con su etiqueta y un icono representativo.
+ * 
+ * @param {Object} props - Propiedades: label (texto descriptivo), value (valor a mostrar), icon (emoji o icono).
+ */
 function StatCard({ label, value, icon }: { label: string, value: string, icon: string }) {
   return (
     <div className="bg-[#232427] border border-[#35373b] p-3 rounded-xl flex items-center gap-3">
