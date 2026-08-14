@@ -1,9 +1,48 @@
 import { useState } from 'react'
 
 type Tab = 'dashboard' | 'usuarios' | 'locales' | 'repartidores' | 'pedidos' | 'config'
+type Timeframe = 'hoy' | 'semana' | 'mes' | 'anio'
 
 interface Props {
   onLogout: () => void
+}
+
+// Datos de ejemplo simulados según el lapso de tiempo seleccionado
+const DATA_INGRESOS: Record<Timeframe, {
+  total: number
+  efectivo: number
+  tarjeta: number
+  comisionUsuario: number
+  comisionLocales: number
+}> = {
+  hoy: {
+    total: 3250.00,
+    efectivo: 1100.00,
+    tarjeta: 2150.00,
+    comisionUsuario: 1075.00,
+    comisionLocales: 2175.00,
+  },
+  semana: {
+    total: 18400.00,
+    efectivo: 5900.00,
+    tarjeta: 12500.00,
+    comisionUsuario: 6100.00,
+    comisionLocales: 12300.00,
+  },
+  mes: {
+    total: 45200.00,
+    efectivo: 14800.00,
+    tarjeta: 30400.00,
+    comisionUsuario: 15000.00,
+    comisionLocales: 30200.00,
+  },
+  anio: {
+    total: 520400.00,
+    efectivo: 165000.00,
+    tarjeta: 355400.00,
+    comisionUsuario: 173000.00,
+    comisionLocales: 347400.00,
+  },
 }
 
 /**
@@ -20,6 +59,10 @@ export default function AdminPanel({ onLogout }: Props) {
   const [comisionUsuario, setComisionUsuario] = useState<number>(5)
   const [showToast, setShowToast] = useState(false)
 
+  // Estados para el desplegable de ingresos
+  const [showIngresosDetails, setShowIngresosDetails] = useState<boolean>(false)
+  const [selectedTimeframe, setSelectedTimeframe] = useState<Timeframe>('mes')
+
   /**
    * Maneja el evento de guardar la configuración de comisiones.
    * Muestra una notificación temporal (toast) de éxito durante 3 segundos.
@@ -28,6 +71,8 @@ export default function AdminPanel({ onLogout }: Props) {
     setShowToast(true)
     setTimeout(() => setShowToast(false), 3000)
   }
+
+  const currentIngresos = DATA_INGRESOS[selectedTimeframe]
 
   const navItems: { id: Tab, label: string, icon: string }[] = [
     { id: 'dashboard', label: 'Dashboard', icon: '📊' },
@@ -81,10 +126,128 @@ export default function AdminPanel({ onLogout }: Props) {
               <StatCard label="Repartidores" value="89" icon="🏍️" />
               <StatCard label="Pedidos de Hoy" value="215" icon="📦" />
             </div>
-            <div className="bg-gradient-to-r from-[#232427] to-[#1a1b1e] border border-[#d9a05b]/30 rounded-2xl p-5 shadow-lg shadow-[#d9a05b]/5 relative overflow-hidden">
-              <div className="absolute right-0 top-0 w-32 h-32 bg-[#d9a05b]/5 rounded-full blur-2xl transform translate-x-1/2 -translate-y-1/2"></div>
-              <p className="text-[#9a9da3] text-xs uppercase tracking-widest mb-1">Ingresos de la plataforma</p>
-              <p className="text-4xl font-bold text-[#d9a05b]" style={{ fontFamily: 'Barlow Condensed, sans-serif' }}>$45,200.00</p>
+
+            {/* Apartado Desplegable: Ingresos de la plataforma */}
+            <div className="bg-gradient-to-r from-[#232427] to-[#1a1b1e] border border-[#d9a05b]/30 rounded-2xl shadow-lg shadow-[#d9a05b]/5 relative overflow-hidden transition-all duration-300">
+              <div className="absolute right-0 top-0 w-32 h-32 bg-[#d9a05b]/5 rounded-full blur-2xl transform translate-x-1/2 -translate-y-1/2 pointer-events-none"></div>
+
+              {/* Botón Encabezado (Click para desplegar) */}
+              <button 
+                onClick={() => setShowIngresosDetails(!showIngresosDetails)}
+                className="w-full text-left p-5 flex items-center justify-between gap-4 group cursor-pointer focus:outline-none"
+              >
+                <div>
+                  <div className="flex items-center gap-2 mb-1">
+                    <p className="text-[#9a9da3] text-xs uppercase tracking-widest">Ingresos de la plataforma</p>
+                    <span className="text-[10px] bg-[#d9a05b]/10 text-[#d9a05b] border border-[#d9a05b]/30 px-2 py-0.5 rounded-full font-bold uppercase">
+                      {selectedTimeframe === 'hoy' ? 'Hoy' : selectedTimeframe === 'semana' ? 'Esta Semana' : selectedTimeframe === 'mes' ? 'Este Mes' : 'Este Año'}
+                    </span>
+                  </div>
+                  <p className="text-4xl font-bold text-[#d9a05b]" style={{ fontFamily: 'Barlow Condensed, sans-serif' }}>
+                    ${currentIngresos.total.toLocaleString('es-MX', { minimumFractionDigits: 2 })}
+                  </p>
+                </div>
+                <div className="flex items-center gap-2">
+                  <span className="text-xs text-[#9a9da3] group-hover:text-white transition-colors hidden sm:inline">
+                    {showIngresosDetails ? 'Ocultar detalles' : 'Ver detalles'}
+                  </span>
+                  <div className={`w-8 h-8 rounded-xl bg-[#232427] border border-[#35373b] group-hover:border-[#d9a05b]/50 flex items-center justify-center transition-transform duration-300 ${showIngresosDetails ? 'rotate-180' : ''}`}>
+                    <span className="text-[#d9a05b] text-xs">▼</span>
+                  </div>
+                </div>
+              </button>
+
+              {/* Contenido Desplegable */}
+              {showIngresosDetails && (
+                <div className="px-5 pb-5 border-t border-[#35373b]/60 pt-4 space-y-5 animate-fadeIn">
+                  
+                  {/* Selector de Lapsos de Tiempo */}
+                  <div>
+                    <label className="text-xs text-[#9a9da3] uppercase tracking-wider font-semibold block mb-2">Lapso de tiempo</label>
+                    <div className="grid grid-cols-4 gap-2 bg-[#1a1b1e] p-1.5 rounded-xl border border-[#35373b]">
+                      {[
+                        { id: 'hoy', label: 'Hoy' },
+                        { id: 'semana', label: 'Semana' },
+                        { id: 'mes', label: 'Mes' },
+                        { id: 'anio', label: 'Año' }
+                      ].map((t) => (
+                        <button
+                          key={t.id}
+                          onClick={() => setSelectedTimeframe(t.id as Timeframe)}
+                          className={`py-2 text-xs font-bold rounded-lg transition-all ${
+                            selectedTimeframe === t.id
+                              ? 'bg-[#d9a05b] text-[#1a1b1e] shadow-md shadow-[#d9a05b]/20'
+                              : 'text-[#9a9da3] hover:text-white hover:bg-[#232427]'
+                          }`}
+                        >
+                          {t.label}
+                        </button>
+                      ))}
+                    </div>
+                  </div>
+
+                  {/* Desglose por Método de Pago */}
+                  <div>
+                    <p className="text-xs text-[#9a9da3] uppercase tracking-wider font-semibold mb-2">Métodos de Pago</p>
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                      <div className="bg-[#1a1b1e]/80 border border-[#35373b] p-3.5 rounded-xl flex items-center justify-between">
+                        <div className="flex items-center gap-3">
+                          <span className="text-xl">💵</span>
+                          <div>
+                            <p className="text-xs text-[#9a9da3]">Pago en Efectivo</p>
+                            <p className="text-lg font-bold text-white">${currentIngresos.efectivo.toLocaleString('es-MX', { minimumFractionDigits: 2 })}</p>
+                          </div>
+                        </div>
+                        <span className="text-xs font-mono text-[#9a9da3]">
+                          {((currentIngresos.efectivo / currentIngresos.total) * 100).toFixed(0)}%
+                        </span>
+                      </div>
+
+                      <div className="bg-[#1a1b1e]/80 border border-[#35373b] p-3.5 rounded-xl flex items-center justify-between">
+                        <div className="flex items-center gap-3">
+                          <span className="text-xl">💳</span>
+                          <div>
+                            <p className="text-xs text-[#9a9da3]">Pago en Tarjeta</p>
+                            <p className="text-lg font-bold text-white">${currentIngresos.tarjeta.toLocaleString('es-MX', { minimumFractionDigits: 2 })}</p>
+                          </div>
+                        </div>
+                        <span className="text-xs font-mono text-[#9a9da3]">
+                          {((currentIngresos.tarjeta / currentIngresos.total) * 100).toFixed(0)}%
+                        </span>
+                      </div>
+                    </div>
+                  </div>
+
+                  {/* Desglose por Origen de Comisión */}
+                  <div>
+                    <p className="text-xs text-[#9a9da3] uppercase tracking-wider font-semibold mb-2">Desglose de Comisiones</p>
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                      <div className="bg-[#1a1b1e]/80 border border-[#35373b] p-3.5 rounded-xl flex items-center justify-between">
+                        <div className="flex items-center gap-3">
+                          <span className="text-xl">👤</span>
+                          <div>
+                            <p className="text-xs text-[#9a9da3]">Comisión del Usuario</p>
+                            <p className="text-lg font-bold text-[#5bc827]">${currentIngresos.comisionUsuario.toLocaleString('es-MX', { minimumFractionDigits: 2 })}</p>
+                          </div>
+                        </div>
+                        <span className="text-[10px] text-[#9a9da3] bg-[#35373b]/50 px-2 py-1 rounded">Cargo servicio</span>
+                      </div>
+
+                      <div className="bg-[#1a1b1e]/80 border border-[#35373b] p-3.5 rounded-xl flex items-center justify-between">
+                        <div className="flex items-center gap-3">
+                          <span className="text-xl">🏪</span>
+                          <div>
+                            <p className="text-xs text-[#9a9da3]">Comisión de Locales</p>
+                            <p className="text-lg font-bold text-[#d9a05b]">${currentIngresos.comisionLocales.toLocaleString('es-MX', { minimumFractionDigits: 2 })}</p>
+                          </div>
+                        </div>
+                        <span className="text-[10px] text-[#9a9da3] bg-[#35373b]/50 px-2 py-1 rounded">% por venta</span>
+                      </div>
+                    </div>
+                  </div>
+
+                </div>
+              )}
             </div>
           </div>
         )}
@@ -269,7 +432,7 @@ export default function AdminPanel({ onLogout }: Props) {
         )}
       </main>
 
-      {/* Tabs / Bottom Nav - Similar to other panels */}
+      {/* Tabs / Bottom Nav */}
       <nav className="fixed bottom-0 left-0 right-0 bg-[#1a1b1e]/95 backdrop-blur-sm border-t border-[#35373b] flex overflow-x-auto z-50 py-2 px-2 sm:justify-center gap-1 sm:gap-6 hide-scrollbar">
         {navItems.map(item => (
           <button key={item.id} onClick={() => setActiveTab(item.id)}
@@ -281,7 +444,7 @@ export default function AdminPanel({ onLogout }: Props) {
         ))}
       </nav>
       
-      {/* Hide scrollbar for webkit */}
+      {/* Estilos adicionales */}
       <style>{`
         .hide-scrollbar::-webkit-scrollbar {
           display: none;
@@ -289,6 +452,13 @@ export default function AdminPanel({ onLogout }: Props) {
         .hide-scrollbar {
           -ms-overflow-style: none;
           scrollbar-width: none;
+        }
+        @keyframes fadeIn {
+          from { opacity: 0; transform: translateY(-6px); }
+          to { opacity: 1; transform: translateY(0); }
+        }
+        .animate-fadeIn {
+          animation: fadeIn 0.25s ease-out forwards;
         }
       `}</style>
     </div>
