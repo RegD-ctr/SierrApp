@@ -56,8 +56,8 @@ const DATA_INGRESOS: Record<Exclude<Timeframe, 'personalizado'>, {
  * Utiliza una semilla basada en la fecha para mantener consistencia visual sin cambiar en re-renders.
  * 
  * Nota para integración futura: esta función eventualmente se reemplazará por
- * una llamada a GET /api/admin/ingresos?dia=X&mes=Y&anio=Z
- */
+ * una llamada a GET /api/admin/ingresos?dia=X&mes=Y&anio=Z 
+*/
 function generarIngresosPorFecha(dia: number | null, mes: number, anio: number) {
   const isDiaPuntual = dia !== null
   const seed = (anio * 37) + ((mes + 1) * 101) + (dia !== null ? dia * 13 : 777)
@@ -78,7 +78,7 @@ function generarIngresosPorFecha(dia: number | null, mes: number, anio: number) 
 
 /**
  * Componente principal del Panel de Administración.
- * Gestiona la navegación entre las diferentes pestañas (dashboard, usuarios, locales, etc.)
+ *  * Gestiona la navegación entre las diferentes pestañas (dashboard, usuarios, locales, etc.)
  * y mantiene el estado de las configuraciones de comisiones de la plataforma.
  * 
  * @param {Props} props - Propiedades del componente, incluye la función para cerrar sesión.
@@ -103,7 +103,7 @@ export default function AdminPanel({ onLogout }: Props) {
     anio: new Date().getFullYear(),
   })
 
-  /**
+    /**
    * Maneja el evento de guardar la configuración de comisiones.
    * Muestra una notificación temporal (toast) de éxito durante 3 segundos.
    */
@@ -124,7 +124,6 @@ export default function AdminPanel({ onLogout }: Props) {
     { id: 'pedidos', label: 'Pedidos', icon: '📦' },
     { id: 'config', label: 'Ajustes', icon: '⚙️' },
   ]
-
   /**
    * Componente interno que renderiza la barra superior del panel.
    * Contiene el logo, título y el botón para cerrar sesión.
@@ -143,7 +142,6 @@ export default function AdminPanel({ onLogout }: Props) {
       </button>
     </header>
   )
-
   /**
    * Componente auxiliar para estandarizar el diseño de los títulos de cada sección.
    * 
@@ -163,10 +161,30 @@ export default function AdminPanel({ onLogout }: Props) {
           <div>
             <Title text="Dashboard" />
             <div className="grid grid-cols-2 gap-3 mb-6">
-              <StatCard label="Usuarios Totales" value="1,245" icon="👥" />
-              <StatCard label="Locales Activos" value="34" icon="🏪" />
-              <StatCard label="Repartidores" value="89" icon="🏍️" />
-              <StatCard label="Pedidos de Hoy" value="215" icon="📦" />
+              <StatCard 
+                label="Usuarios Totales" 
+                value="1,245" 
+                icon="👥" 
+                onClick={() => setActiveTab('usuarios')} 
+              />
+              <StatCard 
+                label="Locales Activos" 
+                value="34" 
+                icon="🏪" 
+                onClick={() => setActiveTab('locales')} 
+              />
+              <StatCard 
+                label="Repartidores" 
+                value="89" 
+                icon="🏍️" 
+                onClick={() => setActiveTab('repartidores')} 
+              />
+              <StatCard 
+                label="Pedidos de Hoy" 
+                value="215" 
+                icon="📦" 
+                onClick={() => setActiveTab('pedidos')} 
+              />
             </div>
 
             {/* Apartado Desplegable: Ingresos de la plataforma */}
@@ -242,7 +260,6 @@ export default function AdminPanel({ onLogout }: Props) {
                   {/* Calendario Personalizado */}
                   {selectedTimeframe === 'personalizado' && (
                     <div className="bg-[#1a1b1e] border border-[#35373b] p-4 rounded-xl space-y-3 animate-fadeIn">
-                      {/* Navegación de Mes y Año */}
                       <div className="flex flex-wrap items-center justify-between gap-2 pb-2 border-b border-[#35373b]/60">
                         {/* Selector de Mes */}
                         <div className="flex items-center gap-1">
@@ -667,18 +684,30 @@ export default function AdminPanel({ onLogout }: Props) {
 
 /**
  * Componente de tarjeta para mostrar estadísticas en el Dashboard.
- * Muestra un valor numérico junto con su etiqueta y un icono representativo.
- * 
- * @param {Object} props - Propiedades: label (texto descriptivo), value (valor a mostrar), icon (emoji o icono).
+ * Permite hacer clic para navegar a la pestaña correspondiente.
  */
-function StatCard({ label, value, icon }: { label: string, value: string, icon: string }) {
+function StatCard({ 
+  label, 
+  value, 
+  icon, 
+  onClick 
+}: { 
+  label: string
+  value: string
+  icon: string
+  onClick?: () => void 
+}) {
   return (
-    <div className="bg-[#232427] border border-[#35373b] p-3 rounded-xl flex items-center gap-3">
-      <div className="text-2xl">{icon}</div>
+    <button
+      type="button"
+      onClick={onClick}
+      className="bg-[#232427] border border-[#35373b] hover:border-[#d9a05b]/60 hover:bg-[#2a2c30] p-3 rounded-xl flex items-center gap-3 text-left w-full transition-all active:scale-[0.98] cursor-pointer group"
+    >
+      <div className="text-2xl group-hover:scale-110 transition-transform">{icon}</div>
       <div>
         <p className="text-white font-bold text-lg leading-tight">{value}</p>
-        <p className="text-[#9a9da3] text-[10px] uppercase tracking-widest">{label}</p>
+        <p className="text-[#9a9da3] group-hover:text-[#c4c6ca] text-[10px] uppercase tracking-widest transition-colors">{label}</p>
       </div>
-    </div>
+    </button>
   )
 }
