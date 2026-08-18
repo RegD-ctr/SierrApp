@@ -54,7 +54,10 @@ const DATA_INGRESOS: Record<Exclude<Timeframe, 'personalizado'>, {
 /**
  * Genera datos simulados de ingresos para cualquier fecha elegida.
  * Utiliza una semilla basada en la fecha para mantener consistencia visual sin cambiar en re-renders.
- */
+ * 
+ * Nota para integración futura: esta función eventualmente se reemplazará por
+ * una llamada a GET /api/admin/ingresos?dia=X&mes=Y&anio=Z 
+*/
 function generarIngresosPorFecha(dia: number | null, mes: number, anio: number) {
   const isDiaPuntual = dia !== null
   const seed = (anio * 37) + ((mes + 1) * 101) + (dia !== null ? dia * 13 : 777)
@@ -75,6 +78,10 @@ function generarIngresosPorFecha(dia: number | null, mes: number, anio: number) 
 
 /**
  * Componente principal del Panel de Administración.
+ *  * Gestiona la navegación entre las diferentes pestañas (dashboard, usuarios, locales, etc.)
+ * y mantiene el estado de las configuraciones de comisiones de la plataforma.
+ * 
+ * @param {Props} props - Propiedades del componente, incluye la función para cerrar sesión.
  */
 export default function AdminPanel({ onLogout }: Props) {
   const [activeTab, setActiveTab] = useState<Tab>('dashboard')
@@ -96,6 +103,10 @@ export default function AdminPanel({ onLogout }: Props) {
     anio: new Date().getFullYear(),
   })
 
+    /**
+   * Maneja el evento de guardar la configuración de comisiones.
+   * Muestra una notificación temporal (toast) de éxito durante 3 segundos.
+   */
   const handleSaveConfig = () => {
     setShowToast(true)
     setTimeout(() => setShowToast(false), 3000)
@@ -113,7 +124,10 @@ export default function AdminPanel({ onLogout }: Props) {
     { id: 'pedidos', label: 'Pedidos', icon: '📦' },
     { id: 'config', label: 'Ajustes', icon: '⚙️' },
   ]
-
+  /**
+   * Componente interno que renderiza la barra superior del panel.
+   * Contiene el logo, título y el botón para cerrar sesión.
+   */
   const TopBar = () => (
     <header className="sticky top-0 z-40 bg-[#1a1b1e]/95 backdrop-blur-sm border-b border-[#35373b] px-4 py-3 flex items-center justify-between">
       <div className="flex items-center gap-2">
@@ -128,7 +142,11 @@ export default function AdminPanel({ onLogout }: Props) {
       </button>
     </header>
   )
-
+  /**
+   * Componente auxiliar para estandarizar el diseño de los títulos de cada sección.
+   * 
+   * @param {Object} props - Propiedades que incluyen el texto del título.
+   */
   const Title = ({ text }: { text: string }) => (
     <h2 className="text-2xl font-bold text-white uppercase tracking-wide mb-4" style={{ fontFamily: 'Barlow Condensed, sans-serif' }}>
       {text}
