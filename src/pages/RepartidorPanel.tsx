@@ -323,7 +323,7 @@ export default function RepartidorPanel({ onLogout }: Props) {
             <div className="flex items-center justify-between mb-5">
               <p className="text-[#9a9da3] text-sm">{completedOrders.length} entregas realizadas</p>
               <div className="bg-[#232427] border border-[#35373b] rounded-xl px-3 py-1.5 text-xs text-[#5bc827] font-bold">
-                Hoy: ${'${completedOrders.filter(o => o.hora.includes("Hoy")).reduce(()=> 0, 0) || 120}'}
+                Hoy: ${completedOrders.filter(o => o.hora.includes("Hoy")).reduce(()=> 0, 0) || 120}
               </div>
             </div>
             {completedOrders.length === 0 ? (

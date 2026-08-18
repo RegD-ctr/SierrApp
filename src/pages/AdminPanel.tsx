@@ -1,14 +1,20 @@
 import { useState } from 'react'
 
 type Tab = 'dashboard' | 'usuarios' | 'locales' | 'repartidores' | 'pedidos' | 'config'
-type Timeframe = 'hoy' | 'semana' | 'mes' | 'anio'
+type Timeframe = 'hoy' | 'semana' | 'mes' | 'anio' | 'personalizado'
+
+const MESES = [
+  'Enero', 'Febrero', 'Marzo', 'Abril', 'Mayo', 'Junio',
+  'Julio', 'Agosto', 'Septiembre', 'Octubre', 'Noviembre', 'Diciembre'
+]
+const DIAS_SEMANA = ['Lun', 'Mar', 'Mié', 'Jue', 'Vie', 'Sáb', 'Dom']
 
 interface Props {
   onLogout: () => void
 }
 
 // Datos de ejemplo simulados según el lapso de tiempo seleccionado
-const DATA_INGRESOS: Record<Timeframe, {
+const DATA_INGRESOS: Record<Exclude<Timeframe, 'personalizado'>, {
   total: number
   efectivo: number
   tarjeta: number
@@ -46,6 +52,31 @@ const DATA_INGRESOS: Record<Timeframe, {
 }
 
 /**
+ * Genera datos simulados de ingresos para cualquier fecha elegida.
+ * Utiliza una semilla basada en la fecha para mantener consistencia visual sin cambiar en re-renders.
+ * 
+ * Nota para integración futura: esta función eventualmente se reemplazará por
+ * una llamada a GET /api/admin/ingresos?dia=X&mes=Y&anio=Z
+ */
+function generarIngresosPorFecha(dia: number | null, mes: number, anio: number) {
+  const isDiaPuntual = dia !== null
+  const seed = (anio * 37) + ((mes + 1) * 101) + (dia !== null ? dia * 13 : 777)
+  const factor = 0.7 + (((seed * 9301 + 49297) % 233280) / 233280) * 0.6
+
+  const baseTotal = isDiaPuntual ? 3150 * factor : 44800 * factor
+  const total = Math.round(baseTotal * 100) / 100
+
+  const pctEfectivo = 0.3 + (((seed * 12345 + 6789) % 100) / 100) * 0.15
+  const efectivo = Math.round(total * pctEfectivo * 100) / 100
+  const tarjeta = Math.round((total - efectivo) * 100) / 100
+
+  const comisionUsuario = Math.round(total * 0.33 * 100) / 100
+  const comisionLocales = Math.round((total - comisionUsuario) * 100) / 100
+
+  return { total, efectivo, tarjeta, comisionUsuario, comisionLocales }
+}
+
+/**
  * Componente principal del Panel de Administración.
  * Gestiona la navegación entre las diferentes pestañas (dashboard, usuarios, locales, etc.)
  * y mantiene el estado de las configuraciones de comisiones de la plataforma.
@@ -62,6 +93,15 @@ export default function AdminPanel({ onLogout }: Props) {
   // Estados para el desplegable de ingresos
   const [showIngresosDetails, setShowIngresosDetails] = useState<boolean>(false)
   const [selectedTimeframe, setSelectedTimeframe] = useState<Timeframe>('mes')
+  const [fechaSeleccionada, setFechaSeleccionada] = useState<{
+    dia: number | null
+    mes: number
+    anio: number
+  }>({
+    dia: null,
+    mes: new Date().getMonth(),
+    anio: new Date().getFullYear(),
+  })
 
   /**
    * Maneja el evento de guardar la configuración de comisiones.
@@ -72,7 +112,9 @@ export default function AdminPanel({ onLogout }: Props) {
     setTimeout(() => setShowToast(false), 3000)
   }
 
-  const currentIngresos = DATA_INGRESOS[selectedTimeframe]
+  const currentIngresos = selectedTimeframe === 'personalizado'
+    ? generarIngresosPorFecha(fechaSeleccionada.dia, fechaSeleccionada.mes, fechaSeleccionada.anio)
+    : DATA_INGRESOS[selectedTimeframe]
 
   const navItems: { id: Tab, label: string, icon: string }[] = [
     { id: 'dashboard', label: 'Dashboard', icon: '📊' },
@@ -140,7 +182,17 @@ export default function AdminPanel({ onLogout }: Props) {
                   <div className="flex items-center gap-2 mb-1">
                     <p className="text-[#9a9da3] text-xs uppercase tracking-widest">Ingresos de la plataforma</p>
                     <span className="text-[10px] bg-[#d9a05b]/10 text-[#d9a05b] border border-[#d9a05b]/30 px-2 py-0.5 rounded-full font-bold uppercase">
-                      {selectedTimeframe === 'hoy' ? 'Hoy' : selectedTimeframe === 'semana' ? 'Esta Semana' : selectedTimeframe === 'mes' ? 'Este Mes' : 'Este Año'}
+                      {selectedTimeframe === 'hoy'
+                        ? 'Hoy'
+                        : selectedTimeframe === 'semana'
+                        ? 'Esta Semana'
+                        : selectedTimeframe === 'mes'
+                        ? 'Este Mes'
+                        : selectedTimeframe === 'anio'
+                        ? 'Este Año'
+                        : fechaSeleccionada.dia !== null
+                        ? `${fechaSeleccionada.dia} de ${MESES[fechaSeleccionada.mes].toLowerCase()}, ${fechaSeleccionada.anio}`
+                        : `${MESES[fechaSeleccionada.mes]} ${fechaSeleccionada.anio}`}
                     </span>
                   </div>
                   <p className="text-4xl font-bold text-[#d9a05b]" style={{ fontFamily: 'Barlow Condensed, sans-serif' }}>
@@ -164,17 +216,18 @@ export default function AdminPanel({ onLogout }: Props) {
                   {/* Selector de Lapsos de Tiempo */}
                   <div>
                     <label className="text-xs text-[#9a9da3] uppercase tracking-wider font-semibold block mb-2">Lapso de tiempo</label>
-                    <div className="grid grid-cols-4 gap-2 bg-[#1a1b1e] p-1.5 rounded-xl border border-[#35373b]">
+                    <div className="grid grid-cols-5 gap-1.5 bg-[#1a1b1e] p-1.5 rounded-xl border border-[#35373b]">
                       {[
                         { id: 'hoy', label: 'Hoy' },
                         { id: 'semana', label: 'Semana' },
                         { id: 'mes', label: 'Mes' },
-                        { id: 'anio', label: 'Año' }
+                        { id: 'anio', label: 'Año' },
+                        { id: 'personalizado', label: '📅 Elegir fecha' }
                       ].map((t) => (
                         <button
                           key={t.id}
                           onClick={() => setSelectedTimeframe(t.id as Timeframe)}
-                          className={`py-2 text-xs font-bold rounded-lg transition-all ${
+                          className={`py-2 px-1 text-[11px] font-bold rounded-lg transition-all truncate ${
                             selectedTimeframe === t.id
                               ? 'bg-[#d9a05b] text-[#1a1b1e] shadow-md shadow-[#d9a05b]/20'
                               : 'text-[#9a9da3] hover:text-white hover:bg-[#232427]'
@@ -185,6 +238,153 @@ export default function AdminPanel({ onLogout }: Props) {
                       ))}
                     </div>
                   </div>
+
+                  {/* Calendario Personalizado */}
+                  {selectedTimeframe === 'personalizado' && (
+                    <div className="bg-[#1a1b1e] border border-[#35373b] p-4 rounded-xl space-y-3 animate-fadeIn">
+                      {/* Navegación de Mes y Año */}
+                      <div className="flex flex-wrap items-center justify-between gap-2 pb-2 border-b border-[#35373b]/60">
+                        {/* Selector de Mes */}
+                        <div className="flex items-center gap-1">
+                          <button
+                            type="button"
+                            onClick={() => {
+                              let newMes = fechaSeleccionada.mes - 1
+                              let newAnio = fechaSeleccionada.anio
+                              if (newMes < 0) {
+                                newMes = 11
+                                newAnio = Math.max(2023, newAnio - 1)
+                              }
+                              setFechaSeleccionada(prev => ({ ...prev, mes: newMes, anio: newAnio }))
+                            }}
+                            className="w-7 h-7 flex items-center justify-center rounded-lg bg-[#232427] border border-[#35373b] text-[#9a9da3] hover:text-white hover:border-[#d9a05b] transition-colors"
+                          >
+                            ‹
+                          </button>
+                          <select
+                            value={fechaSeleccionada.mes}
+                            onChange={(e) => setFechaSeleccionada(prev => ({ ...prev, mes: Number(e.target.value) }))}
+                            className="bg-[#232427] border border-[#35373b] text-white text-xs font-semibold rounded-lg px-2 py-1 outline-none focus:border-[#d9a05b] transition-colors cursor-pointer"
+                          >
+                            {MESES.map((m, idx) => (
+                              <option key={m} value={idx} className="bg-[#1a1b1e] text-white">{m}</option>
+                            ))}
+                          </select>
+                          <button
+                            type="button"
+                            onClick={() => {
+                              let newMes = fechaSeleccionada.mes + 1
+                              let newAnio = fechaSeleccionada.anio
+                              if (newMes > 11) {
+                                newMes = 0
+                                newAnio = Math.min(2026, newAnio + 1)
+                              }
+                              setFechaSeleccionada(prev => ({ ...prev, mes: newMes, anio: newAnio }))
+                            }}
+                            className="w-7 h-7 flex items-center justify-center rounded-lg bg-[#232427] border border-[#35373b] text-[#9a9da3] hover:text-white hover:border-[#d9a05b] transition-colors"
+                          >
+                            ›
+                          </button>
+                        </div>
+
+                        {/* Selector de Año */}
+                        <div className="flex items-center gap-1">
+                          <button
+                            type="button"
+                            disabled={fechaSeleccionada.anio <= 2023}
+                            onClick={() => setFechaSeleccionada(prev => ({ ...prev, anio: Math.max(2023, prev.anio - 1) }))}
+                            className="w-7 h-7 flex items-center justify-center rounded-lg bg-[#232427] border border-[#35373b] text-[#9a9da3] hover:text-white hover:border-[#d9a05b] disabled:opacity-40 transition-colors"
+                          >
+                            ‹
+                          </button>
+                          <select
+                            value={fechaSeleccionada.anio}
+                            onChange={(e) => setFechaSeleccionada(prev => ({ ...prev, anio: Number(e.target.value) }))}
+                            className="bg-[#232427] border border-[#35373b] text-white text-xs font-bold rounded-lg px-2 py-1 outline-none focus:border-[#d9a05b] transition-colors cursor-pointer"
+                          >
+                            {[2023, 2024, 2025, 2026].map(yr => (
+                              <option key={yr} value={yr} className="bg-[#1a1b1e] text-white">{yr}</option>
+                            ))}
+                          </select>
+                          <button
+                            type="button"
+                            disabled={fechaSeleccionada.anio >= 2026}
+                            onClick={() => setFechaSeleccionada(prev => ({ ...prev, anio: Math.min(2026, prev.anio + 1) }))}
+                            className="w-7 h-7 flex items-center justify-center rounded-lg bg-[#232427] border border-[#35373b] text-[#9a9da3] hover:text-white hover:border-[#d9a05b] disabled:opacity-40 transition-colors"
+                          >
+                            ›
+                          </button>
+                        </div>
+                      </div>
+
+                      {/* Encabezado Días de la Semana */}
+                      <div className="grid grid-cols-7 gap-1 text-center">
+                        {DIAS_SEMANA.map(d => (
+                          <span key={d} className="text-[10px] text-[#9a9da3] font-bold uppercase py-1">
+                            {d}
+                          </span>
+                        ))}
+                      </div>
+
+                      {/* Cuadrícula de Días */}
+                      {(() => {
+                        const firstDayIndex = (new Date(fechaSeleccionada.anio, fechaSeleccionada.mes, 1).getDay() + 6) % 7
+                        const daysInMonth = new Date(fechaSeleccionada.anio, fechaSeleccionada.mes + 1, 0).getDate()
+
+                        return (
+                          <div className="grid grid-cols-7 gap-1">
+                            {Array.from({ length: firstDayIndex }).map((_, i) => (
+                              <div key={`empty-${i}`} className="h-8" />
+                            ))}
+
+                            {Array.from({ length: daysInMonth }, (_, i) => i + 1).map(day => {
+                              const isSelected = fechaSeleccionada.dia === day
+                              return (
+                                <button
+                                  key={day}
+                                  type="button"
+                                  onClick={() => setFechaSeleccionada(prev => ({ ...prev, dia: day }))}
+                                  className={`h-8 text-xs font-semibold rounded-lg flex items-center justify-center transition-all ${
+                                    isSelected
+                                      ? 'bg-[#d9a05b] text-[#1a1b1e] font-bold shadow-md shadow-[#d9a05b]/20 scale-105'
+                                      : 'bg-[#1a1b1e] border border-[#35373b] text-white hover:bg-[#232427] hover:border-[#d9a05b]/40'
+                                  }`}
+                                >
+                                  {day}
+                                </button>
+                              )
+                            })}
+                          </div>
+                        )
+                      })()}
+
+                      {/* Botones de Selección: Día vs Mes */}
+                      <div className="flex items-center gap-2 pt-2 border-t border-[#35373b]/60">
+                        <button
+                          type="button"
+                          onClick={() => setFechaSeleccionada(prev => ({ ...prev, dia: prev.dia || 1 }))}
+                          className={`flex-1 py-2 px-2 text-xs font-bold rounded-lg border transition-all ${
+                            fechaSeleccionada.dia !== null
+                              ? 'bg-[#d9a05b]/10 border-[#d9a05b] text-[#d9a05b]'
+                              : 'bg-[#1a1b1e] border-[#35373b] text-[#9a9da3] hover:text-white hover:bg-[#232427]'
+                          }`}
+                        >
+                          Ver solo este día
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() => setFechaSeleccionada(prev => ({ ...prev, dia: null }))}
+                          className={`flex-1 py-2 px-2 text-xs font-bold rounded-lg border transition-all ${
+                            fechaSeleccionada.dia === null
+                              ? 'bg-[#d9a05b]/10 border-[#d9a05b] text-[#d9a05b]'
+                              : 'bg-[#1a1b1e] border-[#35373b] text-[#9a9da3] hover:text-white hover:bg-[#232427]'
+                          }`}
+                        >
+                          Ver todo el mes
+                        </button>
+                      </div>
+                    </div>
+                  )}
 
                   {/* Desglose por Método de Pago */}
                   <div>
