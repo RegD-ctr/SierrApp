@@ -310,7 +310,7 @@ export default function LocalPanel({ onLogout }: Props) {
                     <div className="flex items-center gap-2">
                       <span className="text-[#5bc827] font-bold text-sm">{order.total}</span>
                       <button className="bg-[#5bc827] hover:bg-[#7ed944] text-[#1a1b1e] text-xs font-bold px-3 py-1 rounded-full transition-colors">
-                        Marcar listo
+                        Ver
                       </button>
                     </div>
                   </div>
