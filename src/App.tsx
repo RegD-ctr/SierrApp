@@ -58,6 +58,14 @@ export default function App() {
   const [cartOpen, setCartOpen] = useState(false)
   const [cartItems, setCartItems] = useState<CartItem[]>([])
 
+  const [savedAddresses, setSavedAddresses] = useState([
+    { id: 1, name: 'Casa', street: 'Calle Pino #24', col: 'Sierra Norte', default: true },
+    { id: 2, name: 'Oficina', street: 'Av. Las Palmas #300', col: 'Centro', default: false },
+  ])
+  const [deliveryAddressId, setDeliveryAddressId] = useState(1)
+  const [addressSelectMode, setAddressSelectMode] = useState(false)
+
+  const activeAddress = savedAddresses.find(a => a.id === deliveryAddressId) || savedAddresses[0]
   const cartCount = cartItems.reduce((s, i) => s + i.cantidad, 0)
 
   /**
@@ -100,10 +108,31 @@ export default function App() {
   if (role === 'repartidor') return <RepartidorPanel onLogout={() => setRole(null)} />
   if (role === 'admin') return <AdminPanel onLogout={() => setRole(null)} />
 
-  if (view === 'checkout') return <Checkout items={cartItems} onConfirm={() => { setCartItems([]); setCartOpen(false); setView('order-confirmation') }} onBack={() => setView('inicio')} />
+  if (view === 'checkout') return (
+    <Checkout
+      items={cartItems}
+      savedAddresses={savedAddresses}
+      deliveryAddressId={deliveryAddressId}
+      onChangeAddress={() => { setAddressSelectMode(true); setView('addresses') }}
+      onConfirm={() => { setCartItems([]); setCartOpen(false); setView('order-confirmation') }}
+      onBack={() => setView('inicio')}
+    />
+  )
   if (view === 'order-confirmation') return <OrderConfirmation onTrack={() => setView('pedidos')} onHome={() => setView('inicio')} />
   if (view === 'payment-methods') return <PaymentMethods onBack={() => setView('perfil')} />
-  if (view === 'addresses') return <Addresses onBack={() => setView('perfil')} />
+  if (view === 'addresses') return (
+    <Addresses 
+      onBack={() => setView(addressSelectMode ? 'checkout' : 'perfil')}
+      addresses={savedAddresses}
+      onAddAddress={(a) => setSavedAddresses(prev => [...prev, { ...a, id: Date.now(), default: false }])}
+      onDeleteAddress={(id) => setSavedAddresses(prev => prev.filter(x => x.id !== id))}
+      onSetDefault={(id) => setSavedAddresses(prev => prev.map(x => ({ ...x, default: x.id === id })))}
+      onEditAddress={(updated) => setSavedAddresses(prev => prev.map(x => x.id === updated.id ? { ...x, ...updated } : x))}
+      selectable={addressSelectMode}
+      selectedId={deliveryAddressId}
+      onSelect={(id) => { setDeliveryAddressId(id); setAddressSelectMode(false); setView('checkout') }}
+    />
+  )
   if (view === 'favorites') return <Favorites onBack={() => setView('perfil')} />
   if (view === 'promotions') return <Promotions onBack={() => setView('perfil')} />
   if (view === 'notifications') return <Notifications onBack={() => setView('inicio')} />
@@ -120,9 +149,9 @@ export default function App() {
           </button>
 
           {!selectedRestaurant && (
-            <button className="flex items-center gap-1 text-xs text-[#9a9da3] hover:text-[#5bc827] transition-colors truncate max-w-[160px] sm:max-w-xs">
+            <button onClick={() => { setAddressSelectMode(false); setView('addresses') }} className="flex items-center gap-1 text-xs text-[#9a9da3] hover:text-[#5bc827] transition-colors truncate max-w-[160px] sm:max-w-xs">
               <svg className="w-3.5 h-3.5 shrink-0 text-[#5bc827]" fill="currentColor" viewBox="0 0 20 20"><path fillRule="evenodd" d="M5.05 4.05a7 7 0 119.9 9.9L10 18.9l-4.95-4.95a7 7 0 010-9.9zM10 11a2 2 0 100-4 2 2 0 000 4z" clipRule="evenodd" /></svg>
-              <span className="truncate">Calle Pino #24, Sierra Norte</span>
+              <span className="truncate">{activeAddress ? `${activeAddress.street}, ${activeAddress.col}` : 'Seleccionar dirección'}</span>
               <svg className="w-3 h-3 shrink-0" fill="currentColor" viewBox="0 0 20 20"><path fillRule="evenodd" d="M5.293 7.293a1 1 0 011.414 0L10 10.586l3.293-3.293a1 1 0 111.414 1.414l-4 4a1 1 0 01-1.414 0l-4-4a1 1 0 010-1.414z" clipRule="evenodd" /></svg>
             </button>
           )}
@@ -164,7 +193,7 @@ export default function App() {
           )}
           {view === 'explorar' && <Explorar onSelectRestaurant={setSelectedRestaurant} />}
           {view === 'pedidos' && <Pedidos />}
-          {view === 'perfil' && <Perfil role={role} onLogout={() => setRole(null)} onNavigate={(v: any) => setView(v)} />}
+          {view === 'perfil' && <Perfil role={role} onLogout={() => setRole(null)} onNavigate={(v: any) => { if (v === 'addresses') setAddressSelectMode(false); setView(v); }} />}
         </main>
       )}
 
