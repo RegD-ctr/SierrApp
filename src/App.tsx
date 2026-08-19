@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useState, useRef } from 'react'
 import logoImg from '@/imports/logo.jpeg'
 import Login from '@/pages/Login'
 import type { Role } from '@/pages/Login'
@@ -24,11 +24,7 @@ import Onboarding from '@/pages/Onboarding'
 
 type View = 'inicio' | 'explorar' | 'pedidos' | 'perfil' | 'checkout' | 'order-confirmation' | 'payment-methods' | 'addresses' | 'favorites' | 'promotions' | 'notifications' | 'support'
 
-const promos = [
-  { title: '¡Primer pedido GRATIS!', sub: 'Usa el código: SIERRA1', bg: 'from-[#5bc827] to-[#3d8c18]', text: 'text-[#1a1b1e]', emoji: '🎉' },
-  { title: 'Envío gratis los martes', sub: 'En restaurantes seleccionados', bg: 'from-[#1a3320] to-[#1a1b1e]', text: 'text-[#5bc827]', emoji: '🛵' },
-  { title: '2x1 en combos hoy', sub: 'Solo hasta las 11pm', bg: 'from-[#232427] to-[#1a3320]', text: 'text-white', emoji: '🍔' },
-]
+
 
 const categories = [
   { icon: '🍔', label: 'Comida' }, { icon: '🛒', label: 'Super' }, { icon: '💊', label: 'Farmacia' },
@@ -134,7 +130,7 @@ export default function App() {
     />
   )
   if (view === 'favorites') return <Favorites onBack={() => setView('perfil')} />
-  if (view === 'promotions') return <Promotions onBack={() => setView('perfil')} />
+  if (view === 'promotions') return <Promotions onBack={() => setView('perfil')} onSelectRestaurant={(r) => { setSelectedRestaurant(r); setView('inicio') }} />
   if (view === 'notifications') return <Notifications onBack={() => setView('inicio')} />
   if (view === 'support') return <Support onBack={() => setView('perfil')} />
 
@@ -189,6 +185,8 @@ export default function App() {
               activeCategory={activeCategory}
               setActiveCategory={setActiveCategory}
               onSelectRestaurant={setSelectedRestaurant}
+              onGoToPromotions={() => setView('promotions')}
+              onGoToExplore={() => setView('explorar')}
             />
           )}
           {view === 'explorar' && <Explorar onSelectRestaurant={setSelectedRestaurant} />}
@@ -229,15 +227,19 @@ export default function App() {
  * Componente de la vista de inicio (Home).
  * Muestra el hero (banner), promociones, categorías y lista de restaurantes cercanos.
  * 
- * @param {Object} props - Propiedades para manejar categorías y selección de restaurantes.
+ * @param {Object} props - Propiedades para manejar categorías, selección de restaurantes y navegación.
  */
 function HomeView({
-  activeCategory, setActiveCategory, onSelectRestaurant,
+  activeCategory, setActiveCategory, onSelectRestaurant, onGoToPromotions, onGoToExplore,
 }: {
   activeCategory: string
   setActiveCategory: (c: string) => void
   onSelectRestaurant: (r: Restaurant) => void
+  onGoToPromotions: () => void
+  onGoToExplore: () => void
 }) {
+  const restaurantsRef = useRef<HTMLDivElement>(null)
+
   return (
     <div className="px-4 pb-24">
       {/* Hero */}
@@ -253,8 +255,8 @@ function HomeView({
               A un<br /><span className="text-[#5bc827]">toque.</span>
             </h1>
             <p className="text-[#c4c6ca] text-sm mb-5 max-w-xs">Restaurantes, súper y farmacia. Entrega rápida en tu zona.</p>
-            <button onClick={() => onSelectRestaurant(allRestaurants[0])}
-              className="bg-[#5bc827] hover:bg-[#7ed944] text-[#1a1b1e] font-bold text-sm px-6 py-2.5 rounded-full transition-all hover:scale-105 active:scale-95">
+            <button onClick={() => restaurantsRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' })}
+              className="bg-[#5bc827] hover:bg-[#7ed944] text-[#1a1b1e] font-bold text-sm px-6 py-2.5 rounded-full transition-all hover:scale-105 active:scale-95 cursor-pointer">
               Pedir ahora
             </button>
           </div>
@@ -271,17 +273,16 @@ function HomeView({
 
       {/* Promos */}
       <section className="mt-6">
-        <div className="flex gap-3 overflow-x-auto pb-1">
-          {promos.map((p, i) => (
-            <div key={i} className={`flex-shrink-0 rounded-xl bg-gradient-to-br ${p.bg} border border-[#35373b] p-4 min-w-[200px] flex items-center gap-3 cursor-pointer hover:scale-[1.02] transition-transform`}>
-              <span className="text-3xl">{p.emoji}</span>
-              <div>
-                <p className={`font-bold text-sm leading-tight ${p.text}`}>{p.title}</p>
-                <p className="text-[#9a9da3] text-xs mt-0.5">{p.sub}</p>
-              </div>
-            </div>
-          ))}
-        </div>
+        <button 
+          onClick={onGoToPromotions}
+          className="w-full rounded-xl bg-gradient-to-br from-[#5bc827] to-[#3d8c18] border border-[#35373b] p-4 flex items-center gap-3 hover:scale-[1.01] transition-transform text-left cursor-pointer"
+        >
+          <span className="text-3xl">🎉</span>
+          <div>
+            <p className="font-bold text-sm leading-tight text-[#1a1b1e]">Ver promociones</p>
+            <p className="text-[#1a1b1e]/70 text-xs mt-0.5">Descuentos activos en restaurantes seleccionados</p>
+          </div>
+        </button>
       </section>
 
       {/* Categories */}
@@ -299,10 +300,10 @@ function HomeView({
       </section>
 
       {/* Restaurants */}
-      <section className="mt-8">
+      <section ref={restaurantsRef} className="mt-8">
         <div className="flex items-center justify-between mb-4">
           <h2 className="text-2xl font-bold text-white uppercase tracking-wide" style={{ fontFamily: 'Barlow Condensed, sans-serif' }}>Restaurantes cerca</h2>
-          <button className="text-[#5bc827] text-sm font-semibold hover:text-[#7ed944] transition-colors">Ver todos →</button>
+          <button onClick={onGoToExplore} className="text-[#5bc827] text-sm font-semibold hover:text-[#7ed944] transition-colors cursor-pointer">Ver todos →</button>
         </div>
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
           {allRestaurants.map(r => (
