@@ -2,6 +2,44 @@ import { useState } from 'react'
 
 type Tab = 'dashboard' | 'usuarios' | 'locales' | 'repartidores' | 'pedidos' | 'config'
 type Timeframe = 'hoy' | 'semana' | 'mes' | 'anio' | 'personalizado'
+type LocalTimeframe = 'hoy' | 'semana' | 'mes' | 'anio' | 'personalizado'
+
+const DATA_GANANCIAS_LOCAL: Record<number, Record<Exclude<LocalTimeframe, 'personalizado'>, {
+  total: number
+  efectivo: number
+  tarjeta: number
+  comisionPlataforma: number
+}>> = {
+  1: {
+    hoy: { total: 1850.00, efectivo: 620.00, tarjeta: 1230.00, comisionPlataforma: 277.50 },
+    semana: { total: 11200.00, efectivo: 3800.00, tarjeta: 7400.00, comisionPlataforma: 1680.00 },
+    mes: { total: 42600.00, efectivo: 14200.00, tarjeta: 28400.00, comisionPlataforma: 6390.00 },
+    anio: { total: 398000.00, efectivo: 132000.00, tarjeta: 266000.00, comisionPlataforma: 59700.00 },
+  },
+  2: {
+    hoy: { total: 0, efectivo: 0, tarjeta: 0, comisionPlataforma: 0 },
+    semana: { total: 0, efectivo: 0, tarjeta: 0, comisionPlataforma: 0 },
+    mes: { total: 0, efectivo: 0, tarjeta: 0, comisionPlataforma: 0 },
+    anio: { total: 0, efectivo: 0, tarjeta: 0, comisionPlataforma: 0 },
+  },
+}
+
+function generarGananciasPorFecha(localId: number, dia: number | null, mes: number, anio: number) {
+  const isDiaPuntual = dia !== null
+  const seed = (localId * 1000) + (anio * 37) + ((mes + 1) * 101) + (dia !== null ? dia * 13 : 777)
+  const factor = 0.7 + (((seed * 9301 + 49297) % 233280) / 233280) * 0.6
+
+  const baseTotal = isDiaPuntual ? 1850 * factor : 42600 * factor
+  const total = Math.round(baseTotal * 100) / 100
+
+  const pctEfectivo = 0.3 + (((seed * 12345 + 6789) % 100) / 100) * 0.15
+  const efectivo = Math.round(total * pctEfectivo * 100) / 100
+  const tarjeta = Math.round((total - efectivo) * 100) / 100
+
+  const comisionPlataforma = Math.round(total * 0.15 * 100) / 100
+
+  return { total, efectivo, tarjeta, comisionPlataforma }
+}
 
 const MESES = [
   'Enero', 'Febrero', 'Marzo', 'Abril', 'Mayo', 'Junio',
@@ -126,6 +164,60 @@ export default function AdminPanel({ onLogout }: Props) {
 
   const [selectedUsuario, setSelectedUsuario] = useState<typeof usuarios[number] | null>(null)
   const [showConfirmSuspend, setShowConfirmSuspend] = useState(false)
+
+  // Estados para el local seleccionado
+  const [locales, setLocales] = useState([
+    { 
+      id: 1, name: 'Taquería El Gordo', status: 'Activo', statusColor: 'text-[#5bc827]', bg: 'bg-[#5bc827]/10',
+      categoria: 'Tacos', propietario: 'Roberto Gómez', telefono: '618 456 7890',
+      direccion: 'Calle Hidalgo #45, Centro', fechaAlta: '4 Feb 2025', rating: 4.7, pedidosTotales: 342
+    },
+    { 
+      id: 2, name: 'Sushi Nuevo', status: 'Pendiente', statusColor: 'text-[#d9a05b]', bg: 'bg-[#d9a05b]/10',
+      categoria: 'Sushi', propietario: 'Ana Kimura', telefono: '618 567 8901',
+      direccion: 'Blvd. Guadiana #200, Fracc. Real', fechaAlta: '10 Ago 2026', rating: 0, pedidosTotales: 0
+    },
+  ])
+
+  const [selectedLocal, setSelectedLocal] = useState<typeof locales[number] | null>(null)
+  const [localTimeframe, setLocalTimeframe] = useState<LocalTimeframe>('mes')
+  const [fechaLocalSeleccionada, setFechaLocalSeleccionada] = useState<{
+    dia: number | null
+    mes: number
+    anio: number
+  }>({
+    dia: null,
+    mes: new Date().getMonth(),
+    anio: new Date().getFullYear(),
+  })
+  const [showLocalGanancias, setShowLocalGanancias] = useState(false)
+  const [showConfirmSuspendLocal, setShowConfirmSuspendLocal] = useState(false)
+
+  // Estados para el repartidor seleccionado
+  const [repartidores, setRepartidores] = useState([
+    { 
+      id: 1, name: 'Carlos R.', mat: 'REP-451234', rating: '4.9', status: 'Activo',
+      telefono: '618 678 9012', vehiculo: 'Motocicleta Italika 150', 
+      fechaAlta: '15 Jun 2025', direccion: 'Calle Roble #12, Sierra Norte',
+      entregasTotales: 512, gananciasTotales: 24800
+    },
+    { 
+      id: 2, name: 'Ana López', mat: 'REP-883192', rating: '4.7', status: 'Activo',
+      telefono: '618 789 0123', vehiculo: 'Bicicleta eléctrica',
+      fechaAlta: '2 Sep 2025', direccion: 'Av. Universidad #88, Centro',
+      entregasTotales: 340, gananciasTotales: 16200
+    },
+    { 
+      id: 3, name: 'Miguel Torres', mat: 'REP-902341', rating: '0', status: 'Pendiente',
+      telefono: '618 890 1234', vehiculo: 'Motocicleta Vento 200',
+      fechaAlta: '18 Ago 2026', direccion: 'Blvd. Durango #55, Guadalupe',
+      entregasTotales: 0, gananciasTotales: 0
+    },
+  ])
+
+  const [selectedRepartidor, setSelectedRepartidor] = useState<typeof repartidores[number] | null>(null)
+  const [showConfirmSuspendRepartidor, setShowConfirmSuspendRepartidor] = useState(false)
+  const [showConfirmRechazarRepartidor, setShowConfirmRechazarRepartidor] = useState<typeof repartidores[number] | null>(null)
 
     /**
    * Maneja el evento de guardar la configuración de comisiones.
@@ -254,6 +346,421 @@ export default function AdminPanel({ onLogout }: Props) {
                     setShowConfirmSuspend(false)
                   }}
                   className={`flex-1 py-3 rounded-xl font-bold transition-colors cursor-pointer ${selectedUsuario.status === 'Activo' ? 'bg-red-600 hover:bg-red-500 text-white' : 'bg-[#5bc827] hover:bg-[#7ed944] text-[#1a1b1e]'}`}
+                >
+                  Confirmar
+                </button>
+              </div>
+            </div>
+          </div>
+        )}
+      </div>
+    )
+  }
+
+  if (selectedLocal) {
+    const ganancias = localTimeframe === 'personalizado'
+      ? generarGananciasPorFecha(selectedLocal.id, fechaLocalSeleccionada.dia, fechaLocalSeleccionada.mes, fechaLocalSeleccionada.anio)
+      : (DATA_GANANCIAS_LOCAL[selectedLocal.id]?.[localTimeframe as Exclude<LocalTimeframe, 'personalizado'>] ?? { total: 0, efectivo: 0, tarjeta: 0, comisionPlataforma: 0 })
+
+    return (
+      <div className="min-h-screen bg-[#1a1b1e] text-white pb-10">
+        <header className="sticky top-0 z-40 bg-[#1a1b1e]/95 backdrop-blur-sm border-b border-[#35373b] px-4 py-3 flex items-center gap-3">
+          <button onClick={() => setSelectedLocal(null)} className="text-[#9a9da3] hover:text-white transition-colors cursor-pointer">
+            <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" /></svg>
+          </button>
+          <h1 className="text-xl font-bold uppercase tracking-wide" style={{ fontFamily: 'Barlow Condensed, sans-serif' }}>Detalle del local</h1>
+        </header>
+
+        <div className="p-4 max-w-lg mx-auto w-full space-y-5">
+          {/* Encabezado del local */}
+          <div className="bg-[#232427] border border-[#35373b] rounded-2xl p-5">
+            <div className="flex items-center justify-between mb-1">
+              <h2 className="font-bold text-lg text-white">{selectedLocal.name}</h2>
+              <span className={`${selectedLocal.statusColor} ${selectedLocal.bg} text-[10px] uppercase font-bold px-2 py-1 rounded`}>
+                {selectedLocal.status}
+              </span>
+            </div>
+            <p className="text-[#9a9da3] text-xs">{selectedLocal.categoria}</p>
+          </div>
+
+          {/* Información general */}
+          <div className="bg-[#232427] border border-[#35373b] rounded-2xl p-5 space-y-3">
+            <h3 className="text-[#9a9da3] text-xs uppercase tracking-widest font-semibold mb-2">Información general</h3>
+            <InfoRow label="Propietario" value={selectedLocal.propietario} />
+            <InfoRow label="Teléfono" value={selectedLocal.telefono} />
+            <InfoRow label="Dirección" value={selectedLocal.direccion} />
+            <InfoRow label="Fecha de alta" value={selectedLocal.fechaAlta} />
+          </div>
+
+          {/* Estadísticas */}
+          <div className="grid grid-cols-2 gap-3">
+            <StatCard label="Rating" value={`${selectedLocal.rating} ★`} icon="⭐" />
+            <StatCard label="Pedidos totales" value={String(selectedLocal.pedidosTotales)} icon="📦" />
+          </div>
+
+          {/* Ganancias del local */}
+          <div className="bg-gradient-to-r from-[#232427] to-[#1a1b1e] border border-[#5bc827]/30 rounded-2xl shadow-lg shadow-[#5bc827]/5 relative overflow-hidden">
+            <button 
+              onClick={() => setShowLocalGanancias(!showLocalGanancias)}
+              className="w-full text-left p-5 flex items-center justify-between gap-4 group focus:outline-none cursor-pointer"
+            >
+              <div>
+                <div className="flex items-center gap-2 mb-1">
+                  <p className="text-[#9a9da3] text-xs uppercase tracking-widest">Ganancias del local</p>
+                  <span className="text-[10px] bg-[#5bc827]/10 text-[#5bc827] border border-[#5bc827]/30 px-2 py-0.5 rounded-full font-bold uppercase">
+                    {localTimeframe === 'hoy' 
+                      ? 'Hoy' 
+                      : localTimeframe === 'semana' 
+                      ? 'Esta Semana' 
+                      : localTimeframe === 'mes' 
+                      ? 'Este Mes' 
+                      : localTimeframe === 'anio' 
+                      ? 'Este Año'
+                      : fechaLocalSeleccionada.dia !== null
+                      ? `${fechaLocalSeleccionada.dia} de ${MESES[fechaLocalSeleccionada.mes].toLowerCase()}, ${fechaLocalSeleccionada.anio}`
+                      : `${MESES[fechaLocalSeleccionada.mes]} ${fechaLocalSeleccionada.anio}`}
+                  </span>
+                </div>
+                <p className="text-4xl font-bold text-[#5bc827]" style={{ fontFamily: 'Barlow Condensed, sans-serif' }}>
+                  ${ganancias.total.toLocaleString('es-MX', { minimumFractionDigits: 2 })}
+                </p>
+              </div>
+              <div className={`w-8 h-8 rounded-xl bg-[#232427] border border-[#35373b] flex items-center justify-center transition-transform duration-300 ${showLocalGanancias ? 'rotate-180' : ''}`}>
+                <span className="text-[#5bc827] text-xs">▼</span>
+              </div>
+            </button>
+
+            {showLocalGanancias && (
+              <div className="px-5 pb-5 border-t border-[#35373b]/60 pt-4 space-y-5 animate-fadeIn">
+                <div>
+                  <label className="text-xs text-[#9a9da3] uppercase tracking-wider font-semibold block mb-2">Lapso de tiempo</label>
+                  <div className="grid grid-cols-5 gap-1.5 bg-[#1a1b1e] p-1.5 rounded-xl border border-[#35373b]">
+                    {[
+                      { id: 'hoy', label: 'Hoy' },
+                      { id: 'semana', label: 'Semana' },
+                      { id: 'mes', label: 'Mes' },
+                      { id: 'anio', label: 'Año' },
+                      { id: 'personalizado', label: '📅 Elegir fecha' }
+                    ].map((t) => (
+                      <button
+                        key={t.id}
+                        onClick={() => setLocalTimeframe(t.id as LocalTimeframe)}
+                        className={`py-2 px-1 text-[11px] font-bold rounded-lg transition-all truncate cursor-pointer ${
+                          localTimeframe === t.id
+                            ? 'bg-[#5bc827] text-[#1a1b1e] shadow-md shadow-[#5bc827]/20'
+                            : 'text-[#9a9da3] hover:text-white hover:bg-[#232427]'
+                        }`}
+                      >
+                        {t.label}
+                      </button>
+                    ))}
+                  </div>
+                </div>
+
+                {/* Calendario Personalizado */}
+                {localTimeframe === 'personalizado' && (
+                  <div className="bg-[#1a1b1e] border border-[#35373b] p-4 rounded-xl space-y-3 animate-fadeIn">
+                    <div className="flex flex-wrap items-center justify-between gap-2 pb-2 border-b border-[#35373b]/60">
+                      {/* Selector de Mes */}
+                      <div className="flex items-center gap-1">
+                        <button
+                          type="button"
+                          onClick={() => {
+                            let newMes = fechaLocalSeleccionada.mes - 1
+                            let newAnio = fechaLocalSeleccionada.anio
+                            if (newMes < 0) {
+                              newMes = 11
+                              newAnio = Math.max(2023, newAnio - 1)
+                            }
+                            setFechaLocalSeleccionada(prev => ({ ...prev, mes: newMes, anio: newAnio }))
+                          }}
+                          className="w-7 h-7 flex items-center justify-center rounded-lg bg-[#232427] border border-[#35373b] text-[#9a9da3] hover:text-white hover:border-[#5bc827] transition-colors"
+                        >
+                          ‹
+                        </button>
+                        <select
+                          value={fechaLocalSeleccionada.mes}
+                          onChange={(e) => setFechaLocalSeleccionada(prev => ({ ...prev, mes: Number(e.target.value) }))}
+                          className="bg-[#232427] border border-[#35373b] text-white text-xs font-semibold rounded-lg px-2 py-1 outline-none focus:border-[#5bc827] transition-colors cursor-pointer"
+                        >
+                          {MESES.map((m, idx) => (
+                            <option key={m} value={idx} className="bg-[#1a1b1e] text-white">{m}</option>
+                          ))}
+                        </select>
+                        <button
+                          type="button"
+                          onClick={() => {
+                            let newMes = fechaLocalSeleccionada.mes + 1
+                            let newAnio = fechaLocalSeleccionada.anio
+                            if (newMes > 11) {
+                              newMes = 0
+                              newAnio = Math.min(2026, newAnio + 1)
+                            }
+                            setFechaLocalSeleccionada(prev => ({ ...prev, mes: newMes, anio: newAnio }))
+                          }}
+                          className="w-7 h-7 flex items-center justify-center rounded-lg bg-[#232427] border border-[#35373b] text-[#9a9da3] hover:text-white hover:border-[#5bc827] transition-colors"
+                        >
+                          ›
+                        </button>
+                      </div>
+
+                      {/* Selector de Año */}
+                      <div className="flex items-center gap-1">
+                        <button
+                          type="button"
+                          disabled={fechaLocalSeleccionada.anio <= 2023}
+                          onClick={() => setFechaLocalSeleccionada(prev => ({ ...prev, anio: Math.max(2023, prev.anio - 1) }))}
+                          className="w-7 h-7 flex items-center justify-center rounded-lg bg-[#232427] border border-[#35373b] text-[#9a9da3] hover:text-white hover:border-[#5bc827] disabled:opacity-40 transition-colors"
+                        >
+                          ‹
+                        </button>
+                        <select
+                          value={fechaLocalSeleccionada.anio}
+                          onChange={(e) => setFechaLocalSeleccionada(prev => ({ ...prev, anio: Number(e.target.value) }))}
+                          className="bg-[#232427] border border-[#35373b] text-white text-xs font-bold rounded-lg px-2 py-1 outline-none focus:border-[#5bc827] transition-colors cursor-pointer"
+                        >
+                          {[2023, 2024, 2025, 2026].map(yr => (
+                            <option key={yr} value={yr} className="bg-[#1a1b1e] text-white">{yr}</option>
+                          ))}
+                        </select>
+                        <button
+                          type="button"
+                          disabled={fechaLocalSeleccionada.anio >= 2026}
+                          onClick={() => setFechaLocalSeleccionada(prev => ({ ...prev, anio: Math.min(2026, prev.anio + 1) }))}
+                          className="w-7 h-7 flex items-center justify-center rounded-lg bg-[#232427] border border-[#35373b] text-[#9a9da3] hover:text-white hover:border-[#5bc827] disabled:opacity-40 transition-colors"
+                        >
+                          ›
+                        </button>
+                      </div>
+                    </div>
+
+                    {/* Encabezado Días de la Semana */}
+                    <div className="grid grid-cols-7 gap-1 text-center">
+                      {DIAS_SEMANA.map(d => (
+                        <span key={d} className="text-[10px] text-[#9a9da3] font-bold uppercase py-1">
+                          {d}
+                        </span>
+                      ))}
+                    </div>
+
+                    {/* Cuadrícula de Días */}
+                    {(() => {
+                      const firstDayIndex = (new Date(fechaLocalSeleccionada.anio, fechaLocalSeleccionada.mes, 1).getDay() + 6) % 7
+                      const daysInMonth = new Date(fechaLocalSeleccionada.anio, fechaLocalSeleccionada.mes + 1, 0).getDate()
+
+                      return (
+                        <div className="grid grid-cols-7 gap-1">
+                          {Array.from({ length: firstDayIndex }).map((_, i) => (
+                            <div key={`empty-${i}`} className="h-8" />
+                          ))}
+
+                          {Array.from({ length: daysInMonth }, (_, i) => i + 1).map(day => {
+                            const isSelected = fechaLocalSeleccionada.dia === day
+                            return (
+                              <button
+                                key={day}
+                                type="button"
+                                onClick={() => setFechaLocalSeleccionada(prev => ({ ...prev, dia: day }))}
+                                className={`h-8 text-xs font-semibold rounded-lg flex items-center justify-center transition-all ${
+                                  isSelected
+                                    ? 'bg-[#5bc827] text-[#1a1b1e] font-bold shadow-md shadow-[#5bc827]/20 scale-105'
+                                    : 'bg-[#1a1b1e] border border-[#35373b] text-white hover:bg-[#232427] hover:border-[#5bc827]/40'
+                                }`}
+                              >
+                                {day}
+                              </button>
+                            )
+                          })}
+                        </div>
+                      )
+                    })()}
+
+                    {/* Botones de Selección: Día vs Mes */}
+                    <div className="flex items-center gap-2 pt-2 border-t border-[#35373b]/60">
+                      <button
+                        type="button"
+                        onClick={() => setFechaLocalSeleccionada(prev => ({ ...prev, dia: prev.dia || 1 }))}
+                        className={`flex-1 py-2 px-2 text-xs font-bold rounded-lg border transition-all ${
+                          fechaLocalSeleccionada.dia !== null
+                            ? 'bg-[#5bc827]/10 border-[#5bc827] text-[#5bc827]'
+                            : 'bg-[#1a1b1e] border-[#35373b] text-[#9a9da3] hover:text-white hover:bg-[#232427]'
+                        }`}
+                      >
+                        Ver solo este día
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => setFechaLocalSeleccionada(prev => ({ ...prev, dia: null }))}
+                        className={`flex-1 py-2 px-2 text-xs font-bold rounded-lg border transition-all ${
+                          fechaLocalSeleccionada.dia === null
+                            ? 'bg-[#5bc827]/10 border-[#5bc827] text-[#5bc827]'
+                            : 'bg-[#1a1b1e] border-[#35373b] text-[#9a9da3] hover:text-white hover:bg-[#232427]'
+                        }`}
+                      >
+                        Ver todo el mes
+                      </button>
+                    </div>
+                  </div>
+                )}
+
+                <div>
+                  <p className="text-xs text-[#9a9da3] uppercase tracking-wider font-semibold mb-2">Métodos de Pago</p>
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                    <div className="bg-[#1a1b1e]/80 border border-[#35373b] p-3.5 rounded-xl flex items-center justify-between">
+                      <div className="flex items-center gap-3">
+                        <span className="text-xl">💵</span>
+                        <div>
+                          <p className="text-xs text-[#9a9da3]">Pago en Efectivo</p>
+                          <p className="text-lg font-bold text-white">${ganancias.efectivo.toLocaleString('es-MX', { minimumFractionDigits: 2 })}</p>
+                        </div>
+                      </div>
+                    </div>
+                    <div className="bg-[#1a1b1e]/80 border border-[#35373b] p-3.5 rounded-xl flex items-center justify-between">
+                      <div className="flex items-center gap-3">
+                        <span className="text-xl">💳</span>
+                        <div>
+                          <p className="text-xs text-[#9a9da3]">Pago en Tarjeta</p>
+                          <p className="text-lg font-bold text-white">${ganancias.tarjeta.toLocaleString('es-MX', { minimumFractionDigits: 2 })}</p>
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+
+                <div className="bg-red-950/30 border border-red-900/40 p-3.5 rounded-xl flex items-center justify-between mt-3">
+                  <div className="flex items-center gap-3">
+                    <span className="text-xl">📉</span>
+                    <div>
+                      <p className="text-xs text-red-400">Comisión de la plataforma</p>
+                      <p className="text-lg font-bold text-red-300">-${ganancias.comisionPlataforma.toLocaleString('es-MX', { minimumFractionDigits: 2 })}</p>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            )}
+          </div>
+
+          {/* Botón de suspender/reactivar */}
+          <button
+            onClick={() => setShowConfirmSuspendLocal(true)}
+            className={`w-full py-3.5 rounded-xl font-bold text-sm transition-colors cursor-pointer ${
+              selectedLocal.status !== 'Suspendido'
+                ? 'border border-red-800/50 text-red-400 hover:bg-red-900/20'
+                : 'bg-[#5bc827] hover:bg-[#7ed944] text-[#1a1b1e]'
+            }`}
+          >
+            {selectedLocal.status !== 'Suspendido' ? 'Suspender local' : 'Reactivar local'}
+          </button>
+        </div>
+
+        {showConfirmSuspendLocal && (
+          <div className="fixed inset-0 bg-black/60 z-50 flex items-center justify-center p-4" onClick={() => setShowConfirmSuspendLocal(false)}>
+            <div className="bg-[#232427] border border-[#35373b] rounded-2xl p-6 max-w-sm w-full shadow-2xl" onClick={e => e.stopPropagation()}>
+              <h3 className="text-white font-bold text-lg text-center mb-2">
+                {selectedLocal.status !== 'Suspendido' ? '¿Suspender este local?' : '¿Reactivar este local?'}
+              </h3>
+              <p className="text-[#9a9da3] text-sm text-center mb-5">
+                {selectedLocal.status !== 'Suspendido'
+                  ? 'Dejará de aparecer para los usuarios y no podrá recibir nuevos pedidos.'
+                  : 'El local volverá a estar visible y podrá recibir pedidos normalmente.'}
+              </p>
+              <div className="flex gap-3">
+                <button onClick={() => setShowConfirmSuspendLocal(false)} className="flex-1 py-3 rounded-xl border border-[#35373b] text-[#c4c6ca] font-semibold hover:bg-[#1a1b1e] transition-colors cursor-pointer">
+                  Cancelar
+                </button>
+                <button
+                  onClick={() => {
+                    const nuevoStatus = selectedLocal.status !== 'Suspendido' ? 'Suspendido' : 'Activo'
+                    const nuevoColor = nuevoStatus === 'Activo' ? 'text-[#5bc827]' : 'text-red-400'
+                    const nuevoBg = nuevoStatus === 'Activo' ? 'bg-[#5bc827]/10' : 'bg-red-400/10'
+                    setLocales(prev => prev.map(l => l.id === selectedLocal.id ? { ...l, status: nuevoStatus, statusColor: nuevoColor, bg: nuevoBg } : l))
+                    setSelectedLocal(prev => prev ? { ...prev, status: nuevoStatus, statusColor: nuevoColor, bg: nuevoBg } : null)
+                    setShowConfirmSuspendLocal(false)
+                  }}
+                  className={`flex-1 py-3 rounded-xl font-bold transition-colors cursor-pointer ${selectedLocal.status !== 'Suspendido' ? 'bg-red-600 hover:bg-red-500 text-white' : 'bg-[#5bc827] hover:bg-[#7ed944] text-[#1a1b1e]'}`}
+                >
+                  Confirmar
+                </button>
+              </div>
+            </div>
+          </div>
+        )}
+      </div>
+    )
+  }
+
+  if (selectedRepartidor) {
+    return (
+      <div className="min-h-screen bg-[#1a1b1e] text-white pb-10">
+        <header className="sticky top-0 z-40 bg-[#1a1b1e]/95 backdrop-blur-sm border-b border-[#35373b] px-4 py-3 flex items-center gap-3">
+          <button onClick={() => setSelectedRepartidor(null)} className="text-[#9a9da3] hover:text-white transition-colors cursor-pointer">
+            <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" /></svg>
+          </button>
+          <h1 className="text-xl font-bold uppercase tracking-wide" style={{ fontFamily: 'Barlow Condensed, sans-serif' }}>Detalle del repartidor</h1>
+        </header>
+
+        <div className="p-4 max-w-lg mx-auto w-full space-y-5">
+          <div className="bg-[#232427] border border-[#35373b] rounded-2xl p-5 flex items-center gap-4">
+            <div className="w-14 h-14 rounded-full bg-[#d9a05b]/20 border-2 border-[#d9a05b] flex items-center justify-center text-xl font-bold text-[#d9a05b]">
+              {selectedRepartidor.name.split(' ').map(n => n[0]).join('')}
+            </div>
+            <div className="flex-1">
+              <h2 className="font-bold text-lg text-white">{selectedRepartidor.name} <span className="text-[#d9a05b] text-sm">★ {selectedRepartidor.rating}</span></h2>
+              <p className="text-[#9a9da3] text-xs font-mono">{selectedRepartidor.mat}</p>
+              <span className={`inline-block mt-1 text-[10px] uppercase font-bold px-2 py-0.5 rounded ${selectedRepartidor.status === 'Activo' ? 'text-[#5bc827] bg-[#5bc827]/10' : 'text-red-400 bg-red-400/10'}`}>
+                {selectedRepartidor.status}
+              </span>
+            </div>
+          </div>
+
+          <div className="bg-[#232427] border border-[#35373b] rounded-2xl p-5 space-y-3">
+            <h3 className="text-[#9a9da3] text-xs uppercase tracking-widest font-semibold mb-2">Información general</h3>
+            <InfoRow label="Teléfono" value={selectedRepartidor.telefono} />
+            <InfoRow label="Vehículo" value={selectedRepartidor.vehiculo} />
+            <InfoRow label="Dirección" value={selectedRepartidor.direccion} />
+            <InfoRow label="Fecha de alta" value={selectedRepartidor.fechaAlta} />
+          </div>
+
+          <div className="grid grid-cols-2 gap-3">
+            <StatCard label="Entregas totales" value={String(selectedRepartidor.entregasTotales)} icon="📦" />
+            <StatCard label="Ganancias totales" value={`$${selectedRepartidor.gananciasTotales.toLocaleString('es-MX')}`} icon="💰" />
+          </div>
+
+          <button
+            onClick={() => setShowConfirmSuspendRepartidor(true)}
+            className={`w-full py-3.5 rounded-xl font-bold text-sm transition-colors cursor-pointer ${
+              selectedRepartidor.status === 'Activo'
+                ? 'border border-red-800/50 text-red-400 hover:bg-red-900/20'
+                : 'bg-[#5bc827] hover:bg-[#7ed944] text-[#1a1b1e]'
+            }`}
+          >
+            {selectedRepartidor.status === 'Activo' ? 'Suspender repartidor' : 'Reactivar repartidor'}
+          </button>
+        </div>
+
+        {showConfirmSuspendRepartidor && (
+          <div className="fixed inset-0 bg-black/60 z-50 flex items-center justify-center p-4" onClick={() => setShowConfirmSuspendRepartidor(false)}>
+            <div className="bg-[#232427] border border-[#35373b] rounded-2xl p-6 max-w-sm w-full shadow-2xl" onClick={e => e.stopPropagation()}>
+              <h3 className="text-white font-bold text-lg text-center mb-2">
+                {selectedRepartidor.status === 'Activo' ? '¿Suspender a este repartidor?' : '¿Reactivar a este repartidor?'}
+              </h3>
+              <p className="text-[#9a9da3] text-sm text-center mb-5">
+                {selectedRepartidor.status === 'Activo'
+                  ? 'No podrá recibir nuevas asignaciones de pedidos hasta que se reactive.'
+                  : 'El repartidor volverá a poder recibir pedidos normalmente.'}
+              </p>
+              <div className="flex gap-3">
+                <button onClick={() => setShowConfirmSuspendRepartidor(false)} className="flex-1 py-3 rounded-xl border border-[#35373b] text-[#c4c6ca] font-semibold hover:bg-[#1a1b1e] transition-colors cursor-pointer">
+                  Cancelar
+                </button>
+                <button
+                  onClick={() => {
+                    const nuevoStatus = selectedRepartidor.status === 'Activo' ? 'Suspendido' : 'Activo'
+                    setRepartidores(prev => prev.map(r => r.id === selectedRepartidor.id ? { ...r, status: nuevoStatus } : r))
+                    setSelectedRepartidor(prev => prev ? { ...prev, status: nuevoStatus } : null)
+                    setShowConfirmSuspendRepartidor(false)
+                  }}
+                  className={`flex-1 py-3 rounded-xl font-bold transition-colors cursor-pointer ${selectedRepartidor.status === 'Activo' ? 'bg-red-600 hover:bg-red-500 text-white' : 'bg-[#5bc827] hover:bg-[#7ed944] text-[#1a1b1e]'}`}
                 >
                   Confirmar
                 </button>
@@ -610,18 +1117,23 @@ export default function AdminPanel({ onLogout }: Props) {
           <div>
             <Title text="Locales y Restaurantes" />
             <div className="space-y-3">
-              {[
-                { name: 'Taquería El Gordo', status: 'Activo', statusColor: 'text-[#5bc827]', bg: 'bg-[#5bc827]/10' },
-                { name: 'Sushi Nuevo', status: 'Pendiente', statusColor: 'text-[#d9a05b]', bg: 'bg-[#d9a05b]/10' },
-              ].map((l, i) => (
-                <div key={i} className="bg-[#232427] border border-[#35373b] hover:border-[#d9a05b]/50 p-4 rounded-xl flex items-center justify-between transition-colors">
-                  <p className="font-bold text-sm text-white">{l.name}</p>
+              {locales.map((l) => (
+                <div key={l.id} className="bg-[#232427] border border-[#35373b] hover:border-[#d9a05b]/50 p-4 rounded-xl flex items-center justify-between transition-colors">
+                  <div>
+                    <p className="font-bold text-sm text-white">{l.name}</p>
+                    <p className="text-[#9a9da3] text-xs">{l.categoria}</p>
+                  </div>
                   <div className="flex items-center gap-3">
                     <span className={`${l.statusColor} ${l.bg} text-[10px] uppercase font-bold px-2 py-1 rounded`}>{l.status}</span>
                     {l.status === 'Pendiente' ? (
-                      <button className="text-xs font-semibold bg-[#d9a05b] hover:bg-[#e0b07a] text-[#1a1b1e] px-3 py-1.5 rounded-lg transition-colors">Aprobar</button>
+                      <button className="text-xs font-semibold bg-[#d9a05b] hover:bg-[#e0b07a] text-[#1a1b1e] px-3 py-1.5 rounded-lg transition-colors cursor-pointer">Aprobar</button>
                     ) : (
-                      <button className="text-xs bg-[#35373b] hover:bg-[#5bc827] hover:text-[#1a1b1e] text-white px-3 py-1.5 rounded-lg transition-colors">Ver</button>
+                      <button 
+                        onClick={() => setSelectedLocal(l)}
+                        className="text-xs font-semibold bg-[#35373b] hover:bg-[#5bc827] hover:text-[#1a1b1e] text-white px-3 py-1.5 rounded-lg transition-colors cursor-pointer"
+                      >
+                        Ver
+                      </button>
                     )}
                   </div>
                 </div>
@@ -632,18 +1144,41 @@ export default function AdminPanel({ onLogout }: Props) {
 
         {activeTab === 'repartidores' && (
           <div>
-            <Title text="Repartidores Activos" />
+            <Title text="Repartidores" />
             <div className="space-y-3">
-              {[
-                { name: 'Carlos R.', mat: 'REP-451234', rating: '4.9', status: 'Activo' },
-                { name: 'Ana López', mat: 'REP-883192', rating: '4.7', status: 'Activo' },
-              ].map((r, i) => (
-                <div key={i} className="bg-[#232427] border border-[#35373b] hover:border-[#d9a05b]/50 p-4 rounded-xl flex items-center justify-between transition-colors">
+              {repartidores.map((r) => (
+                <div key={r.id} className="bg-[#232427] border border-[#35373b] hover:border-[#d9a05b]/50 p-4 rounded-xl flex items-center justify-between transition-colors">
                   <div>
-                    <p className="font-bold text-sm text-white">{r.name} <span className="text-[#d9a05b] ml-1">★ {r.rating}</span></p>
+                    <p className="font-bold text-sm text-white">
+                      {r.name} {r.status !== 'Pendiente' && <span className="text-[#d9a05b] ml-1">★ {r.rating}</span>}
+                    </p>
                     <p className="text-[#9a9da3] text-xs font-mono mt-0.5">{r.mat}</p>
                   </div>
-                  <button className="text-[10px] font-bold uppercase text-red-400 hover:text-red-300 hover:underline">Suspender</button>
+                  <div className="flex items-center gap-2">
+                    {r.status === 'Pendiente' ? (
+                      <>
+                        <button 
+                          onClick={() => setRepartidores(prev => prev.map(x => x.id === r.id ? { ...x, status: 'Activo' } : x))}
+                          className="text-xs font-semibold bg-[#5bc827] hover:bg-[#7ed944] text-[#1a1b1e] px-3 py-1.5 rounded-lg transition-colors cursor-pointer"
+                        >
+                          Aprobar
+                        </button>
+                        <button 
+                          onClick={() => setShowConfirmRechazarRepartidor(r)}
+                          className="text-xs font-semibold border border-red-800/50 text-red-400 hover:bg-red-900/20 px-3 py-1.5 rounded-lg transition-colors cursor-pointer"
+                        >
+                          Rechazar
+                        </button>
+                      </>
+                    ) : (
+                      <button 
+                        onClick={() => setSelectedRepartidor(r)}
+                        className="text-xs bg-[#35373b] hover:bg-[#5bc827] hover:text-[#1a1b1e] text-white px-3 py-1.5 rounded-lg transition-colors cursor-pointer"
+                      >
+                        Ver
+                      </button>
+                    )}
+                  </div>
                 </div>
               ))}
             </div>
@@ -761,6 +1296,31 @@ export default function AdminPanel({ onLogout }: Props) {
           </div>
         )}
       </main>
+
+      {showConfirmRechazarRepartidor && (
+        <div className="fixed inset-0 bg-black/60 z-50 flex items-center justify-center p-4" onClick={() => setShowConfirmRechazarRepartidor(null)}>
+          <div className="bg-[#232427] border border-[#35373b] rounded-2xl p-6 max-w-sm w-full shadow-2xl" onClick={e => e.stopPropagation()}>
+            <h3 className="text-white font-bold text-lg text-center mb-2">¿Rechazar esta solicitud?</h3>
+            <p className="text-[#9a9da3] text-sm text-center mb-5">
+              {showConfirmRechazarRepartidor.name} no podrá unirse como repartidor con esta solicitud. Esta acción no se puede deshacer.
+            </p>
+            <div className="flex gap-3">
+              <button onClick={() => setShowConfirmRechazarRepartidor(null)} className="flex-1 py-3 rounded-xl border border-[#35373b] text-[#c4c6ca] font-semibold hover:bg-[#1a1b1e] transition-colors cursor-pointer">
+                Cancelar
+              </button>
+              <button
+                onClick={() => {
+                  setRepartidores(prev => prev.filter(r => r.id !== showConfirmRechazarRepartidor.id))
+                  setShowConfirmRechazarRepartidor(null)
+                }}
+                className="flex-1 py-3 rounded-xl font-bold bg-red-600 hover:bg-red-500 text-white transition-colors cursor-pointer"
+              >
+                Sí, rechazar
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* Tabs / Bottom Nav */}
       <nav className="fixed bottom-0 left-0 right-0 bg-[#1a1b1e]/95 backdrop-blur-sm border-t border-[#35373b] flex overflow-x-auto z-50 py-2 px-2 sm:justify-center gap-1 sm:gap-6 hide-scrollbar">

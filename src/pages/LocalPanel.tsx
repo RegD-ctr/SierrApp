@@ -538,21 +538,6 @@ export default function LocalPanel({ onLogout }: Props) {
                     </div>
                   </div>
 
-                  {/* Fila final: Comisión y Neto */}
-                  <div className="bg-[#1a1b1e] border border-[#35373b] p-4 rounded-xl space-y-2">
-                    <div className="flex items-center justify-between text-xs">
-                      <span className="text-[#9a9da3]">Ventas totales brutas</span>
-                      <span className="text-white font-semibold">${currentVentas.total.toLocaleString('es-MX', { minimumFractionDigits: 2 })}</span>
-                    </div>
-                    <div className="flex items-center justify-between text-xs">
-                      <span className="text-[#9a9da3]">Comisión de plataforma (15%)</span>
-                      <span className="text-red-400 font-semibold">-${currentVentas.comisionPlataforma.toLocaleString('es-MX', { minimumFractionDigits: 2 })}</span>
-                    </div>
-                    <div className="border-t border-[#35373b] pt-2 flex items-center justify-between">
-                      <span className="text-sm font-bold text-white">Recibes (Neto)</span>
-                      <span className="text-xl font-bold text-[#5bc827]">${currentVentas.netoRecibido.toLocaleString('es-MX', { minimumFractionDigits: 2 })}</span>
-                    </div>
-                  </div>
                 </div>
               )}
             </div>

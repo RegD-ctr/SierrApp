@@ -160,11 +160,11 @@ export default function App() {
       savedAddresses={savedAddresses}
       deliveryAddressId={deliveryAddressId}
       onChangeAddress={() => { setAddressSelectMode(true); navigateTo('addresses') }}
-      onConfirm={() => { setCartItems([]); setCartOpen(false); navigateTo('order-confirmation') }}
+      onConfirm={() => { setCartItems([]); setCartOpen(false); setSelectedRestaurant(null); navigateTo('order-confirmation') }}
       onBack={goBack}
     />
   )
-  if (view === 'order-confirmation') return <OrderConfirmation onTrack={() => navigateTo('pedidos')} onHome={() => navigateTo('inicio')} />
+  if (view === 'order-confirmation') return <OrderConfirmation onTrack={() => { setSelectedRestaurant(null); navigateTo('pedidos') }} onHome={() => { setSelectedRestaurant(null); navigateTo('inicio') }} />
   if (view === 'payment-methods') return <PaymentMethods onBack={goBack} />
   if (view === 'addresses') return (
     <Addresses 

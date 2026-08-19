@@ -68,6 +68,8 @@ export default function Login({ onLogin }: Props) {
 
   // Repartidor register fields
   const [rNombre, setRNombre] = useState('')
+  const [rTelefono, setRTelefono] = useState('')
+  const [rTieneVehiculo, setRTieneVehiculo] = useState<boolean | null>(null)
   const [rFoto, setRFoto] = useState<string | null>(null)
   const [rMatricula] = useState(genMatricula)
   const fotoRef = useRef<HTMLInputElement>(null)
@@ -370,10 +372,15 @@ export default function Login({ onLogin }: Props) {
           <h2 className="text-2xl font-bold text-white uppercase" style={{ fontFamily: 'Barlow Condensed, sans-serif' }}>Registro de repartidor</h2>
         </div>
 
-        <form onSubmit={e => { e.preventDefault(); setScreen('register_repartidor_result') }} className="space-y-4">
+        <form onSubmit={e => { e.preventDefault(); if (rTieneVehiculo === null) return; setScreen('register_repartidor_result') }} className="space-y-4">
           <div>
             <label className="text-[#c4c6ca] text-xs font-semibold block mb-1">Nombre completo</label>
             <input value={rNombre} onChange={e => setRNombre(e.target.value)} required placeholder="Juan Pérez"
+              className="w-full bg-[#232427] border border-[#35373b] focus:border-[#7ed944] rounded-xl px-4 py-3 text-sm text-white placeholder-[#9a9da3] outline-none transition-colors" />
+          </div>
+          <div>
+            <label className="text-[#c4c6ca] text-xs font-semibold block mb-1">Número de teléfono</label>
+            <input type="tel" value={rTelefono} onChange={e => setRTelefono(e.target.value)} required placeholder="618 123 4567"
               className="w-full bg-[#232427] border border-[#35373b] focus:border-[#7ed944] rounded-xl px-4 py-3 text-sm text-white placeholder-[#9a9da3] outline-none transition-colors" />
           </div>
           <div>
@@ -388,7 +395,46 @@ export default function Login({ onLogin }: Props) {
             </div>
             <input ref={fotoRef} type="file" accept="image/*" onChange={handleFoto} className="hidden" />
           </div>
-          <button type="submit" className="w-full py-3.5 rounded-xl bg-gradient-to-r from-[#35373b] to-[#232427] border border-[#7ed944] text-[#7ed944] font-bold text-sm transition-all hover:scale-[1.02]">
+
+          <div>
+            <label className="text-[#c4c6ca] text-xs font-semibold block mb-2">¿Cuentas con vehículo para repartir?</label>
+            <div className="grid grid-cols-2 gap-3">
+              <button
+                type="button"
+                onClick={() => setRTieneVehiculo(true)}
+                className={`flex items-center gap-2 py-3 px-3 rounded-xl border-2 transition-colors cursor-pointer ${
+                  rTieneVehiculo === true
+                    ? 'border-[#7ed944] bg-[#7ed944]/10 text-[#7ed944]'
+                    : 'border-[#35373b] bg-[#232427] text-[#9a9da3] hover:border-[#7ed944]/50'
+                }`}
+              >
+                <span className={`w-4 h-4 rounded flex items-center justify-center border-2 shrink-0 ${rTieneVehiculo === true ? 'bg-[#7ed944] border-[#7ed944]' : 'border-[#35373b]'}`}>
+                  {rTieneVehiculo === true && <span className="text-[#1a1b1e] text-[10px] font-bold">✓</span>}
+                </span>
+                <span className="text-sm font-semibold">Sí, tengo</span>
+              </button>
+              <button
+                type="button"
+                onClick={() => setRTieneVehiculo(false)}
+                className={`flex items-center gap-2 py-3 px-3 rounded-xl border-2 transition-colors cursor-pointer ${
+                  rTieneVehiculo === false
+                    ? 'border-[#7ed944] bg-[#7ed944]/10 text-[#7ed944]'
+                    : 'border-[#35373b] bg-[#232427] text-[#9a9da3] hover:border-[#7ed944]/50'
+                }`}
+              >
+                <span className={`w-4 h-4 rounded flex items-center justify-center border-2 shrink-0 ${rTieneVehiculo === false ? 'bg-[#7ed944] border-[#7ed944]' : 'border-[#35373b]'}`}>
+                  {rTieneVehiculo === false && <span className="text-[#1a1b1e] text-[10px] font-bold">✓</span>}
+                </span>
+                <span className="text-sm font-semibold">No tengo</span>
+              </button>
+            </div>
+          </div>
+
+          <button 
+            type="submit" 
+            disabled={rTieneVehiculo === null}
+            className="w-full py-3.5 rounded-xl bg-gradient-to-r from-[#35373b] to-[#232427] border border-[#7ed944] text-[#7ed944] font-bold text-sm transition-all hover:scale-[1.02] disabled:opacity-40 disabled:cursor-not-allowed cursor-pointer"
+          >
             Generar matrícula y registrarme
           </button>
         </form>
@@ -407,12 +453,20 @@ export default function Login({ onLogin }: Props) {
         <h2 className="text-3xl font-bold text-white uppercase" style={{ fontFamily: 'Barlow Condensed, sans-serif' }}>¡Registro exitoso!</h2>
         <p className="text-[#9a9da3] text-sm mt-1 mb-6">Bienvenido a Sierra App, {rNombre || 'Repartidor'}</p>
 
-        <div className="bg-[#232427] border border-[#7ed944]/50 rounded-2xl p-5 mb-6 text-left">
-          <div className="mb-3 pb-3 border-b border-[#35373b]">
+        <div className="bg-[#232427] border border-[#7ed944]/50 rounded-2xl p-5 mb-6 text-left space-y-3">
+          <div className="pb-3 border-b border-[#35373b]">
             <p className="text-[#9a9da3] text-[10px] uppercase tracking-widest">Nombre</p>
             <p className="text-white font-bold text-base">{rNombre || 'Juan Pérez'}</p>
           </div>
-          <div className="mb-3 pb-3 border-b border-[#35373b]">
+          <div className="pb-3 border-b border-[#35373b]">
+            <p className="text-[#9a9da3] text-[10px] uppercase tracking-widest">Teléfono</p>
+            <p className="text-white font-bold text-base">{rTelefono || '618 123 4567'}</p>
+          </div>
+          <div className="pb-3 border-b border-[#35373b]">
+            <p className="text-[#9a9da3] text-[10px] uppercase tracking-widest">Vehículo propio</p>
+            <p className="text-white font-bold text-base">{rTieneVehiculo ? 'Sí' : 'No'}</p>
+          </div>
+          <div className="pb-3 border-b border-[#35373b]">
             <p className="text-[#9a9da3] text-[10px] uppercase tracking-widest">Matrícula</p>
             <p className="text-[#7ed944] font-bold text-2xl tracking-widest" style={{ fontFamily: 'Barlow Condensed, sans-serif' }}>{rMatricula}</p>
             <p className="text-[#9a9da3] text-[10px] mt-0.5">Generada automáticamente · No la compartas</p>
@@ -426,7 +480,7 @@ export default function Login({ onLogin }: Props) {
         </div>
 
         <button onClick={() => onLogin('repartidor')}
-          className="w-full py-3.5 rounded-xl bg-gradient-to-r from-[#35373b] to-[#232427] border border-[#7ed944] text-[#7ed944] font-bold text-sm transition-all hover:scale-[1.02] shadow-lg">
+          className="w-full py-3.5 rounded-xl bg-gradient-to-r from-[#35373b] to-[#232427] border border-[#7ed944] text-[#7ed944] font-bold text-sm transition-all hover:scale-[1.02] shadow-lg cursor-pointer">
           Ir a mi panel de repartidor 🏍️
         </button>
       </div>
