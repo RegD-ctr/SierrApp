@@ -1,8 +1,9 @@
 import { useState } from 'react'
+import type { Order } from './OrderTracking'
 
 type Tab = 'activo' | 'historial'
 
-const activeOrder = {
+const defaultActiveOrder: Order = {
   id: '#SRR-4821',
   restaurant: 'Sierra Burger Co.',
   items: ['Burger Clásica x1', 'Papas grandes x1', 'Refresco x1'],
@@ -62,15 +63,19 @@ const history = [
 
 interface Props {
   initialTab?: 'activo' | 'historial'
+  activeOrder?: Order | null
+  onOpenTracking?: (order: Order) => void
 }
 
 /**
  * Componente que muestra los pedidos del usuario.
  * Permite visualizar el pedido activo actualmente y el historial de pedidos pasados.
  */
-export default function Pedidos({ initialTab = 'activo' }: Props) {
+export default function Pedidos({ initialTab = 'activo', activeOrder: propActiveOrder, onOpenTracking }: Props) {
   const [tab, setTab] = useState<Tab>(initialTab)
   const [ratings, setRatings] = useState<Record<string, number>>({})
+
+  const activeOrder = propActiveOrder !== undefined ? propActiveOrder : defaultActiveOrder
 
   return (
     <div className="min-h-screen bg-[#1a1b1e] pb-24">
@@ -103,25 +108,35 @@ export default function Pedidos({ initialTab = 'activo' }: Props) {
         {/* Active Order */}
         {tab === 'activo' && (
           <div>
-            {/* Live pulse banner */}
-            <div className="flex items-center gap-2 mb-4">
-              <span className="relative flex h-2.5 w-2.5">
-                <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-[#5bc827] opacity-75"></span>
-                <span className="relative inline-flex rounded-full h-2.5 w-2.5 bg-[#5bc827]"></span>
-              </span>
-              <span className="text-[#5bc827] text-xs font-semibold">1 pedido activo</span>
-            </div>
-
-            <div className="bg-[#232427] border border-[#5bc827]/30 rounded-2xl overflow-hidden">
-              {/* Order header */}
-              <div className="px-4 pt-4 pb-3 border-b border-[#35373b]">
-                <div className="flex items-center justify-between mb-1">
-                  <span className="font-bold text-white text-sm">{activeOrder.restaurant}</span>
-                  <span className="text-[#9a9da3] text-xs">{activeOrder.id}</span>
+            {activeOrder ? (
+              <>
+                {/* Live pulse banner */}
+                <div className="flex items-center gap-2 mb-4">
+                  <span className="relative flex h-2.5 w-2.5">
+                    <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-[#5bc827] opacity-75"></span>
+                    <span className="relative inline-flex rounded-full h-2.5 w-2.5 bg-[#5bc827]"></span>
+                  </span>
+                  <span className="text-[#5bc827] text-xs font-semibold">1 pedido activo</span>
                 </div>
-                <p className="text-[#9a9da3] text-xs">{activeOrder.items.join(' · ')}</p>
-                <p className="text-[#5bc827] font-bold text-sm mt-1">{activeOrder.total}</p>
-              </div>
+
+                <div 
+                  onClick={() => onOpenTracking && activeOrder && onOpenTracking(activeOrder)}
+                  className="bg-[#232427] border border-[#5bc827]/40 hover:border-[#5bc827] rounded-2xl overflow-hidden cursor-pointer transition-all hover:scale-[1.01] group shadow-lg"
+                >
+                  {/* Order header */}
+                  <div className="px-4 pt-4 pb-3 border-b border-[#35373b]">
+                    <div className="flex items-center justify-between mb-1">
+                      <span className="font-bold text-white text-sm">{activeOrder.restaurant}</span>
+                      <div className="flex items-center gap-2">
+                        <span className="text-[#9a9da3] text-xs">{activeOrder.id}</span>
+                        <span className="text-[#5bc827] text-xs font-bold bg-[#5bc827]/10 border border-[#5bc827]/30 px-2 py-0.5 rounded-md group-hover:bg-[#5bc827] group-hover:text-[#1a1b1e] transition-all flex items-center gap-1">
+                          Ver seguimiento <span className="text-sm font-extrabold">›</span>
+                        </span>
+                      </div>
+                    </div>
+                    <p className="text-[#9a9da3] text-xs">{activeOrder.items.join(' · ')}</p>
+                    <p className="text-[#5bc827] font-bold text-sm mt-1">{activeOrder.total}</p>
+                  </div>
 
               {/* Status tracker */}
               <div className="px-4 py-4">
@@ -179,8 +194,16 @@ export default function Pedidos({ initialTab = 'activo' }: Props) {
                 </div>
               </div>
             </div>
+          </>
+        ) : (
+          <div className="flex flex-col items-center justify-center py-16 text-center">
+            <span className="text-5xl mb-3">🛵</span>
+            <p className="text-white font-semibold">No tienes pedidos activos</p>
+            <p className="text-[#9a9da3] text-sm mt-1">Tus nuevos pedidos aparecerán aquí</p>
           </div>
         )}
+      </div>
+    )}
 
         {/* History */}
         {tab === 'historial' && (
