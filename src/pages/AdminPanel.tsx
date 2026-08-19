@@ -102,6 +102,30 @@ export default function AdminPanel({ onLogout }: Props) {
     mes: new Date().getMonth(),
     anio: new Date().getFullYear(),
   })
+  // Estados para el de usuario seleccionado
+  const [usuarios, setUsuarios] = useState([
+    { 
+      id: 1, name: 'Juan Pérez', email: 'juan@email.com', status: 'Activo',
+      telefono: '618 123 4567', fechaRegistro: '12 Ene 2026', 
+      pedidosTotales: 24, gastoTotal: 3120, rating: 4.8,
+      direccionPrincipal: 'Calle Pino #24, Sierra Norte'
+    },
+    { 
+      id: 2, name: 'María García', email: 'maria@email.com', status: 'Activo',
+      telefono: '618 234 5678', fechaRegistro: '3 Mar 2026', 
+      pedidosTotales: 11, gastoTotal: 1450, rating: 4.9,
+      direccionPrincipal: 'Av. Las Palmas #300, Centro'
+    },
+    { 
+      id: 3, name: 'Pedro Sánchez', email: 'pedro@email.com', status: 'Suspendido',
+      telefono: '618 345 6789', fechaRegistro: '20 Nov 2025', 
+      pedidosTotales: 6, gastoTotal: 540, rating: 3.9,
+      direccionPrincipal: 'Blvd. Montaña #120, Las Cumbres'
+    },
+  ])
+
+  const [selectedUsuario, setSelectedUsuario] = useState<typeof usuarios[number] | null>(null)
+  const [showConfirmSuspend, setShowConfirmSuspend] = useState(false)
 
     /**
    * Maneja el evento de guardar la configuración de comisiones.
@@ -152,6 +176,94 @@ export default function AdminPanel({ onLogout }: Props) {
       {text}
     </h2>
   )
+
+  if (selectedUsuario) {
+    return (
+      <div className="min-h-screen bg-[#1a1b1e] text-white pb-10">
+        <header className="sticky top-0 z-40 bg-[#1a1b1e]/95 backdrop-blur-sm border-b border-[#35373b] px-4 py-3 flex items-center gap-3">
+          <button onClick={() => setSelectedUsuario(null)} className="text-[#9a9da3] hover:text-white transition-colors cursor-pointer">
+            <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" /></svg>
+          </button>
+          <h1 className="text-xl font-bold uppercase tracking-wide" style={{ fontFamily: 'Barlow Condensed, sans-serif' }}>Detalle de usuario</h1>
+        </header>
+
+        <div className="p-4 max-w-lg mx-auto w-full space-y-5">
+          {/* Encabezado del usuario */}
+          <div className="bg-[#232427] border border-[#35373b] rounded-2xl p-5 flex items-center gap-4">
+            <div className="w-14 h-14 rounded-full bg-[#d9a05b]/20 border-2 border-[#d9a05b] flex items-center justify-center text-xl font-bold text-[#d9a05b]">
+              {selectedUsuario.name.split(' ').map(n => n[0]).join('')}
+            </div>
+            <div className="flex-1">
+              <h2 className="font-bold text-lg text-white">{selectedUsuario.name}</h2>
+              <p className="text-[#9a9da3] text-xs">{selectedUsuario.email}</p>
+              <span className={`inline-block mt-1 text-[10px] uppercase font-bold px-2 py-0.5 rounded ${selectedUsuario.status === 'Activo' ? 'text-[#5bc827] bg-[#5bc827]/10' : 'text-red-400 bg-red-400/10'}`}>
+                {selectedUsuario.status}
+              </span>
+            </div>
+          </div>
+
+          {/* Información general */}
+          <div className="bg-[#232427] border border-[#35373b] rounded-2xl p-5 space-y-3">
+            <h3 className="text-[#9a9da3] text-xs uppercase tracking-widest font-semibold mb-2">Información general</h3>
+            <InfoRow label="Teléfono" value={selectedUsuario.telefono} />
+            <InfoRow label="Fecha de registro" value={selectedUsuario.fechaRegistro} />
+            <InfoRow label="Dirección principal" value={selectedUsuario.direccionPrincipal} />
+          </div>
+
+          {/* Estadísticas */}
+          <div className="grid grid-cols-3 gap-3">
+            <StatCard label="Pedidos totales" value={String(selectedUsuario.pedidosTotales)} icon="📦" />
+            <StatCard label="Gasto total" value={`$${selectedUsuario.gastoTotal.toLocaleString('es-MX')}`} icon="💰" />
+            <StatCard label="Rating" value={`${selectedUsuario.rating} ★`} icon="⭐" />
+          </div>
+
+          {/* Botón de suspender/reactivar */}
+          <button
+            onClick={() => setShowConfirmSuspend(true)}
+            className={`w-full py-3.5 rounded-xl font-bold text-sm transition-colors cursor-pointer ${
+              selectedUsuario.status === 'Activo'
+                ? 'border border-red-800/50 text-red-400 hover:bg-red-900/20'
+                : 'bg-[#5bc827] hover:bg-[#7ed944] text-[#1a1b1e]'
+            }`}
+          >
+            {selectedUsuario.status === 'Activo' ? 'Suspender usuario' : 'Reactivar usuario'}
+          </button>
+        </div>
+
+        {/* Modal de confirmación */}
+        {showConfirmSuspend && (
+          <div className="fixed inset-0 bg-black/60 z-50 flex items-center justify-center p-4" onClick={() => setShowConfirmSuspend(false)}>
+            <div className="bg-[#232427] border border-[#35373b] rounded-2xl p-6 max-w-sm w-full shadow-2xl" onClick={e => e.stopPropagation()}>
+              <h3 className="text-white font-bold text-lg text-center mb-2">
+                {selectedUsuario.status === 'Activo' ? '¿Suspender a este usuario?' : '¿Reactivar a este usuario?'}
+              </h3>
+              <p className="text-[#9a9da3] text-sm text-center mb-5">
+                {selectedUsuario.status === 'Activo'
+                  ? 'No podrá iniciar sesión ni hacer nuevos pedidos hasta que se reactive.'
+                  : 'El usuario podrá volver a iniciar sesión y hacer pedidos normalmente.'}
+              </p>
+              <div className="flex gap-3">
+                <button onClick={() => setShowConfirmSuspend(false)} className="flex-1 py-3 rounded-xl border border-[#35373b] text-[#c4c6ca] font-semibold hover:bg-[#1a1b1e] transition-colors cursor-pointer">
+                  Cancelar
+                </button>
+                <button
+                  onClick={() => {
+                    const nuevoStatus = selectedUsuario.status === 'Activo' ? 'Suspendido' : 'Activo'
+                    setUsuarios(prev => prev.map(u => u.id === selectedUsuario.id ? { ...u, status: nuevoStatus } : u))
+                    setSelectedUsuario(prev => prev ? { ...prev, status: nuevoStatus } : null)
+                    setShowConfirmSuspend(false)
+                  }}
+                  className={`flex-1 py-3 rounded-xl font-bold transition-colors cursor-pointer ${selectedUsuario.status === 'Activo' ? 'bg-red-600 hover:bg-red-500 text-white' : 'bg-[#5bc827] hover:bg-[#7ed944] text-[#1a1b1e]'}`}
+                >
+                  Confirmar
+                </button>
+              </div>
+            </div>
+          </div>
+        )}
+      </div>
+    )
+  }
 
   return (
     <div className="min-h-screen bg-[#1a1b1e] text-white pb-20">
@@ -473,19 +585,20 @@ export default function AdminPanel({ onLogout }: Props) {
           <div>
             <Title text="Usuarios" />
             <div className="space-y-3">
-              {[
-                { name: 'Juan Pérez', email: 'juan@email.com', status: 'Activo' },
-                { name: 'María García', email: 'maria@email.com', status: 'Activo' },
-                { name: 'Pedro Sánchez', email: 'pedro@email.com', status: 'Suspendido' },
-              ].map((u, i) => (
-                <div key={i} className="bg-[#232427] border border-[#35373b] hover:border-[#d9a05b]/50 p-4 rounded-xl flex items-center justify-between transition-colors">
+              {usuarios.map((u) => (
+                <div key={u.id} className="bg-[#232427] border border-[#35373b] hover:border-[#d9a05b]/50 p-4 rounded-xl flex items-center justify-between transition-colors">
                   <div>
                     <p className="font-bold text-sm text-white">{u.name}</p>
                     <p className="text-[#9a9da3] text-xs">{u.email}</p>
                   </div>
                   <div className="flex items-center gap-3">
                     <span className={`${u.status === 'Activo' ? 'text-[#5bc827] bg-[#5bc827]/10' : 'text-red-400 bg-red-400/10'} text-[10px] uppercase font-bold px-2 py-1 rounded`}>{u.status}</span>
-                    <button className="text-[#9a9da3] hover:text-white transition-colors">⋮</button>
+                    <button 
+                      onClick={() => setSelectedUsuario(u)}
+                      className="text-xs font-semibold bg-[#35373b] hover:bg-[#d9a05b] hover:text-[#1a1b1e] text-white px-3 py-1.5 rounded-lg transition-colors cursor-pointer"
+                    >
+                      Ver
+                    </button>
                   </div>
                 </div>
               ))}
@@ -681,6 +794,13 @@ export default function AdminPanel({ onLogout }: Props) {
     </div>
   )
 }
+
+const InfoRow = ({ label, value }: { label: string, value: string }) => (
+  <div className="flex justify-between text-sm">
+    <span className="text-[#9a9da3]">{label}</span>
+    <span className="text-white font-medium">{value}</span>
+  </div>
+)
 
 /**
  * Componente de tarjeta para mostrar estadísticas en el Dashboard.
