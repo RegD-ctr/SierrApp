@@ -11,3 +11,10 @@ logs/
 *.log
 .claude-replay.*
 .tmp-*
+package-lock.json
+
+server/node_modules
+server/.env
+server/dist
+server/generated
+
