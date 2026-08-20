@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useState, useRef } from 'react'
 import logoImg from '@/imports/logo.jpeg'
 import Login from '@/pages/Login'
 import type { Role } from '@/pages/Login'
@@ -21,14 +21,13 @@ import Promotions from '@/pages/Promotions'
 import Notifications from '@/pages/Notifications'
 import Support from '@/pages/Support'
 import Onboarding from '@/pages/Onboarding'
+import OrderTracking from '@/pages/OrderTracking'
+import type { Order } from '@/pages/OrderTracking'
+import RateOrder from '@/pages/RateOrder'
 
-type View = 'inicio' | 'explorar' | 'pedidos' | 'perfil' | 'checkout' | 'order-confirmation' | 'payment-methods' | 'addresses' | 'favorites' | 'promotions' | 'notifications' | 'support'
+type View = 'inicio' | 'explorar' | 'pedidos' | 'perfil' | 'checkout' | 'order-confirmation' | 'payment-methods' | 'addresses' | 'favorites' | 'promotions' | 'notifications' | 'support' | 'order-tracking' | 'rate-order'
 
-const promos = [
-  { title: '¡Primer pedido GRATIS!', sub: 'Usa el código: SIERRA1', bg: 'from-[#5bc827] to-[#3d8c18]', text: 'text-[#1a1b1e]', emoji: '🎉' },
-  { title: 'Envío gratis los martes', sub: 'En restaurantes seleccionados', bg: 'from-[#1a3320] to-[#1a1b1e]', text: 'text-[#5bc827]', emoji: '🛵' },
-  { title: '2x1 en combos hoy', sub: 'Solo hasta las 11pm', bg: 'from-[#232427] to-[#1a3320]', text: 'text-white', emoji: '🍔' },
-]
+
 
 const categories = [
   { icon: '🍔', label: 'Comida' }, { icon: '🛒', label: 'Super' }, { icon: '💊', label: 'Farmacia' },
@@ -51,13 +50,68 @@ const navItems: { icon: string; label: string; view: View }[] = [
 export default function App() {
   const [role, setRole] = useState<Role | null>(null)
   const [showOnboarding, setShowOnboarding] = useState(true)
-  const [view, setView] = useState<View>('inicio')
+  const [viewHistory, setViewHistory] = useState<View[]>(['inicio'])
+  const view = viewHistory[viewHistory.length - 1]
+
+  /**
+   * Navega a una nueva vista agregándola al historial de navegación.
+   * Evita duplicar la vista actual si se presiona repetidamente.
+   * Limita el historial a un máximo de 20 elementos.
+   * 
+   * @param {View} next - La vista de destino.
+   */
+  function navigateTo(next: View) {
+    setViewHistory(prev => {
+      if (prev[prev.length - 1] === next) return prev
+      const updated = [...prev, next]
+      return updated.length > 20 ? updated.slice(-20) : updated
+    })
+  }
+
+  /**
+   * Regresa a la vista anterior en el historial de navegación.
+   */
+  function goBack() {
+    setViewHistory(prev => {
+      if (prev.length <= 1) return prev
+      return prev.slice(0, -1)
+    })
+  }
   const [activeCategory, setActiveCategory] = useState('Comida')
   const [searchValue, setSearchValue] = useState('')
   const [selectedRestaurant, setSelectedRestaurant] = useState<Restaurant | null>(null)
   const [cartOpen, setCartOpen] = useState(false)
   const [cartItems, setCartItems] = useState<CartItem[]>([])
 
+  const [savedAddresses, setSavedAddresses] = useState([
+    { id: 1, name: 'Casa', street: 'Calle Pino #24', col: 'Sierra Norte', default: true },
+    { id: 2, name: 'Oficina', street: 'Av. Las Palmas #300', col: 'Centro', default: false },
+  ])
+  const [deliveryAddressId, setDeliveryAddressId] = useState(1)
+  const [addressSelectMode, setAddressSelectMode] = useState(false)
+
+  const [toast, setToast] = useState<string | null>(null)
+  const showToast = (msg: string) => {
+    setToast(msg)
+    setTimeout(() => setToast(null), 3000)
+  }
+
+  const [activeOrder, setActiveOrder] = useState<Order | null>({
+    id: '#SRR-4821',
+    restaurant: 'Sierra Burger Co.',
+    items: ['Burger Clásica x1', 'Papas grandes x1', 'Refresco x1'],
+    total: '$185',
+    status: 3,
+    statuses: [
+      { label: 'Pedido recibido', icon: '✅', time: '8:42 pm' },
+      { label: 'Preparando', icon: '👨‍🍳', time: '8:45 pm' },
+      { label: 'En camino', icon: '🛵', time: '8:58 pm' },
+      { label: 'Entregado', icon: '🏠', time: null },
+    ],
+    driver: { name: 'Carlos M.', rating: 4.9, eta: '8 min' },
+  })
+
+  const activeAddress = savedAddresses.find(a => a.id === deliveryAddressId) || savedAddresses[0]
   const cartCount = cartItems.reduce((s, i) => s + i.cantidad, 0)
 
   /**
@@ -100,29 +154,83 @@ export default function App() {
   if (role === 'repartidor') return <RepartidorPanel onLogout={() => setRole(null)} />
   if (role === 'admin') return <AdminPanel onLogout={() => setRole(null)} />
 
-  if (view === 'checkout') return <Checkout items={cartItems} onConfirm={() => { setCartItems([]); setCartOpen(false); setView('order-confirmation') }} onBack={() => setView('inicio')} />
-  if (view === 'order-confirmation') return <OrderConfirmation onTrack={() => setView('pedidos')} onHome={() => setView('inicio')} />
-  if (view === 'payment-methods') return <PaymentMethods onBack={() => setView('perfil')} />
-  if (view === 'addresses') return <Addresses onBack={() => setView('perfil')} />
-  if (view === 'favorites') return <Favorites onBack={() => setView('perfil')} />
-  if (view === 'promotions') return <Promotions onBack={() => setView('perfil')} />
-  if (view === 'notifications') return <Notifications onBack={() => setView('inicio')} />
-  if (view === 'support') return <Support onBack={() => setView('perfil')} />
+  if (view === 'checkout') return (
+    <Checkout
+      items={cartItems}
+      savedAddresses={savedAddresses}
+      deliveryAddressId={deliveryAddressId}
+      onChangeAddress={() => { setAddressSelectMode(true); navigateTo('addresses') }}
+      onConfirm={() => { setCartItems([]); setCartOpen(false); setSelectedRestaurant(null); navigateTo('order-confirmation') }}
+      onBack={goBack}
+    />
+  )
+  if (view === 'order-confirmation') return <OrderConfirmation onTrack={() => { setSelectedRestaurant(null); navigateTo('pedidos') }} onHome={() => { setSelectedRestaurant(null); navigateTo('inicio') }} />
+  if (view === 'payment-methods') return <PaymentMethods onBack={goBack} />
+  if (view === 'addresses') return (
+    <Addresses 
+      onBack={goBack}
+      addresses={savedAddresses}
+      onAddAddress={(a) => setSavedAddresses(prev => [...prev, { ...a, id: Date.now(), default: false }])}
+      onDeleteAddress={(id) => setSavedAddresses(prev => prev.filter(x => x.id !== id))}
+      onSetDefault={(id) => setSavedAddresses(prev => prev.map(x => ({ ...x, default: x.id === id })))}
+      onEditAddress={(updated) => setSavedAddresses(prev => prev.map(x => x.id === updated.id ? { ...x, ...updated } : x))}
+      selectable={addressSelectMode}
+      selectedId={deliveryAddressId}
+      onSelect={(id) => { setDeliveryAddressId(id); setAddressSelectMode(false); navigateTo('checkout') }}
+    />
+  )
+  if (view === 'favorites') return <Favorites onBack={goBack} />
+  if (view === 'promotions') return <Promotions onBack={goBack} onSelectRestaurant={(r) => { setSelectedRestaurant(r); navigateTo('inicio') }} />
+  if (view === 'notifications') return <Notifications onBack={goBack} />
+  if (view === 'support') return <Support onBack={goBack} />
+
+  if (view === 'order-tracking' && activeOrder) {
+    return (
+      <OrderTracking
+        order={activeOrder}
+        onBack={goBack}
+        onSupport={() => navigateTo('support')}
+        onDeliveryComplete={() => {
+          setActiveOrder(prev => prev ? {
+            ...prev,
+            status: 4,
+            statuses: prev.statuses.map((s, idx) => idx === 3 ? { ...s, time: 'Ahora' } : s)
+          } : null)
+          navigateTo('rate-order')
+        }}
+      />
+    )
+  }
+
+  if (view === 'rate-order') {
+    return (
+      <RateOrder
+        restaurantName={activeOrder?.restaurant || 'el restaurante'}
+        driverName={activeOrder?.driver.name || 'tu repartidor'}
+        onSubmit={(ratings) => {
+          console.log('Calificaciones enviadas:', ratings)
+          showToast('¡Gracias por tu calificación! ⭐')
+          navigateTo('pedidos')
+        }}
+        onSkip={() => navigateTo('pedidos')}
+      />
+    )
+  }
 
   return (
     <div className="min-h-screen bg-[#1a1b1e] text-white">
       {/* Header */}
       <header className="sticky top-0 z-40 bg-[#1a1b1e]/95 backdrop-blur-sm border-b border-[#35373b]">
         <div className="max-w-5xl mx-auto px-4 py-3 flex items-center gap-3">
-          <button onClick={() => { setSelectedRestaurant(null); setView('inicio') }} className="flex items-center gap-2 shrink-0">
+          <button onClick={() => { setSelectedRestaurant(null); navigateTo('inicio') }} className="flex items-center gap-2 shrink-0">
             <img src={logoImg} alt="Sierra App" className="w-9 h-9 rounded-lg object-cover" />
             <span className="font-display text-xl font-bold tracking-wide text-[#5bc827] hidden sm:block" style={{ fontFamily: 'Barlow Condensed, sans-serif' }}>SIERRA APP</span>
           </button>
 
           {!selectedRestaurant && (
-            <button className="flex items-center gap-1 text-xs text-[#9a9da3] hover:text-[#5bc827] transition-colors truncate max-w-[160px] sm:max-w-xs">
+            <button onClick={() => { setAddressSelectMode(false); navigateTo('addresses') }} className="flex items-center gap-1 text-xs text-[#9a9da3] hover:text-[#5bc827] transition-colors truncate max-w-[160px] sm:max-w-xs">
               <svg className="w-3.5 h-3.5 shrink-0 text-[#5bc827]" fill="currentColor" viewBox="0 0 20 20"><path fillRule="evenodd" d="M5.05 4.05a7 7 0 119.9 9.9L10 18.9l-4.95-4.95a7 7 0 010-9.9zM10 11a2 2 0 100-4 2 2 0 000 4z" clipRule="evenodd" /></svg>
-              <span className="truncate">Calle Pino #24, Sierra Norte</span>
+              <span className="truncate">{activeAddress ? `${activeAddress.street}, ${activeAddress.col}` : 'Seleccionar dirección'}</span>
               <svg className="w-3 h-3 shrink-0" fill="currentColor" viewBox="0 0 20 20"><path fillRule="evenodd" d="M5.293 7.293a1 1 0 011.414 0L10 10.586l3.293-3.293a1 1 0 111.414 1.414l-4 4a1 1 0 01-1.414 0l-4-4a1 1 0 010-1.414z" clipRule="evenodd" /></svg>
             </button>
           )}
@@ -130,11 +238,11 @@ export default function App() {
           <div className="flex-1 relative">
             <svg className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-[#9a9da3]" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" /></svg>
             <input type="text" placeholder="Busca restaurantes o platillos..."
-              value={searchValue} onChange={e => { setSearchValue(e.target.value); setView('explorar'); setSelectedRestaurant(null) }}
+              value={searchValue} onChange={e => { setSearchValue(e.target.value); navigateTo('explorar'); setSelectedRestaurant(null) }}
               className="w-full bg-[#232427] border border-[#35373b] rounded-full py-2 pl-9 pr-4 text-sm text-white placeholder-[#9a9da3] focus:outline-none focus:border-[#5bc827] transition-colors" />
           </div>
 
-          <button onClick={() => setView('notifications')} className="relative shrink-0 text-[#9a9da3] hover:text-white transition-colors mr-1">
+          <button onClick={() => navigateTo('notifications')} className="relative shrink-0 text-[#9a9da3] hover:text-white transition-colors mr-1">
             <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 17h5l-1.405-1.405A2.032 2.032 0 0118 14.158V11a6.002 6.002 0 00-4-5.659V5a2 2 0 10-4 0v.341C7.67 6.165 6 8.388 6 11v3.159c0 .538-.214 1.055-.595 1.436L4 17h5m6 0v1a3 3 0 11-6 0v-1m6 0H9" /></svg>
           </button>
           <button onClick={() => setCartOpen(true)} className="relative shrink-0 bg-[#5bc827] hover:bg-[#7ed944] text-[#1a1b1e] rounded-full p-2 transition-colors">
@@ -160,11 +268,13 @@ export default function App() {
               activeCategory={activeCategory}
               setActiveCategory={setActiveCategory}
               onSelectRestaurant={setSelectedRestaurant}
+              onGoToPromotions={() => navigateTo('promotions')}
+              onGoToExplore={() => navigateTo('explorar')}
             />
           )}
           {view === 'explorar' && <Explorar onSelectRestaurant={setSelectedRestaurant} />}
-          {view === 'pedidos' && <Pedidos />}
-          {view === 'perfil' && <Perfil role={role} onLogout={() => setRole(null)} onNavigate={(v: any) => setView(v)} />}
+          {view === 'pedidos' && <Pedidos activeOrder={activeOrder} onOpenTracking={() => navigateTo('order-tracking')} />}
+          {view === 'perfil' && <Perfil role={role} onLogout={() => setRole(null)} onNavigate={(v: any) => { if (v === 'addresses') setAddressSelectMode(false); navigateTo(v); }} />}
         </main>
       )}
 
@@ -172,7 +282,7 @@ export default function App() {
       {!selectedRestaurant && (
         <nav className="fixed bottom-0 left-0 right-0 bg-[#1a1b1e]/95 backdrop-blur-sm border-t border-[#35373b] flex justify-around py-2 z-50">
           {navItems.map(item => (
-            <button key={item.view} onClick={() => setView(item.view)}
+            <button key={item.view} onClick={() => navigateTo(item.view)}
               className={`flex flex-col items-center gap-0.5 px-4 py-1 transition-colors ${view === item.view ? 'text-[#5bc827]' : 'text-[#9a9da3] hover:text-[#c4c6ca]'}`}>
               <span className="text-xl">{item.icon}</span>
               <span className="text-[10px] font-medium">{item.label}</span>
@@ -182,6 +292,13 @@ export default function App() {
         </nav>
       )}
 
+      {/* Toast notification */}
+      {toast && (
+        <div className="fixed top-4 left-1/2 -translate-x-1/2 z-50 bg-[#5bc827] text-[#1a1b1e] font-bold text-xs px-4 py-2 rounded-full shadow-2xl flex items-center gap-2 border border-white/20 animate-bounce">
+          <span>⭐</span> {toast}
+        </div>
+      )}
+
       {/* Cart */}
       <CartDrawer
         open={cartOpen}
@@ -189,8 +306,8 @@ export default function App() {
         items={cartItems}
         onUpdateQty={updateQty}
         onRemove={removeItem}
-        onCheckout={() => { setCartOpen(false); setView('checkout') }}
-        onExplore={() => { setCartOpen(false); setView('explorar') }}
+        onCheckout={() => { setCartOpen(false); navigateTo('checkout') }}
+        onExplore={() => { setCartOpen(false); navigateTo('explorar') }}
       />
     </div>
   )
@@ -200,15 +317,19 @@ export default function App() {
  * Componente de la vista de inicio (Home).
  * Muestra el hero (banner), promociones, categorías y lista de restaurantes cercanos.
  * 
- * @param {Object} props - Propiedades para manejar categorías y selección de restaurantes.
+ * @param {Object} props - Propiedades para manejar categorías, selección de restaurantes y navegación.
  */
 function HomeView({
-  activeCategory, setActiveCategory, onSelectRestaurant,
+  activeCategory, setActiveCategory, onSelectRestaurant, onGoToPromotions, onGoToExplore,
 }: {
   activeCategory: string
   setActiveCategory: (c: string) => void
   onSelectRestaurant: (r: Restaurant) => void
+  onGoToPromotions: () => void
+  onGoToExplore: () => void
 }) {
+  const restaurantsRef = useRef<HTMLDivElement>(null)
+
   return (
     <div className="px-4 pb-24">
       {/* Hero */}
@@ -224,8 +345,8 @@ function HomeView({
               A un<br /><span className="text-[#5bc827]">toque.</span>
             </h1>
             <p className="text-[#c4c6ca] text-sm mb-5 max-w-xs">Restaurantes, súper y farmacia. Entrega rápida en tu zona.</p>
-            <button onClick={() => onSelectRestaurant(allRestaurants[0])}
-              className="bg-[#5bc827] hover:bg-[#7ed944] text-[#1a1b1e] font-bold text-sm px-6 py-2.5 rounded-full transition-all hover:scale-105 active:scale-95">
+            <button onClick={() => restaurantsRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' })}
+              className="bg-[#5bc827] hover:bg-[#7ed944] text-[#1a1b1e] font-bold text-sm px-6 py-2.5 rounded-full transition-all hover:scale-105 active:scale-95 cursor-pointer">
               Pedir ahora
             </button>
           </div>
@@ -242,17 +363,16 @@ function HomeView({
 
       {/* Promos */}
       <section className="mt-6">
-        <div className="flex gap-3 overflow-x-auto pb-1">
-          {promos.map((p, i) => (
-            <div key={i} className={`flex-shrink-0 rounded-xl bg-gradient-to-br ${p.bg} border border-[#35373b] p-4 min-w-[200px] flex items-center gap-3 cursor-pointer hover:scale-[1.02] transition-transform`}>
-              <span className="text-3xl">{p.emoji}</span>
-              <div>
-                <p className={`font-bold text-sm leading-tight ${p.text}`}>{p.title}</p>
-                <p className="text-[#9a9da3] text-xs mt-0.5">{p.sub}</p>
-              </div>
-            </div>
-          ))}
-        </div>
+        <button 
+          onClick={onGoToPromotions}
+          className="w-full rounded-xl bg-gradient-to-br from-[#5bc827] to-[#3d8c18] border border-[#35373b] p-4 flex items-center gap-3 hover:scale-[1.01] transition-transform text-left cursor-pointer"
+        >
+          <span className="text-3xl">🎉</span>
+          <div>
+            <p className="font-bold text-sm leading-tight text-[#1a1b1e]">Ver promociones</p>
+            <p className="text-[#1a1b1e]/70 text-xs mt-0.5">Descuentos activos en restaurantes seleccionados</p>
+          </div>
+        </button>
       </section>
 
       {/* Categories */}
@@ -270,10 +390,10 @@ function HomeView({
       </section>
 
       {/* Restaurants */}
-      <section className="mt-8">
+      <section ref={restaurantsRef} className="mt-8">
         <div className="flex items-center justify-between mb-4">
           <h2 className="text-2xl font-bold text-white uppercase tracking-wide" style={{ fontFamily: 'Barlow Condensed, sans-serif' }}>Restaurantes cerca</h2>
-          <button className="text-[#5bc827] text-sm font-semibold hover:text-[#7ed944] transition-colors">Ver todos →</button>
+          <button onClick={onGoToExplore} className="text-[#5bc827] text-sm font-semibold hover:text-[#7ed944] transition-colors cursor-pointer">Ver todos →</button>
         </div>
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
           {allRestaurants.map(r => (

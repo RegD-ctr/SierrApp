@@ -1,8 +1,12 @@
 import { useState } from 'react'
 import type { CartItem } from '@/data'
+import type { AddressItem } from './Addresses'
 
 interface Props {
   items: CartItem[]
+  savedAddresses: AddressItem[]
+  deliveryAddressId: number
+  onChangeAddress: () => void
   onConfirm: () => void
   onBack: () => void
 }
@@ -11,13 +15,16 @@ interface Props {
  * Componente para el proceso de pago y finalización del pedido (Checkout).
  * Muestra el resumen del pedido, dirección de entrega, método de pago e instrucciones especiales.
  * 
- * @param {Props} props - Propiedades que incluyen los items, la acción al confirmar y al volver.
+ * @param {Props} props - Propiedades que incluyen los items, direcciones guardadas, ID de dirección elegida, callbacks.
  */
-export default function Checkout({ items, onConfirm, onBack }: Props) {
-  const [address, setAddress] = useState('Calle Pino #24, Sierra Norte')
+export default function Checkout({ items, savedAddresses, deliveryAddressId, onChangeAddress, onConfirm, onBack }: Props) {
   const [payment, setPayment] = useState('Tarjeta terminada en 4242')
   const [instructions, setInstructions] = useState('')
   const [showPaymentOptions, setShowPaymentOptions] = useState(false)
+
+  const selectedAddr = savedAddresses.find(a => a.id === deliveryAddressId) || savedAddresses[0]
+  const addressDisplay = selectedAddr ? `${selectedAddr.street}, ${selectedAddr.col}` : 'Seleccionar dirección'
+  const addressNameDisplay = selectedAddr ? selectedAddr.name : ''
 
   const subtotal = items.reduce((s, i) => s + (i.platillo.precio + i.extrasTotal) * i.cantidad, 0)
   const envio = items.length > 0 ? (items[0].restaurant.deliveryFee ?? 0) : 0
@@ -53,8 +60,8 @@ export default function Checkout({ items, onConfirm, onBack }: Props) {
               <div className="flex justify-between text-sm text-[#9a9da3]">
                 <span>Envío</span><span>{envio === 0 ? 'Gratis' : `$${envio}`}</span>
               </div>
-              <div className="flex justify-between font-bold text-lg mt-2 pt-2 border-t border-[#35373b]">
-                <span>Total</span><span className="text-[#5bc827]">${total.toFixed(0)}</span>
+              <div className="flex justify-between font-[#5bc827] font-bold text-lg mt-2 pt-2 border-t border-[#35373b]">
+                <span className="text-white font-bold">Total</span><span className="text-[#5bc827]">${total.toFixed(0)}</span>
               </div>
             </div>
           </div>
@@ -63,15 +70,27 @@ export default function Checkout({ items, onConfirm, onBack }: Props) {
         {/* Dirección */}
         <section>
           <h2 className="text-[#9a9da3] text-sm font-semibold mb-3 uppercase tracking-wider">Entregar en</h2>
-          <div className="bg-[#232427] border border-[#35373b] rounded-2xl p-4 flex items-center justify-between cursor-pointer hover:border-[#5bc827]/50 transition-colors">
+          <div 
+            onClick={onChangeAddress}
+            className="bg-[#232427] border border-[#35373b] rounded-2xl p-4 flex items-center justify-between cursor-pointer hover:border-[#5bc827]/50 transition-colors"
+          >
             <div className="flex items-center gap-3">
               <span className="text-2xl">📍</span>
               <div>
-                <p className="font-semibold text-sm">{address}</p>
-                <p className="text-[#9a9da3] text-xs">Añadir instrucciones de entrega</p>
+                <div className="flex items-center gap-2">
+                  {addressNameDisplay && (
+                    <span className="bg-[#5bc827]/20 text-[#5bc827] text-[10px] px-1.5 py-0.5 rounded uppercase font-bold tracking-wide">
+                      {addressNameDisplay}
+                    </span>
+                  )}
+                  <p className="font-semibold text-sm">{addressDisplay}</p>
+                </div>
+                <p className="text-[#9a9da3] text-xs mt-0.5">Añadir instrucciones de entrega</p>
               </div>
             </div>
-            <span className="text-[#5bc827] text-sm font-semibold">Cambiar</span>
+            <button type="button" onClick={(e) => { e.stopPropagation(); onChangeAddress() }} className="text-[#5bc827] text-sm font-semibold hover:text-[#7ed944]">
+              Cambiar
+            </button>
           </div>
         </section>
 
