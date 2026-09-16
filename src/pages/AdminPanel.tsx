@@ -1035,7 +1035,7 @@ export default function AdminPanel({ onLogout }: Props) {
                           </div>
                         </div>
                         <span className="text-xs font-mono text-[#9a9da3]">
-                          {((currentIngresos.efectivo / currentIngresos.total) * 100).toFixed(0)}%
+                          {currentIngresos.total > 0 ? ((currentIngresos.efectivo / currentIngresos.total) * 100).toFixed(0) : '0'}%
                         </span>
                       </div>
 
@@ -1048,7 +1048,7 @@ export default function AdminPanel({ onLogout }: Props) {
                           </div>
                         </div>
                         <span className="text-xs font-mono text-[#9a9da3]">
-                          {((currentIngresos.tarjeta / currentIngresos.total) * 100).toFixed(0)}%
+                          {currentIngresos.total > 0 ? ((currentIngresos.tarjeta / currentIngresos.total) * 100).toFixed(0) : '0'}%
                         </span>
                       </div>
                     </div>

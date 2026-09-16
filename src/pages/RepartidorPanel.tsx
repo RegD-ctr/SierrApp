@@ -323,7 +323,7 @@ export default function RepartidorPanel({ onLogout }: Props) {
             <div className="flex items-center justify-between mb-5">
               <p className="text-[#9a9da3] text-sm">{completedOrders.length} entregas realizadas</p>
               <div className="bg-[#232427] border border-[#35373b] rounded-xl px-3 py-1.5 text-xs text-[#5bc827] font-bold">
-                Hoy: ${completedOrders.filter(o => o.hora.includes("Hoy")).reduce(()=> 0, 0) || 120}
+                Hoy: ${completedOrders.filter(o => o.hora.includes("Hoy")).reduce((acc, o) => acc + (parseFloat(o.total.replace(/[^0-9.]/g, '')) || 0), 0) || 120}
               </div>
             </div>
             {completedOrders.length === 0 ? (
@@ -441,7 +441,10 @@ export default function RepartidorPanel({ onLogout }: Props) {
                 Cancelar
               </button>
               <button
-                onClick={() => { advanceStatus(activeOrder.id); advanceStatus(activeOrder.id) }}
+                onClick={() => {
+                  setOrders(os => os.map(o => o.id === activeOrder.id ? { ...o, status: 'en_camino' } : o))
+                  setShowConfirm(null)
+                }}
                 className="flex-1 py-3 rounded-xl bg-[#5bc827] text-[#1a1b1e] font-bold text-sm hover:bg-[#7ed944] transition-all hover:scale-[1.02] active:scale-[0.98]"
               >
                 Confirmar ✅

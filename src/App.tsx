@@ -170,16 +170,35 @@ export default function App() {
     <Addresses 
       onBack={goBack}
       addresses={savedAddresses}
-      onAddAddress={(a) => setSavedAddresses(prev => [...prev, { ...a, id: Date.now(), default: false }])}
-      onDeleteAddress={(id) => setSavedAddresses(prev => prev.filter(x => x.id !== id))}
-      onSetDefault={(id) => setSavedAddresses(prev => prev.map(x => ({ ...x, default: x.id === id })))}
+      onAddAddress={(a) => setSavedAddresses(prev => {
+        const isFirst = prev.length === 0
+        const newAddr = { ...a, id: Date.now(), default: isFirst }
+        if (isFirst) setDeliveryAddressId(newAddr.id)
+        return [...prev, newAddr]
+      })}
+      onDeleteAddress={(id) => setSavedAddresses(prev => {
+        const remaining = prev.filter(x => x.id !== id)
+        if (deliveryAddressId === id && remaining.length > 0) {
+          setDeliveryAddressId(remaining[0].id)
+        }
+        return remaining
+      })}
+      onSetDefault={(id) => {
+        setSavedAddresses(prev => prev.map(x => ({ ...x, default: x.id === id })))
+        setDeliveryAddressId(id)
+      }}
       onEditAddress={(updated) => setSavedAddresses(prev => prev.map(x => x.id === updated.id ? { ...x, ...updated } : x))}
       selectable={addressSelectMode}
       selectedId={deliveryAddressId}
       onSelect={(id) => { setDeliveryAddressId(id); setAddressSelectMode(false); navigateTo('checkout') }}
     />
   )
-  if (view === 'favorites') return <Favorites onBack={goBack} />
+  if (view === 'favorites') return (
+    <Favorites
+      onBack={goBack}
+      onSelectRestaurant={(r) => { setSelectedRestaurant(r); navigateTo('inicio') }}
+    />
+  )
   if (view === 'promotions') return <Promotions onBack={goBack} onSelectRestaurant={(r) => { setSelectedRestaurant(r); navigateTo('inicio') }} />
   if (view === 'notifications') return <Notifications onBack={goBack} />
   if (view === 'support') return <Support onBack={goBack} />

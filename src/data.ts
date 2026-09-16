@@ -87,6 +87,18 @@ export const restaurants: Restaurant[] = [
     coverImg: 'https://images.unsplash.com/photo-1579871494447-9811cf80d66c?crop=entropy&cs=tinysrgb&fit=crop&fm=jpg&w=800&h=300',
     badge: 'Oferta', address: 'Plaza Sierra, Local 5-B', isOpen: true,
   },
+  {
+    id: 7, name: 'Café Montaña', category: 'Café & Panadería', rating: 4.4, reviews: 142,
+    time: '15-20 min', delivery: 'Envío $15', deliveryFee: 15, promo: null,
+    coverImg: 'https://images.unsplash.com/photo-1611143669185-af224c5e3252?crop=entropy&cs=tinysrgb&fit=crop&fm=jpg&w=800&h=300',
+    badge: null, address: 'Calle Los Pinos #14, Col. Bosques', isOpen: true,
+  },
+  {
+    id: 8, name: 'Pollo Sierra', category: 'Pollo Asado & Frito', rating: 4.3, reviews: 165,
+    time: '20-30 min', delivery: 'Envío $20', deliveryFee: 20, promo: 'Combo familiar',
+    coverImg: 'https://images.unsplash.com/photo-1610614819513-58e34989848b?crop=entropy&cs=tinysrgb&fit=crop&fm=jpg&w=800&h=300',
+    badge: 'Popular', address: 'Av. Hidalgo #102, Col. Centro', isOpen: true,
+  },
 ]
 
 export const platillos: Platillo[] = [
@@ -303,6 +315,63 @@ export const platillos: Platillo[] = [
   {
     id: 602, restaurantId: 6, nombre: 'Edamame', categoria: 'Entradas',
     descripcion: 'Vainas de soya con sal de mar y limón.', precio: 55,
+    imagen: null, disponible: true,
+  },
+
+  // ---- Café Montaña (id: 7) ----
+  {
+    id: 701, restaurantId: 7, nombre: 'Café Americano Especial', categoria: 'Bebidas Calientes',
+    descripcion: 'Café de grano recién molido de la sierra de Chiapas.',
+    precio: 45, imagen: 'https://images.unsplash.com/photo-1514432324607-a09d9b4aefdd?crop=entropy&cs=tinysrgb&fit=crop&fm=jpg&w=300&h=300',
+    disponible: true,
+    opciones: [
+      { id: 'tamano', titulo: 'Tamaño', obligatoria: true, tipo: 'radio', opciones: [
+        { id: 'reg', label: 'Regular 12oz', extra: 0 },
+        { id: 'grande', label: 'Grande 16oz', extra: 15 },
+      ]},
+      { id: 'leche', titulo: 'Tipo de leche', obligatoria: false, tipo: 'radio', opciones: [
+        { id: 'entera', label: 'Entera (sin costo)', extra: 0 },
+        { id: 'deslact', label: 'Deslactosada', extra: 5 },
+        { id: 'almendra', label: 'Almendra', extra: 12 },
+        { id: 'avena', label: 'Avena', extra: 12 },
+      ]},
+    ],
+  },
+  {
+    id: 702, restaurantId: 7, nombre: 'Croissant de Mantequilla', categoria: 'Panadería',
+    descripcion: 'Croissant artesanal horneado diariamente con mantequilla pura.', precio: 50,
+    imagen: 'https://images.unsplash.com/photo-1555507036-ab1f4038808a?crop=entropy&cs=tinysrgb&fit=crop&fm=jpg&w=300&h=300',
+    disponible: true,
+  },
+  {
+    id: 703, restaurantId: 7, nombre: 'Muffin de Frutos Rojos', categoria: 'Repostería',
+    descripcion: 'Muffin suave relleno de mermelada casera de frambuesa y zarzamora.', precio: 45,
+    imagen: null, disponible: true,
+  },
+
+  // ---- Pollo Sierra (id: 8) ----
+  {
+    id: 801, restaurantId: 8, nombre: 'Medio Pollo a las Brasas', categoria: 'Pollo Asado',
+    descripcion: 'Acompañado de arroz, frijoles charros, tortillas y salsas caseras.',
+    precio: 140, imagen: 'https://images.unsplash.com/photo-1626082927389-6cd097cdc6ec?crop=entropy&cs=tinysrgb&fit=crop&fm=jpg&w=300&h=300',
+    disponible: true,
+    opciones: [
+      { id: 'salsa', titulo: 'Salsa principal', obligatoria: true, tipo: 'radio', opciones: [
+        { id: 'roja', label: 'Salsa roja asada', extra: 0 },
+        { id: 'verde', label: 'Salsa verde fresca', extra: 0 },
+        { id: 'habanero', label: 'Salsa tatemada de habanero 🌶️', extra: 0 },
+      ]},
+    ],
+  },
+  {
+    id: 802, restaurantId: 8, nombre: 'Paquete Familiar Pollo Entero', categoria: 'Combos',
+    descripcion: '1 Pollo entero a las brasas + arroz grande + frijoles charros + orden de papas y refresco 2L.', precio: 285,
+    imagen: 'https://images.unsplash.com/photo-1610614819513-58e34989848b?crop=entropy&cs=tinysrgb&fit=crop&fm=jpg&w=300&h=300',
+    disponible: true,
+  },
+  {
+    id: 803, restaurantId: 8, nombre: 'Boneless BBQ o Búfalo (300g)', categoria: 'Entradas',
+    descripcion: 'Trocitos de pechuga crujiente bañados en tu salsa favorita con aderezo ranch.', precio: 125,
     imagen: null, disponible: true,
   },
 ]

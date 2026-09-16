@@ -1,7 +1,13 @@
 import { restaurants } from '@/data'
+import type { Restaurant } from '@/data'
 import { useState } from 'react'
 
-export default function Favorites({ onBack }: { onBack: () => void }) {
+interface Props {
+  onBack: () => void
+  onSelectRestaurant?: (r: Restaurant) => void
+}
+
+export default function Favorites({ onBack, onSelectRestaurant }: Props) {
   const [liked, setLiked] = useState<Record<number, boolean>>({ 1: true, 3: true, 4: true })
   
   const favs = restaurants.filter(r => liked[r.id])
@@ -25,7 +31,11 @@ export default function Favorites({ onBack }: { onBack: () => void }) {
         ) : (
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
             {favs.map(r => (
-              <div key={r.id} className="bg-[#232427] border border-[#35373b] rounded-2xl overflow-hidden group cursor-pointer hover:border-[#5bc827]/50 transition-all hover:shadow-lg hover:shadow-[#5bc827]/10">
+              <div
+                key={r.id}
+                onClick={() => onSelectRestaurant && onSelectRestaurant(r)}
+                className="bg-[#232427] border border-[#35373b] rounded-2xl overflow-hidden group cursor-pointer hover:border-[#5bc827]/50 transition-all hover:shadow-lg hover:shadow-[#5bc827]/10"
+              >
                 <div className="relative h-40 overflow-hidden bg-[#1a3320]">
                   <img src={r.coverImg} alt={r.name} className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500" />
                   <div className="absolute inset-0 bg-gradient-to-t from-[#1a1b1e]/60 to-transparent" />

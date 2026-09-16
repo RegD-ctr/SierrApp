@@ -60,8 +60,8 @@ export default function Checkout({ items, savedAddresses, deliveryAddressId, onC
               <div className="flex justify-between text-sm text-[#9a9da3]">
                 <span>Envío</span><span>{envio === 0 ? 'Gratis' : `$${envio}`}</span>
               </div>
-              <div className="flex justify-between font-[#5bc827] font-bold text-lg mt-2 pt-2 border-t border-[#35373b]">
-                <span className="text-white font-bold">Total</span><span className="text-[#5bc827]">${total.toFixed(0)}</span>
+              <div className="flex justify-between text-[#5bc827] font-bold text-lg mt-2 pt-2 border-t border-[#35373b]">
+                <span className="text-white font-bold">Total</span><span>${total.toFixed(0)}</span>
               </div>
             </div>
           </div>

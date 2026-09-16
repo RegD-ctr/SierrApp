@@ -253,6 +253,18 @@ export default function Addresses({
                         </span>
                       )}
                       <div className="flex flex-col items-end gap-1 text-xs">
+                        {!a.default && (
+                          <button
+                            type="button"
+                            onClick={(e) => {
+                              e.stopPropagation()
+                              onSetDefault(a.id)
+                            }}
+                            className="text-[#9a9da3] hover:text-[#5bc827] text-[11px] transition-colors"
+                          >
+                            Hacer predeterminada
+                          </button>
+                        )}
                         <button
                           type="button"
                           onClick={(e) => {

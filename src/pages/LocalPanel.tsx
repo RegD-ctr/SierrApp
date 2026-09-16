@@ -44,7 +44,7 @@ function generarVentasPorFecha(dia: number | null, mes: number, anio: number) {
   const baseTotal = isDiaPuntual ? 1500 * factor : 35000 * factor
   const total = Math.round(baseTotal * 100) / 100
   const pedidos = Math.round(total / 210)
-  const ticketPromedio = total / pedidos
+  const ticketPromedio = pedidos > 0 ? total / pedidos : 0
 
   const pctEfectivo = 0.3 + (((seed * 12345 + 6789) % 100) / 100) * 0.15
   const efectivo = Math.round(total * pctEfectivo * 100) / 100
@@ -229,8 +229,18 @@ export default function LocalPanel({ onLogout }: Props) {
           }),
           total: selectedOrder.total
         }}
-        onAceptar={() => setSelectedOrder(null)}
-        onRechazar={() => setSelectedOrder(null)}
+        onAceptar={() => {
+          if (selectedOrder.status === 'Nuevo pedido') {
+            setActiveOrders(prev => prev.map(o => o.id === selectedOrder.id ? { ...o, status: 'Preparando', statusColor: 'bg-blue-900/30 text-blue-400' } : o))
+          } else if (selectedOrder.status === 'Preparando') {
+            setActiveOrders(prev => prev.map(o => o.id === selectedOrder.id ? { ...o, status: 'Listo para recoger', statusColor: 'bg-[#5bc827]/20 text-[#5bc827]' } : o))
+          }
+          setSelectedOrder(null)
+        }}
+        onRechazar={() => {
+          setActiveOrders(prev => prev.filter(o => o.id !== selectedOrder.id))
+          setSelectedOrder(null)
+        }}
         onBack={() => setSelectedOrder(null)}
       />
     )
@@ -519,7 +529,7 @@ export default function LocalPanel({ onLogout }: Props) {
                           </div>
                         </div>
                         <span className="text-xs font-mono text-[#9a9da3]">
-                          {((currentVentas.efectivo / currentVentas.total) * 100).toFixed(0)}%
+                          {currentVentas.total > 0 ? ((currentVentas.efectivo / currentVentas.total) * 100).toFixed(0) : '0'}%
                         </span>
                       </div>
 
@@ -532,7 +542,7 @@ export default function LocalPanel({ onLogout }: Props) {
                           </div>
                         </div>
                         <span className="text-xs font-mono text-[#9a9da3]">
-                          {((currentVentas.tarjeta / currentVentas.total) * 100).toFixed(0)}%
+                          {currentVentas.total > 0 ? ((currentVentas.tarjeta / currentVentas.total) * 100).toFixed(0) : '0'}%
                         </span>
                       </div>
                     </div>
