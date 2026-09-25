@@ -20,17 +20,6 @@ const allCategories = [
   { icon: '🥪', label: 'Sandwiches' },
 ]
 
-const exploreRestaurants = [
-  { id: 1, name: 'El Rincón del Sabor', cat: 'Tacos', rating: 4.8, time: '25-35 min', price: '$$', img: 'https://images.unsplash.com/photo-1551504734-5ee1c4a1479b?crop=entropy&cs=tinysrgb&fit=crop&fm=jpg&w=400&h=200' },
-  { id: 2, name: 'Sierra Burger Co.', cat: 'Hamburguesas', rating: 4.6, time: '20-30 min', price: '$$', img: 'https://images.unsplash.com/photo-1512152272829-e3139592d56f?crop=entropy&cs=tinysrgb&fit=crop&fm=jpg&w=400&h=200' },
-  { id: 3, name: 'Sakura Sushi', cat: 'Sushi', rating: 4.9, time: '30-45 min', price: '$$$', img: 'https://images.unsplash.com/photo-1579584425555-c3ce17fd4351?crop=entropy&cs=tinysrgb&fit=crop&fm=jpg&w=400&h=200' },
-  { id: 4, name: 'Pizzería Napoli', cat: 'Pizza', rating: 4.7, time: '25-40 min', price: '$$', img: 'https://images.unsplash.com/photo-1566843972142-a7fcb70de55a?crop=entropy&cs=tinysrgb&fit=crop&fm=jpg&w=400&h=200' },
-  { id: 5, name: 'La Parrilla Sierra', cat: 'Carnes', rating: 4.5, time: '35-50 min', price: '$$$', img: 'https://images.unsplash.com/photo-1505826759037-406b40feb4cd?crop=entropy&cs=tinysrgb&fit=crop&fm=jpg&w=400&h=200' },
-  { id: 6, name: 'Rolls & More', cat: 'Sushi', rating: 4.7, time: '30-40 min', price: '$$', img: 'https://images.unsplash.com/photo-1579871494447-9811cf80d66c?crop=entropy&cs=tinysrgb&fit=crop&fm=jpg&w=400&h=200' },
-  { id: 7, name: 'Café Montaña', cat: 'Café', rating: 4.4, time: '15-20 min', price: '$', img: 'https://images.unsplash.com/photo-1611143669185-af224c5e3252?crop=entropy&cs=tinysrgb&fit=crop&fm=jpg&w=400&h=200' },
-  { id: 8, name: 'Pollo Sierra', cat: 'Pollo', rating: 4.3, time: '20-30 min', price: '$', img: 'https://images.unsplash.com/photo-1610614819513-58e34989848b?crop=entropy&cs=tinysrgb&fit=crop&fm=jpg&w=400&h=200' },
-]
-
 const filters = ['Más populares', 'Más rápidos', 'Mejor precio', 'Mejor rating']
 
 export default function Explorar({ onSelectRestaurant }: { onSelectRestaurant?: (r: import('@/data').Restaurant) => void }) {
@@ -38,9 +27,10 @@ export default function Explorar({ onSelectRestaurant }: { onSelectRestaurant?: 
   const [activeFilter, setActiveFilter] = useState('Más populares')
   const [activeCategory, setActiveCategory] = useState<string | null>(null)
 
-  const filtered = exploreRestaurants.filter(r => {
-    const matchSearch = r.name.toLowerCase().includes(search.toLowerCase()) || r.cat.toLowerCase().includes(search.toLowerCase())
-    const matchCat = !activeCategory || r.cat === activeCategory
+  // TODO: reemplazar con datos reales del backend (GET /api/restaurants)
+  const filtered = allRestaurants.filter(r => {
+    const matchSearch = r.name.toLowerCase().includes(search.toLowerCase()) || r.category.toLowerCase().includes(search.toLowerCase())
+    const matchCat = !activeCategory || r.category.toLowerCase().includes(activeCategory.toLowerCase())
     return matchSearch && matchCat
   })
 
@@ -133,13 +123,10 @@ export default function Explorar({ onSelectRestaurant }: { onSelectRestaurant?: 
             {filtered.map(r => (
               <div
                 key={r.id}
-                onClick={() => {
-                  const full = allRestaurants.find(x => x.name === r.name)
-                  if (full && onSelectRestaurant) onSelectRestaurant(full)
-                }}
+                onClick={() => onSelectRestaurant && onSelectRestaurant(r)}
                 className="flex gap-3 bg-[#232427] border border-[#35373b] rounded-2xl overflow-hidden hover:border-[#5bc827]/40 transition-all cursor-pointer"
               >
-                <img src={r.img} alt={r.name} className="w-24 h-24 object-cover shrink-0" />
+                <img src={r.coverImg} alt={r.name} className="w-24 h-24 object-cover shrink-0" />
                 <div className="flex flex-col justify-center py-2 pr-3 flex-1">
                   <div className="flex items-center justify-between">
                     <h3 className="font-semibold text-sm text-white">{r.name}</h3>
@@ -148,11 +135,11 @@ export default function Explorar({ onSelectRestaurant }: { onSelectRestaurant?: 
                       <span className="text-xs text-white font-semibold">{r.rating}</span>
                     </div>
                   </div>
-                  <p className="text-[#9a9da3] text-xs mt-0.5">{r.cat}</p>
+                  <p className="text-[#9a9da3] text-xs mt-0.5">{r.category}</p>
                   <div className="flex items-center gap-2 mt-2 text-[10px] text-[#9a9da3]">
                     <span>⏱ {r.time}</span>
                     <span className="text-[#35373b]">·</span>
-                    <span>{r.price}</span>
+                    <span>{r.delivery}</span>
                   </div>
                 </div>
               </div>

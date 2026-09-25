@@ -18,11 +18,8 @@ interface Platillo {
 
 const categorias = ['Entradas', 'Platos fuertes', 'Postres', 'Bebidas', 'Combos', 'Ensaladas', 'Tacos', 'Pizzas', 'Burgers', 'Otro']
 
-const initialPlatillos: Platillo[] = [
-  { id: 1, nombre: 'Burger Clásica', descripcion: 'Carne 200g, lechuga, tomate, queso cheddar, papas incluidas.', categoria: 'Burgers', precio: '120', imagen: 'https://images.unsplash.com/photo-1512152272829-e3139592d56f?crop=entropy&cs=tinysrgb&fit=crop&fm=jpg&w=200&h=200', disponible: true },
-  { id: 2, nombre: 'Papas Fritas', descripcion: 'Papas crujientes con sal y ajo, porción grande.', categoria: 'Entradas', precio: '55', imagen: 'https://images.unsplash.com/photo-1517434324-1db605ff03c7?crop=entropy&cs=tinysrgb&fit=crop&fm=jpg&w=200&h=200', disponible: true },
-  { id: 3, nombre: 'Refresco 600ml', descripcion: 'Variedad de sabores: cola, naranja, limón.', categoria: 'Bebidas', precio: '30', imagen: null, disponible: false },
-]
+// TODO: reemplazar con datos reales del backend (GET /api/restaurants/my-restaurant/platillos)
+const initialPlatillos: Platillo[] = []
 
 interface Props {
   onLogout: () => void
@@ -37,25 +34,10 @@ const MESES = [
 const DIAS_SEMANA = ['Lun', 'Mar', 'Mié', 'Jue', 'Vie', 'Sáb', 'Dom']
 
 function generarVentasPorFecha(dia: number | null, mes: number, anio: number) {
-  const isDiaPuntual = dia !== null
-  const seed = (anio * 37) + ((mes + 1) * 101) + (dia !== null ? dia * 13 : 777)
-  const factor = 0.7 + (((seed * 9301 + 49297) % 233280) / 233280) * 0.6
-
-  const baseTotal = isDiaPuntual ? 1500 * factor : 35000 * factor
-  const total = Math.round(baseTotal * 100) / 100
-  const pedidos = Math.round(total / 210)
-  const ticketPromedio = pedidos > 0 ? total / pedidos : 0
-
-  const pctEfectivo = 0.3 + (((seed * 12345 + 6789) % 100) / 100) * 0.15
-  const efectivo = Math.round(total * pctEfectivo * 100) / 100
-  const tarjeta = Math.round((total - efectivo) * 100) / 100
-
-  const comisionPlataforma = Math.round(total * 0.15 * 100) / 100
-  const netoRecibido = Math.round((total - comisionPlataforma) * 100) / 100
-
-  return { total, pedidos, ticketPromedio, efectivo, tarjeta, comisionPlataforma, netoRecibido }
+  return { total: 0, pedidos: 0, ticketPromedio: 0, efectivo: 0, tarjeta: 0, comisionPlataforma: 0, netoRecibido: 0 }
 }
 
+// TODO: reemplazar con datos reales del backend (GET /api/restaurants/my-restaurant/sales)
 const DATA_VENTAS: Record<Exclude<VentasTimeframe, 'personalizado'>, {
   total: number
   pedidos: number
@@ -66,40 +48,40 @@ const DATA_VENTAS: Record<Exclude<VentasTimeframe, 'personalizado'>, {
   netoRecibido: number
 }> = {
   hoy: {
-    total: 1240.00,
-    pedidos: 6,
-    ticketPromedio: 206.67,
-    efectivo: 440.00,
-    tarjeta: 800.00,
-    comisionPlataforma: 186.00,
-    netoRecibido: 1054.00,
+    total: 0,
+    pedidos: 0,
+    ticketPromedio: 0,
+    efectivo: 0,
+    tarjeta: 0,
+    comisionPlataforma: 0,
+    netoRecibido: 0,
   },
   semana: {
-    total: 8950.00,
-    pedidos: 42,
-    ticketPromedio: 213.10,
-    efectivo: 2950.00,
-    tarjeta: 6000.00,
-    comisionPlataforma: 1342.50,
-    netoRecibido: 7607.50,
+    total: 0,
+    pedidos: 0,
+    ticketPromedio: 0,
+    efectivo: 0,
+    tarjeta: 0,
+    comisionPlataforma: 0,
+    netoRecibido: 0,
   },
   mes: {
-    total: 36800.00,
-    pedidos: 175,
-    ticketPromedio: 210.28,
-    efectivo: 11800.00,
-    tarjeta: 25000.00,
-    comisionPlataforma: 5520.00,
-    netoRecibido: 31280.00,
+    total: 0,
+    pedidos: 0,
+    ticketPromedio: 0,
+    efectivo: 0,
+    tarjeta: 0,
+    comisionPlataforma: 0,
+    netoRecibido: 0,
   },
   anio: {
-    total: 420000.00,
-    pedidos: 2000,
-    ticketPromedio: 210.00,
-    efectivo: 135000.00,
-    tarjeta: 285000.00,
-    comisionPlataforma: 63000.00,
-    netoRecibido: 357000.00,
+    total: 0,
+    pedidos: 0,
+    ticketPromedio: 0,
+    efectivo: 0,
+    tarjeta: 0,
+    comisionPlataforma: 0,
+    netoRecibido: 0,
   },
 }
 
@@ -129,12 +111,19 @@ export default function LocalPanel({ onLogout }: Props) {
     dia: null, mes: new Date().getMonth(), anio: new Date().getFullYear() 
   })
 
+interface LocalOrder {
+  id: string
+  cliente: string
+  items: string[]
+  total: string
+  hora: string
+  status: string
+  statusColor: string
+}
+
   // Estado compartido para los pedidos activos
-  const [activeOrders, setActiveOrders] = useState([
-    { id: '#SRR-4821', cliente: 'Juan Sierra', items: ['Burger Clásica x2', 'Papas Fritas x2'], total: '$350', hora: '8:42 pm', status: 'Preparando', statusColor: 'bg-blue-900/30 text-blue-400' },
-    { id: '#SRR-4820', cliente: 'María López', items: ['Combo Doble x1'], total: '$190', hora: '8:38 pm', status: 'Listo para recoger', statusColor: 'bg-[#5bc827]/20 text-[#5bc827]' },
-    { id: '#SRR-4819', cliente: 'Carlos R.', items: ['Burger Clásica x1', 'Refresco x1'], total: '$150', hora: '8:31 pm', status: 'Nuevo pedido', statusColor: 'bg-yellow-900/40 text-yellow-400' },
-  ])
+  // TODO: reemplazar con datos reales del backend (GET /api/restaurants/my-restaurant/orders)
+  const [activeOrders, setActiveOrders] = useState<LocalOrder[]>([])
 
   const emptyForm = { nombre: '', descripcion: '', categoria: categorias[0], precio: '', imagen: null as string | null, disponible: true }
   const [form, setForm] = useState(emptyForm)
@@ -148,10 +137,11 @@ export default function LocalPanel({ onLogout }: Props) {
     ? generarVentasPorFecha(fechaVentasSeleccionada.dia, fechaVentasSeleccionada.mes, fechaVentasSeleccionada.anio)
     : DATA_VENTAS[selectedVentasTimeframe as Exclude<VentasTimeframe, 'personalizado'>]
 
+  // TODO: reemplazar con datos reales del backend (GET /api/restaurants/my-restaurant/stats)
   const statsData = [
     { label: 'Pedidos activos', value: `${activeOrders.length}`, icon: '📦', trend: null },
     { label: 'Platillos activos', value: `${platillos.filter(p => p.disponible).length}`, icon: '🍽️', trend: null },
-    { label: 'Rating promedio', value: '4.7 ★', icon: '⭐', trend: '+0.2' },
+    { label: 'Rating promedio', value: '—', icon: '⭐', trend: null },
   ]
 
   /**
@@ -264,7 +254,8 @@ export default function LocalPanel({ onLogout }: Props) {
               {localAbierto ? 'Abierto' : 'Cerrado'}
             </span>
             <span className="text-[#35373b] mx-1">|</span>
-            <span className="text-[#9a9da3] text-xs">Sierra Burger Co.</span>
+            {/* TODO: reemplazar con datos reales del backend (GET /api/restaurants/my-restaurant) */}
+            <span className="text-[#9a9da3] text-xs">Mi Restaurante</span>
           </div>
         </div>
       </header>
@@ -275,7 +266,7 @@ export default function LocalPanel({ onLogout }: Props) {
         {view === 'dashboard' && (
           <div className="pt-5">
             <h1 className="text-3xl font-bold text-white uppercase mb-1" style={{ fontFamily: 'Barlow Condensed, sans-serif' }}>
-              ¡Buen día, Sierra Burger! 👋
+              ¡Buen día! 👋
             </h1>
             <p className="text-[#9a9da3] text-sm mb-6">Resumen de tu negocio hoy</p>
 
@@ -581,28 +572,32 @@ export default function LocalPanel({ onLogout }: Props) {
                 <div className="w-2 h-2 rounded-full bg-[#5bc827] animate-pulse" />
                 <h3 className="text-sm font-bold text-white">{activeOrders.length} pedidos activos</h3>
               </div>
-              {activeOrders.map(p => (
-                <div 
-                  key={p.id} 
-                  onClick={() => setSelectedOrder(p)}
-                  className="flex items-center justify-between py-2.5 border-b border-[#35373b] last:border-0 cursor-pointer hover:bg-[#1a1b1e]/60 transition-colors rounded-lg px-2 group"
-                >
-                  <div>
-                    <div className="flex items-center gap-2">
-                      <span className="text-xs font-bold text-[#5bc827] group-hover:underline">{p.id}</span>
-                      <span className="text-white text-xs font-semibold">{p.cliente}</span>
+              {activeOrders.length === 0 ? (
+                <p className="text-[#9a9da3] text-xs text-center py-4">No hay pedidos activos</p>
+              ) : (
+                activeOrders.map(p => (
+                  <div 
+                    key={p.id} 
+                    onClick={() => setSelectedOrder(p)}
+                    className="flex items-center justify-between py-2.5 border-b border-[#35373b] last:border-0 cursor-pointer hover:bg-[#1a1b1e]/60 transition-colors rounded-lg px-2 group"
+                  >
+                    <div>
+                      <div className="flex items-center gap-2">
+                        <span className="text-xs font-bold text-[#5bc827] group-hover:underline">{p.id}</span>
+                        <span className="text-white text-xs font-semibold">{p.cliente}</span>
+                      </div>
+                      <p className="text-[#9a9da3] text-[10px]">{Array.isArray(p.items) ? p.items.join(', ') : p.items}</p>
                     </div>
-                    <p className="text-[#9a9da3] text-[10px]">{Array.isArray(p.items) ? p.items.join(', ') : p.items}</p>
+                    <span className={`text-[10px] font-bold px-2 py-0.5 rounded-full ${
+                      p.status === 'Nuevo pedido' ? 'bg-yellow-900/40 text-yellow-400' :
+                      p.status === 'Listo para recoger' ? 'bg-[#5bc827]/20 text-[#5bc827]' :
+                      'bg-blue-900/30 text-blue-400'
+                    }`}>
+                      {p.status}
+                    </span>
                   </div>
-                  <span className={`text-[10px] font-bold px-2 py-0.5 rounded-full ${
-                    p.status === 'Nuevo pedido' ? 'bg-yellow-900/40 text-yellow-400' :
-                    p.status === 'Listo para recoger' ? 'bg-[#5bc827]/20 text-[#5bc827]' :
-                    'bg-blue-900/30 text-blue-400'
-                  }`}>
-                    {p.status}
-                  </span>
-                </div>
-              ))}
+                ))
+              )}
             </div>
           </div>
         )}
@@ -667,29 +662,37 @@ export default function LocalPanel({ onLogout }: Props) {
         {view === 'pedidos' && (
           <div className="pt-5">
             <h1 className="text-3xl font-bold text-white uppercase mb-5" style={{ fontFamily: 'Barlow Condensed, sans-serif' }}>Pedidos Activos</h1>
-            <div className="space-y-3">
-              {activeOrders.map(order => (
-                <div key={order.id} onClick={() => setSelectedOrder(order)} className="bg-[#232427] border border-[#35373b] rounded-2xl p-4 cursor-pointer hover:border-[#5bc827]/50 transition-colors">
-                  <div className="flex items-start justify-between mb-2">
-                    <div>
-                      <span className="text-[#5bc827] text-sm font-bold">{order.id}</span>
-                      <p className="text-white text-xs font-semibold">{order.cliente}</p>
+            {activeOrders.length === 0 ? (
+              <div className="flex flex-col items-center justify-center py-16 text-center">
+                <span className="text-5xl mb-3">📦</span>
+                <p className="text-white font-semibold">No hay pedidos activos</p>
+                <p className="text-[#9a9da3] text-sm mt-1">Los pedidos entrantes aparecerán aquí</p>
+              </div>
+            ) : (
+              <div className="space-y-3">
+                {activeOrders.map(order => (
+                  <div key={order.id} onClick={() => setSelectedOrder(order)} className="bg-[#232427] border border-[#35373b] rounded-2xl p-4 cursor-pointer hover:border-[#5bc827]/50 transition-colors">
+                    <div className="flex items-start justify-between mb-2">
+                      <div>
+                        <span className="text-[#5bc827] text-sm font-bold">{order.id}</span>
+                        <p className="text-white text-xs font-semibold">{order.cliente}</p>
+                      </div>
+                      <span className={`text-[10px] font-bold px-2 py-1 rounded-full ${order.statusColor}`}>{order.status}</span>
                     </div>
-                    <span className={`text-[10px] font-bold px-2 py-1 rounded-full ${order.statusColor}`}>{order.status}</span>
-                  </div>
-                  <p className="text-[#9a9da3] text-xs mb-2">{order.items.join(' · ')}</p>
-                  <div className="flex items-center justify-between">
-                    <span className="text-[10px] text-[#9a9da3]">⏱ {order.hora}</span>
-                    <div className="flex items-center gap-2">
-                      <span className="text-[#5bc827] font-bold text-sm">{order.total}</span>
-                      <button className="bg-[#5bc827] hover:bg-[#7ed944] text-[#1a1b1e] text-xs font-bold px-3 py-1 rounded-full transition-colors cursor-pointer">
-                        Ver
-                      </button>
+                    <p className="text-[#9a9da3] text-xs mb-2">{order.items.join(' · ')}</p>
+                    <div className="flex items-center justify-between">
+                      <span className="text-[10px] text-[#9a9da3]">⏱ {order.hora}</span>
+                      <div className="flex items-center gap-2">
+                        <span className="text-[#5bc827] font-bold text-sm">{order.total}</span>
+                        <button className="bg-[#5bc827] hover:bg-[#7ed944] text-[#1a1b1e] text-xs font-bold px-3 py-1 rounded-full transition-colors cursor-pointer">
+                          Ver
+                        </button>
+                      </div>
                     </div>
                   </div>
-                </div>
-              ))}
-            </div>
+                ))}
+              </div>
+            )}
           </div>
         )}
 
@@ -697,11 +700,12 @@ export default function LocalPanel({ onLogout }: Props) {
         {view === 'perfil' && (
           <div className="pt-5">
             <h1 className="text-3xl font-bold text-white uppercase mb-5" style={{ fontFamily: 'Barlow Condensed, sans-serif' }}>Mi Negocio</h1>
+            {/* TODO: reemplazar con datos reales del backend (GET /api/restaurants/my-restaurant) */}
             <div className="bg-[#232427] border border-[#35373b] rounded-2xl p-5 mb-4 flex items-center gap-4">
               <div className="w-16 h-16 bg-[#5bc827]/20 border-2 border-[#5bc827] rounded-2xl flex items-center justify-center text-2xl">🏪</div>
               <div>
-                <h2 className="text-white font-bold text-lg">Sierra Burger Co.</h2>
-                <p className="text-[#9a9da3] text-xs">Hamburguesas · Centro Sierra</p>
+                <h2 className="text-white font-bold text-lg">Mi Restaurante</h2>
+                <p className="text-[#9a9da3] text-xs">—</p>
                 <div className="flex items-center gap-1 mt-1">
                   <span className="w-1.5 h-1.5 rounded-full bg-[#5bc827]" />
                   <span className="text-[#5bc827] text-[10px] font-bold">Verificado</span>

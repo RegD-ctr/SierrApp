@@ -15,7 +15,7 @@ import { restaurants as allRestaurants } from '@/data'
 import Checkout from '@/pages/Checkout'
 import OrderConfirmation from '@/pages/OrderConfirmation'
 import PaymentMethods from '@/pages/PaymentMethods'
-import Addresses from '@/pages/Addresses'
+import Addresses, { type AddressItem } from '@/pages/Addresses'
 import Favorites from '@/pages/Favorites'
 import Promotions from '@/pages/Promotions'
 import Notifications from '@/pages/Notifications'
@@ -83,10 +83,8 @@ export default function App() {
   const [cartOpen, setCartOpen] = useState(false)
   const [cartItems, setCartItems] = useState<CartItem[]>([])
 
-  const [savedAddresses, setSavedAddresses] = useState([
-    { id: 1, name: 'Casa', street: 'Calle Pino #24', col: 'Sierra Norte', default: true },
-    { id: 2, name: 'Oficina', street: 'Av. Las Palmas #300', col: 'Centro', default: false },
-  ])
+  // TODO: reemplazar con datos reales del backend (GET /api/users/addresses)
+  const [savedAddresses, setSavedAddresses] = useState<AddressItem[]>([])
   const [deliveryAddressId, setDeliveryAddressId] = useState(1)
   const [addressSelectMode, setAddressSelectMode] = useState(false)
 
@@ -96,20 +94,8 @@ export default function App() {
     setTimeout(() => setToast(null), 3000)
   }
 
-  const [activeOrder, setActiveOrder] = useState<Order | null>({
-    id: '#SRR-4821',
-    restaurant: 'Sierra Burger Co.',
-    items: ['Burger Clásica x1', 'Papas grandes x1', 'Refresco x1'],
-    total: '$185',
-    status: 3,
-    statuses: [
-      { label: 'Pedido recibido', icon: '✅', time: '8:42 pm' },
-      { label: 'Preparando', icon: '👨‍🍳', time: '8:45 pm' },
-      { label: 'En camino', icon: '🛵', time: '8:58 pm' },
-      { label: 'Entregado', icon: '🏠', time: null },
-    ],
-    driver: { name: 'Carlos M.', rating: 4.9, eta: '8 min' },
-  })
+  // TODO: reemplazar con datos reales del backend (GET /api/orders/active)
+  const [activeOrder, setActiveOrder] = useState<Order | null>(null)
 
   const activeAddress = savedAddresses.find(a => a.id === deliveryAddressId) || savedAddresses[0]
   const cartCount = cartItems.reduce((s, i) => s + i.cantidad, 0)
@@ -368,14 +354,6 @@ function HomeView({
               className="bg-[#5bc827] hover:bg-[#7ed944] text-[#1a1b1e] font-bold text-sm px-6 py-2.5 rounded-full transition-all hover:scale-105 active:scale-95 cursor-pointer">
               Pedir ahora
             </button>
-          </div>
-          <div className="hidden sm:flex flex-col gap-3 text-right">
-            {[{ n: '15 min', l: 'Entrega rápida' }, { n: '+200', l: 'Restaurantes' }, { n: '24/7', l: 'Disponible' }].map(s => (
-              <div key={s.n}>
-                <div className="text-2xl font-bold text-[#5bc827]" style={{ fontFamily: 'Barlow Condensed, sans-serif' }}>{s.n}</div>
-                <div className="text-xs text-[#9a9da3]">{s.l}</div>
-              </div>
-            ))}
           </div>
         </div>
       </section>

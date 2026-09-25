@@ -3,63 +3,22 @@ import type { Order } from './OrderTracking'
 
 type Tab = 'activo' | 'historial'
 
-const defaultActiveOrder: Order = {
-  id: '#SRR-4821',
-  restaurant: 'Sierra Burger Co.',
-  items: ['Burger Clásica x1', 'Papas grandes x1', 'Refresco x1'],
-  total: '$185',
-  status: 3,
-  statuses: [
-    { label: 'Pedido recibido', icon: '✅', time: '8:42 pm' },
-    { label: 'Preparando', icon: '👨‍🍳', time: '8:45 pm' },
-    { label: 'En camino', icon: '🛵', time: '8:58 pm' },
-    { label: 'Entregado', icon: '🏠', time: null },
-  ],
-  driver: { name: 'Carlos M.', rating: 4.9, eta: '8 min' },
+// TODO: reemplazar con datos reales del backend (GET /api/orders/active)
+const defaultActiveOrder: Order | null = null
+
+interface HistoryOrder {
+  id: string
+  restaurant: string
+  items: string[]
+  total: string
+  date: string
+  status: string
+  rating: number | null
+  img: string
 }
 
-const history = [
-  {
-    id: '#SRR-4810',
-    restaurant: 'El Rincón del Sabor',
-    items: ['Orden de tacos x3', 'Agua de jamaica x1'],
-    total: '$120',
-    date: 'Hoy, 2:15 pm',
-    status: 'Entregado',
-    rating: null,
-    img: 'https://images.unsplash.com/photo-1551504734-5ee1c4a1479b?crop=entropy&cs=tinysrgb&fit=crop&fm=jpg&w=80&h=80',
-  },
-  {
-    id: '#SRR-4798',
-    restaurant: 'Sakura Sushi',
-    items: ['Roll Spicy Tuna x2', 'Miso soup x1'],
-    total: '$340',
-    date: 'Ayer, 8:30 pm',
-    status: 'Entregado',
-    rating: 5,
-    img: 'https://images.unsplash.com/photo-1579584425555-c3ce17fd4351?crop=entropy&cs=tinysrgb&fit=crop&fm=jpg&w=80&h=80',
-  },
-  {
-    id: '#SRR-4775',
-    restaurant: 'Pizzería Napoli',
-    items: ['Pizza Margherita x1'],
-    total: '$210',
-    date: '3 ago, 7:00 pm',
-    status: 'Cancelado',
-    rating: null,
-    img: 'https://images.unsplash.com/photo-1566843972142-a7fcb70de55a?crop=entropy&cs=tinysrgb&fit=crop&fm=jpg&w=80&h=80',
-  },
-  {
-    id: '#SRR-4760',
-    restaurant: 'Sierra Burger Co.',
-    items: ['Combo Doble x2'],
-    total: '$290',
-    date: '1 ago, 1:20 pm',
-    status: 'Entregado',
-    rating: 4,
-    img: 'https://images.unsplash.com/photo-1512152272829-e3139592d56f?crop=entropy&cs=tinysrgb&fit=crop&fm=jpg&w=80&h=80',
-  },
-]
+// TODO: reemplazar con datos reales del backend (GET /api/orders/history)
+const history: HistoryOrder[] = []
 
 interface Props {
   initialTab?: 'activo' | 'historial'
@@ -208,54 +167,62 @@ export default function Pedidos({ initialTab = 'activo', activeOrder: propActive
         {/* History */}
         {tab === 'historial' && (
           <div className="space-y-3">
-            {history.map(order => (
-              <div key={order.id} className="bg-[#232427] border border-[#35373b] rounded-2xl overflow-hidden">
-                <div className="flex gap-3 p-3">
-                  <img src={order.img} alt={order.restaurant} className="w-14 h-14 rounded-xl object-cover shrink-0" />
-                  <div className="flex-1">
-                    <div className="flex items-center justify-between">
-                      <h3 className="font-semibold text-sm text-white">{order.restaurant}</h3>
-                      <span className={`text-[10px] font-bold px-2 py-0.5 rounded-full ${
-                        order.status === 'Entregado'
-                          ? 'bg-[#5bc827]/20 text-[#5bc827]'
-                          : 'bg-red-900/30 text-red-400'
-                      }`}>
-                        {order.status}
-                      </span>
-                    </div>
-                    <p className="text-[#9a9da3] text-xs mt-0.5 truncate">{order.items.join(', ')}</p>
-                    <div className="flex items-center justify-between mt-1">
-                      <span className="text-[10px] text-[#9a9da3]">{order.date}</span>
-                      <span className="text-[#5bc827] text-xs font-bold">{order.total}</span>
-                    </div>
-                  </div>
-                </div>
-
-                {order.status === 'Entregado' && (
-                  <div className="border-t border-[#35373b] px-3 py-2 flex items-center justify-between">
-                    <div className="flex items-center gap-1">
-                      {[1, 2, 3, 4, 5].map(n => (
-                        <button
-                          key={n}
-                          onClick={() => setRatings(r => ({ ...r, [order.id]: n }))}
-                          className={`text-base transition-transform hover:scale-125 ${
-                            n <= (ratings[order.id] ?? order.rating ?? 0) ? 'text-[#5bc827]' : 'text-[#35373b]'
-                          }`}
-                        >
-                          ★
-                        </button>
-                      ))}
-                      <span className="text-[#9a9da3] text-[10px] ml-1">
-                        {ratings[order.id] ? 'Gracias!' : 'Calificar'}
-                      </span>
-                    </div>
-                    <button className="text-[#5bc827] text-xs font-semibold hover:text-[#7ed944] transition-colors">
-                      Repetir pedido →
-                    </button>
-                  </div>
-                )}
+            {history.length === 0 ? (
+              <div className="flex flex-col items-center justify-center py-16 text-center">
+                <span className="text-5xl mb-3">📦</span>
+                <p className="text-white font-semibold">No tienes pedidos anteriores</p>
+                <p className="text-[#9a9da3] text-sm mt-1">Aquí verás tu historial de compras</p>
               </div>
-            ))}
+            ) : (
+              history.map(order => (
+                <div key={order.id} className="bg-[#232427] border border-[#35373b] rounded-2xl overflow-hidden">
+                  <div className="flex gap-3 p-3">
+                    <img src={order.img} alt={order.restaurant} className="w-14 h-14 rounded-xl object-cover shrink-0" />
+                    <div className="flex-1">
+                      <div className="flex items-center justify-between">
+                        <h3 className="font-semibold text-sm text-white">{order.restaurant}</h3>
+                        <span className={`text-[10px] font-bold px-2 py-0.5 rounded-full ${
+                          order.status === 'Entregado'
+                            ? 'bg-[#5bc827]/20 text-[#5bc827]'
+                            : 'bg-red-900/30 text-red-400'
+                        }`}>
+                          {order.status}
+                        </span>
+                      </div>
+                      <p className="text-[#9a9da3] text-xs mt-0.5 truncate">{order.items.join(', ')}</p>
+                      <div className="flex items-center justify-between mt-1">
+                        <span className="text-[10px] text-[#9a9da3]">{order.date}</span>
+                        <span className="text-[#5bc827] text-xs font-bold">{order.total}</span>
+                      </div>
+                    </div>
+                  </div>
+
+                  {order.status === 'Entregado' && (
+                    <div className="border-t border-[#35373b] px-3 py-2 flex items-center justify-between">
+                      <div className="flex items-center gap-1">
+                        {[1, 2, 3, 4, 5].map(n => (
+                          <button
+                            key={n}
+                            onClick={() => setRatings(r => ({ ...r, [order.id]: n }))}
+                            className={`text-base transition-transform hover:scale-125 ${
+                              n <= (ratings[order.id] ?? order.rating ?? 0) ? 'text-[#5bc827]' : 'text-[#35373b]'
+                            }`}
+                          >
+                            ★
+                          </button>
+                        ))}
+                        <span className="text-[#9a9da3] text-[10px] ml-1">
+                          {ratings[order.id] ? 'Gracias!' : 'Calificar'}
+                        </span>
+                      </div>
+                      <button className="text-[#5bc827] text-xs font-semibold hover:text-[#7ed944] transition-colors">
+                        Repetir pedido →
+                      </button>
+                    </div>
+                  )}
+                </div>
+              ))
+            )}
           </div>
         )}
       </div>

@@ -1,9 +1,6 @@
 export default function EarningsRepartidor({ onBack }: { onBack: () => void }) {
-  const history = [
-    { id: '#492', time: 'Hoy 14:30', amount: '$45.00' },
-    { id: '#488', time: 'Hoy 13:15', amount: '$38.50' },
-    { id: '#471', time: 'Ayer 20:05', amount: '$52.00' },
-  ]
+  // TODO: reemplazar con datos reales del backend (GET /api/delivery/earnings/history)
+  const history: { id: string; time: string; amount: string }[] = []
 
   return (
     <div className="min-h-screen bg-[#1a1b1e] text-white flex flex-col">
@@ -15,18 +12,19 @@ export default function EarningsRepartidor({ onBack }: { onBack: () => void }) {
       </header>
 
       <div className="p-4 max-w-lg mx-auto w-full space-y-6">
+        {/* TODO: reemplazar con datos reales del backend (GET /api/delivery/earnings) */}
         <div className="bg-[#232427] border border-[#35373b] rounded-2xl p-6 text-center">
           <p className="text-[#9a9da3] text-sm uppercase tracking-wider mb-2">Ganancias de hoy</p>
-          <p className="text-5xl font-bold text-[#5bc827] mb-6" style={{ fontFamily: 'Barlow Condensed, sans-serif' }}>$485.50</p>
+          <p className="text-5xl font-bold text-[#5bc827] mb-6" style={{ fontFamily: 'Barlow Condensed, sans-serif' }}>$0.00</p>
           
           <div className="grid grid-cols-2 gap-4 border-t border-[#35373b] pt-4">
             <div>
               <p className="text-[#9a9da3] text-xs mb-1">Esta semana</p>
-              <p className="font-semibold">$2,140.00</p>
+              <p className="font-semibold">$0.00</p>
             </div>
             <div>
               <p className="text-[#9a9da3] text-xs mb-1">Entregas hoy</p>
-              <p className="font-semibold">12</p>
+              <p className="font-semibold">0</p>
             </div>
           </div>
         </div>

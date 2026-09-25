@@ -29,45 +29,11 @@ const statusConfig: Record<OrderStatus, { label: string; icon: string; color: st
 
 const stateFlow: OrderStatus[] = ['nueva', 'dirigete', 'esperando', 'recibido', 'en_camino', 'entregado']
 
-const sampleOrders: Order[] = [
-  {
-    id: '#SRR-4821',
-    local: 'Sierra Burger Co.',
-    localDir: 'Av. Sierra #45, Col. Centro',
-    cliente: 'Juan Sierra',
-    clienteDir: 'Calle Pino #24, Sierra Norte',
-    productos: [{ nombre: 'Burger Clásica', cantidad: 2 }, { nombre: 'Papas Fritas', cantidad: 2 }],
-    total: '$350',
-    hora: '8:42 pm',
-    notas: 'Sin cebolla en las burgers. Dejar en puerta.',
-    status: 'dirigete',
-  },
-  {
-    id: '#SRR-4820',
-    local: 'Pizzería Napoli',
-    localDir: 'Calle Olivo #12, Col. Roma',
-    cliente: 'María López',
-    clienteDir: 'Blvd. Montaña #88, Fracc. Las Cumbres',
-    productos: [{ nombre: 'Pizza Margherita', cantidad: 1 }, { nombre: 'Refresco 600ml', cantidad: 2 }],
-    total: '$270',
-    hora: '8:38 pm',
-    notas: '',
-    status: 'nueva',
-  },
-]
+// TODO: reemplazar con datos reales del backend (GET /api/delivery/orders/available)
+const sampleOrders: Order[] = []
 
-const historial: Order[] = [
-  {
-    id: '#SRR-4815', local: 'El Rincón del Sabor', localDir: 'Mercado Sierra', cliente: 'Carlos R.',
-    clienteDir: 'Av. Pinos #9', productos: [{ nombre: 'Orden tacos', cantidad: 3 }], total: '$120',
-    hora: 'Hoy 2:15 pm', notas: '', status: 'entregado',
-  },
-  {
-    id: '#SRR-4808', local: 'Sakura Sushi', localDir: 'Zona Rosa', cliente: 'Ana G.',
-    clienteDir: 'Calle Ciprés #33', productos: [{ nombre: 'Roll Spicy', cantidad: 2 }], total: '$280',
-    hora: 'Ayer 9:00 pm', notas: '', status: 'entregado',
-  },
-]
+// TODO: reemplazar con datos reales del backend (GET /api/delivery/orders/history)
+const historial: Order[] = []
 
 interface Props { onLogout: () => void }
 
@@ -169,27 +135,30 @@ export default function RepartidorPanel({ onLogout }: Props) {
               <div className="absolute left-[60%] top-0 bottom-0 w-[2px] bg-[#1a3320] opacity-40" />
               <div className="absolute top-[35%] left-0 right-0 h-[3px] bg-[#1a3320] opacity-60" />
               <div className="absolute top-[65%] left-0 right-0 h-[2px] bg-[#1a3320] opacity-40" />
-              {/* Route line */}
-              <svg className="absolute inset-0 w-full h-full" viewBox="0 0 100 100" preserveAspectRatio="none">
-                <path d="M 20 75 Q 30 60 30 35 Q 30 20 55 20 Q 70 20 75 30" stroke="#5bc827" strokeWidth="0.8" fill="none" strokeDasharray="3,2" />
-              </svg>
-              {/* Markers */}
-              <div className="absolute" style={{ left: '28%', top: '33%', transform: 'translate(-50%,-100%)' }}>
-                <div className="flex flex-col items-center">
-                  <div className="bg-[#232427] border-2 border-[#5bc827] rounded-xl px-2 py-1 text-[10px] font-bold text-[#5bc827] whitespace-nowrap mb-1">
-                    🏪 Sierra Burger
+              {/* Route line & Markers */}
+              {orders.length > 0 && (
+                <>
+                  <svg className="absolute inset-0 w-full h-full" viewBox="0 0 100 100" preserveAspectRatio="none">
+                    <path d="M 20 75 Q 30 60 30 35 Q 30 20 55 20 Q 70 20 75 30" stroke="#5bc827" strokeWidth="0.8" fill="none" strokeDasharray="3,2" />
+                  </svg>
+                  <div className="absolute" style={{ left: '28%', top: '33%', transform: 'translate(-50%,-100%)' }}>
+                    <div className="flex flex-col items-center">
+                      <div className="bg-[#232427] border-2 border-[#5bc827] rounded-xl px-2 py-1 text-[10px] font-bold text-[#5bc827] whitespace-nowrap mb-1">
+                        🏪 {orders[0].local}
+                      </div>
+                      <div className="w-2 h-2 rounded-full bg-[#5bc827]" />
+                    </div>
                   </div>
-                  <div className="w-2 h-2 rounded-full bg-[#5bc827]" />
-                </div>
-              </div>
-              <div className="absolute" style={{ left: '74%', top: '28%', transform: 'translate(-50%,-100%)' }}>
-                <div className="flex flex-col items-center">
-                  <div className="bg-[#232427] border-2 border-[#7ed944] rounded-xl px-2 py-1 text-[10px] font-bold text-[#7ed944] whitespace-nowrap mb-1">
-                    🏠 Juan Sierra
+                  <div className="absolute" style={{ left: '74%', top: '28%', transform: 'translate(-50%,-100%)' }}>
+                    <div className="flex flex-col items-center">
+                      <div className="bg-[#232427] border-2 border-[#7ed944] rounded-xl px-2 py-1 text-[10px] font-bold text-[#7ed944] whitespace-nowrap mb-1">
+                        🏠 {orders[0].cliente}
+                      </div>
+                      <div className="w-2 h-2 rounded-full bg-[#7ed944]" />
+                    </div>
                   </div>
-                  <div className="w-2 h-2 rounded-full bg-[#7ed944]" />
-                </div>
-              </div>
+                </>
+              )}
               {/* Repartidor dot */}
               <div className="absolute" style={{ left: '20%', top: '73%', transform: 'translate(-50%,-50%)' }}>
                 <div className="relative">
@@ -323,7 +292,7 @@ export default function RepartidorPanel({ onLogout }: Props) {
             <div className="flex items-center justify-between mb-5">
               <p className="text-[#9a9da3] text-sm">{completedOrders.length} entregas realizadas</p>
               <div className="bg-[#232427] border border-[#35373b] rounded-xl px-3 py-1.5 text-xs text-[#5bc827] font-bold">
-                Hoy: ${completedOrders.filter(o => o.hora.includes("Hoy")).reduce((acc, o) => acc + (parseFloat(o.total.replace(/[^0-9.]/g, '')) || 0), 0) || 120}
+                Hoy: ${completedOrders.filter(o => o.hora.includes("Hoy")).reduce((acc, o) => acc + (parseFloat(o.total.replace(/[^0-9.]/g, '')) || 0), 0).toFixed(2)}
               </div>
             </div>
             {completedOrders.length === 0 ? (
@@ -358,20 +327,22 @@ export default function RepartidorPanel({ onLogout }: Props) {
         {view === 'perfil' && (
           <div className="px-4 pt-5">
             <h1 className="text-3xl font-bold text-white uppercase mb-5" style={{ fontFamily: 'Barlow Condensed, sans-serif' }}>Mi Perfil</h1>
+            {/* TODO: reemplazar con datos reales del backend (GET /api/delivery/profile) */}
             <div className="bg-[#232427] border border-[#35373b] rounded-2xl p-5 flex items-center gap-4 mb-5">
-              <div className="w-16 h-16 bg-[#5bc827]/20 border-2 border-[#5bc827] rounded-full flex items-center justify-center text-2xl font-bold text-[#5bc827]">CM</div>
+              <div className="w-16 h-16 bg-[#5bc827]/20 border-2 border-[#5bc827] rounded-full flex items-center justify-center text-2xl font-bold text-[#5bc827]">👤</div>
               <div>
-                <h2 className="text-white font-bold text-lg">Carlos Méndez</h2>
-                <p className="text-[#9a9da3] text-xs">carlos.mendez@sierraapp.mx</p>
+                <h2 className="text-white font-bold text-lg">Repartidor</h2>
+                <p className="text-[#9a9da3] text-xs">—</p>
                 <div className="flex items-center gap-3 mt-2">
                   <span className="text-[10px] text-[#5bc827] font-bold">🛵 Repartidor</span>
-                  <span className="text-[10px] text-[#9a9da3]">★ 4.9</span>
-                  <span className="text-[10px] text-[#9a9da3]">142 entregas</span>
+                  <span className="text-[10px] text-[#9a9da3]">★ —</span>
+                  <span className="text-[10px] text-[#9a9da3]">0 entregas</span>
                 </div>
               </div>
             </div>
+            {/* TODO: reemplazar con datos reales del backend (GET /api/delivery/stats) */}
             <div className="grid grid-cols-3 bg-[#232427] border border-[#35373b] rounded-2xl overflow-hidden mb-5">
-              {[{ v: '142', l: 'Entregas' }, { v: '$8,240', l: 'Ganancias' }, { v: '4.9★', l: 'Rating' }].map((s, i) => (
+              {[{ v: '0', l: 'Entregas' }, { v: '$0.00', l: 'Ganancias' }, { v: '—', l: 'Rating' }].map((s, i) => (
                 <div key={s.l} className={`py-4 text-center ${i < 2 ? 'border-r border-[#35373b]' : ''}`}>
                   <p className="text-[#5bc827] font-bold text-xl" style={{ fontFamily: 'Barlow Condensed, sans-serif' }}>{s.v}</p>
                   <p className="text-[#9a9da3] text-[10px]">{s.l}</p>
@@ -379,7 +350,7 @@ export default function RepartidorPanel({ onLogout }: Props) {
               ))}
             </div>
             {[
-              { icon: '🏍️', label: 'Mi vehículo', sub: 'Honda CB125 · ABC-1234' },
+              { icon: '🏍️', label: 'Mi vehículo', sub: '—' },
               { icon: '💳', label: 'Datos de pago', sub: 'Cuenta CLABE registrada' },
               { icon: '💰', label: 'Mis ganancias', sub: 'Historial y retiros' },
               { icon: '🔔', label: 'Notificaciones', sub: 'Activadas' },

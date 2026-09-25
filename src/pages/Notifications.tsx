@@ -1,9 +1,6 @@
 export default function Notifications({ onBack }: { onBack: () => void }) {
-  const notifs = [
-    { id: 1, type: 'order', text: 'Tu pedido en El Rincón del Sabor ha sido aceptado.', time: 'Hace 5 min', unread: true },
-    { id: 2, type: 'promo', text: '¡Tienes un cupón de 20% de descuento esperándote!', time: 'Hace 2 horas', unread: true },
-    { id: 3, type: 'info', text: 'Bienvenido a Sierra App. Explora nuestros restaurantes.', time: 'Hace 1 día', unread: false },
-  ]
+  // TODO: reemplazar con datos reales del backend (GET /api/users/notifications)
+  const notifs: { id: number; type: string; text: string; time: string; unread: boolean }[] = []
 
   return (
     <div className="min-h-screen bg-[#1a1b1e] text-white flex flex-col">
