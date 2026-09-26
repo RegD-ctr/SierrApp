@@ -2,9 +2,8 @@ import { useState } from 'react'
 
 export default function Support({ onBack }: { onBack: () => void }) {
   const [msg, setMsg] = useState('')
-  const [chat, setChat] = useState([
-    { id: 1, sender: 'bot', text: '¡Hola! ¿En qué podemos ayudarte con tu pedido?' }
-  ])
+  // TODO: reemplazar con datos reales del backend (GET /api/support/messages)
+  const [chat, setChat] = useState<{ id: number; sender: string; text: string }[]>([])
 
   const send = () => {
     if (!msg.trim()) return

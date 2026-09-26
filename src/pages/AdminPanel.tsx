@@ -4,6 +4,7 @@ type Tab = 'dashboard' | 'usuarios' | 'locales' | 'repartidores' | 'pedidos' | '
 type Timeframe = 'hoy' | 'semana' | 'mes' | 'anio' | 'personalizado'
 type LocalTimeframe = 'hoy' | 'semana' | 'mes' | 'anio' | 'personalizado'
 
+// TODO: reemplazar con datos reales del backend (GET /api/admin/restaurants/earnings)
 const DATA_GANANCIAS_LOCAL: Record<number, Record<Exclude<LocalTimeframe, 'personalizado'>, {
   total: number
   efectivo: number
@@ -11,12 +12,6 @@ const DATA_GANANCIAS_LOCAL: Record<number, Record<Exclude<LocalTimeframe, 'perso
   comisionPlataforma: number
 }>> = {
   1: {
-    hoy: { total: 1850.00, efectivo: 620.00, tarjeta: 1230.00, comisionPlataforma: 277.50 },
-    semana: { total: 11200.00, efectivo: 3800.00, tarjeta: 7400.00, comisionPlataforma: 1680.00 },
-    mes: { total: 42600.00, efectivo: 14200.00, tarjeta: 28400.00, comisionPlataforma: 6390.00 },
-    anio: { total: 398000.00, efectivo: 132000.00, tarjeta: 266000.00, comisionPlataforma: 59700.00 },
-  },
-  2: {
     hoy: { total: 0, efectivo: 0, tarjeta: 0, comisionPlataforma: 0 },
     semana: { total: 0, efectivo: 0, tarjeta: 0, comisionPlataforma: 0 },
     mes: { total: 0, efectivo: 0, tarjeta: 0, comisionPlataforma: 0 },
@@ -25,20 +20,7 @@ const DATA_GANANCIAS_LOCAL: Record<number, Record<Exclude<LocalTimeframe, 'perso
 }
 
 function generarGananciasPorFecha(localId: number, dia: number | null, mes: number, anio: number) {
-  const isDiaPuntual = dia !== null
-  const seed = (localId * 1000) + (anio * 37) + ((mes + 1) * 101) + (dia !== null ? dia * 13 : 777)
-  const factor = 0.7 + (((seed * 9301 + 49297) % 233280) / 233280) * 0.6
-
-  const baseTotal = isDiaPuntual ? 1850 * factor : 42600 * factor
-  const total = Math.round(baseTotal * 100) / 100
-
-  const pctEfectivo = 0.3 + (((seed * 12345 + 6789) % 100) / 100) * 0.15
-  const efectivo = Math.round(total * pctEfectivo * 100) / 100
-  const tarjeta = Math.round((total - efectivo) * 100) / 100
-
-  const comisionPlataforma = Math.round(total * 0.15 * 100) / 100
-
-  return { total, efectivo, tarjeta, comisionPlataforma }
+  return { total: 0, efectivo: 0, tarjeta: 0, comisionPlataforma: 0 }
 }
 
 const MESES = [
@@ -51,7 +33,7 @@ interface Props {
   onLogout: () => void
 }
 
-// Datos de ejemplo simulados según el lapso de tiempo seleccionado
+// TODO: reemplazar con datos reales del backend (GET /api/admin/earnings)
 const DATA_INGRESOS: Record<Exclude<Timeframe, 'personalizado'>, {
   total: number
   efectivo: number
@@ -60,32 +42,32 @@ const DATA_INGRESOS: Record<Exclude<Timeframe, 'personalizado'>, {
   comisionLocales: number
 }> = {
   hoy: {
-    total: 3250.00,
-    efectivo: 1100.00,
-    tarjeta: 2150.00,
-    comisionUsuario: 1075.00,
-    comisionLocales: 2175.00,
+    total: 0,
+    efectivo: 0,
+    tarjeta: 0,
+    comisionUsuario: 0,
+    comisionLocales: 0,
   },
   semana: {
-    total: 18400.00,
-    efectivo: 5900.00,
-    tarjeta: 12500.00,
-    comisionUsuario: 6100.00,
-    comisionLocales: 12300.00,
+    total: 0,
+    efectivo: 0,
+    tarjeta: 0,
+    comisionUsuario: 0,
+    comisionLocales: 0,
   },
   mes: {
-    total: 45200.00,
-    efectivo: 14800.00,
-    tarjeta: 30400.00,
-    comisionUsuario: 15000.00,
-    comisionLocales: 30200.00,
+    total: 0,
+    efectivo: 0,
+    tarjeta: 0,
+    comisionUsuario: 0,
+    comisionLocales: 0,
   },
   anio: {
-    total: 520400.00,
-    efectivo: 165000.00,
-    tarjeta: 355400.00,
-    comisionUsuario: 173000.00,
-    comisionLocales: 347400.00,
+    total: 0,
+    efectivo: 0,
+    tarjeta: 0,
+    comisionUsuario: 0,
+    comisionLocales: 0,
   },
 }
 
@@ -97,21 +79,7 @@ const DATA_INGRESOS: Record<Exclude<Timeframe, 'personalizado'>, {
  * una llamada a GET /api/admin/ingresos?dia=X&mes=Y&anio=Z 
 */
 function generarIngresosPorFecha(dia: number | null, mes: number, anio: number) {
-  const isDiaPuntual = dia !== null
-  const seed = (anio * 37) + ((mes + 1) * 101) + (dia !== null ? dia * 13 : 777)
-  const factor = 0.7 + (((seed * 9301 + 49297) % 233280) / 233280) * 0.6
-
-  const baseTotal = isDiaPuntual ? 3150 * factor : 44800 * factor
-  const total = Math.round(baseTotal * 100) / 100
-
-  const pctEfectivo = 0.3 + (((seed * 12345 + 6789) % 100) / 100) * 0.15
-  const efectivo = Math.round(total * pctEfectivo * 100) / 100
-  const tarjeta = Math.round((total - efectivo) * 100) / 100
-
-  const comisionUsuario = Math.round(total * 0.33 * 100) / 100
-  const comisionLocales = Math.round((total - comisionUsuario) * 100) / 100
-
-  return { total, efectivo, tarjeta, comisionUsuario, comisionLocales }
+  return { total: 0, efectivo: 0, tarjeta: 0, comisionUsuario: 0, comisionLocales: 0 }
 }
 
 /**
@@ -140,46 +108,58 @@ export default function AdminPanel({ onLogout }: Props) {
     mes: new Date().getMonth(),
     anio: new Date().getFullYear(),
   })
-  // Estados para el de usuario seleccionado
-  const [usuarios, setUsuarios] = useState([
-    { 
-      id: 1, name: 'Juan Pérez', email: 'juan@email.com', status: 'Activo',
-      telefono: '618 123 4567', fechaRegistro: '12 Ene 2026', 
-      pedidosTotales: 24, gastoTotal: 3120, rating: 4.8,
-      direccionPrincipal: 'Calle Pino #24, Sierra Norte'
-    },
-    { 
-      id: 2, name: 'María García', email: 'maria@email.com', status: 'Activo',
-      telefono: '618 234 5678', fechaRegistro: '3 Mar 2026', 
-      pedidosTotales: 11, gastoTotal: 1450, rating: 4.9,
-      direccionPrincipal: 'Av. Las Palmas #300, Centro'
-    },
-    { 
-      id: 3, name: 'Pedro Sánchez', email: 'pedro@email.com', status: 'Suspendido',
-      telefono: '618 345 6789', fechaRegistro: '20 Nov 2025', 
-      pedidosTotales: 6, gastoTotal: 540, rating: 3.9,
-      direccionPrincipal: 'Blvd. Montaña #120, Las Cumbres'
-    },
-  ])
+interface UsuarioAdmin {
+  id: number
+  name: string
+  email: string
+  status: string
+  telefono: string
+  fechaRegistro: string
+  pedidosTotales: number
+  gastoTotal: number
+  rating: number
+  direccionPrincipal: string
+}
 
-  const [selectedUsuario, setSelectedUsuario] = useState<typeof usuarios[number] | null>(null)
+interface LocalAdmin {
+  id: number
+  name: string
+  status: string
+  statusColor: string
+  bg: string
+  categoria: string
+  propietario: string
+  telefono: string
+  direccion: string
+  fechaAlta: string
+  rating: number
+  pedidosTotales: number
+}
+
+interface RepartidorAdmin {
+  id: number
+  name: string
+  mat: string
+  rating: string
+  status: string
+  telefono: string
+  vehiculo: string
+  fechaAlta: string
+  direccion: string
+  entregasTotales: number
+  gananciasTotales: number
+}
+
+  // Estados para el de usuario seleccionado
+  // TODO: reemplazar con datos reales del backend (GET /api/admin/users)
+  const [usuarios, setUsuarios] = useState<UsuarioAdmin[]>([])
+  const [selectedUsuario, setSelectedUsuario] = useState<UsuarioAdmin | null>(null)
   const [showConfirmSuspend, setShowConfirmSuspend] = useState(false)
 
   // Estados para el local seleccionado
-  const [locales, setLocales] = useState([
-    { 
-      id: 1, name: 'Taquería El Gordo', status: 'Activo', statusColor: 'text-[#5bc827]', bg: 'bg-[#5bc827]/10',
-      categoria: 'Tacos', propietario: 'Roberto Gómez', telefono: '618 456 7890',
-      direccion: 'Calle Hidalgo #45, Centro', fechaAlta: '4 Feb 2025', rating: 4.7, pedidosTotales: 342
-    },
-    { 
-      id: 2, name: 'Sushi Nuevo', status: 'Pendiente', statusColor: 'text-[#d9a05b]', bg: 'bg-[#d9a05b]/10',
-      categoria: 'Sushi', propietario: 'Ana Kimura', telefono: '618 567 8901',
-      direccion: 'Blvd. Guadiana #200, Fracc. Real', fechaAlta: '10 Ago 2026', rating: 0, pedidosTotales: 0
-    },
-  ])
-
-  const [selectedLocal, setSelectedLocal] = useState<typeof locales[number] | null>(null)
+  // TODO: reemplazar con datos reales del backend (GET /api/admin/restaurants)
+  const [locales, setLocales] = useState<LocalAdmin[]>([])
+  const [selectedLocal, setSelectedLocal] = useState<LocalAdmin | null>(null)
   const [localTimeframe, setLocalTimeframe] = useState<LocalTimeframe>('mes')
   const [fechaLocalSeleccionada, setFechaLocalSeleccionada] = useState<{
     dia: number | null
@@ -194,30 +174,11 @@ export default function AdminPanel({ onLogout }: Props) {
   const [showConfirmSuspendLocal, setShowConfirmSuspendLocal] = useState(false)
 
   // Estados para el repartidor seleccionado
-  const [repartidores, setRepartidores] = useState([
-    { 
-      id: 1, name: 'Carlos R.', mat: 'REP-451234', rating: '4.9', status: 'Activo',
-      telefono: '618 678 9012', vehiculo: 'Motocicleta Italika 150', 
-      fechaAlta: '15 Jun 2025', direccion: 'Calle Roble #12, Sierra Norte',
-      entregasTotales: 512, gananciasTotales: 24800
-    },
-    { 
-      id: 2, name: 'Ana López', mat: 'REP-883192', rating: '4.7', status: 'Activo',
-      telefono: '618 789 0123', vehiculo: 'Bicicleta eléctrica',
-      fechaAlta: '2 Sep 2025', direccion: 'Av. Universidad #88, Centro',
-      entregasTotales: 340, gananciasTotales: 16200
-    },
-    { 
-      id: 3, name: 'Miguel Torres', mat: 'REP-902341', rating: '0', status: 'Pendiente',
-      telefono: '618 890 1234', vehiculo: 'Motocicleta Vento 200',
-      fechaAlta: '18 Ago 2026', direccion: 'Blvd. Durango #55, Guadalupe',
-      entregasTotales: 0, gananciasTotales: 0
-    },
-  ])
-
-  const [selectedRepartidor, setSelectedRepartidor] = useState<typeof repartidores[number] | null>(null)
+  // TODO: reemplazar con datos reales del backend (GET /api/admin/delivery)
+  const [repartidores, setRepartidores] = useState<RepartidorAdmin[]>([])
+  const [selectedRepartidor, setSelectedRepartidor] = useState<RepartidorAdmin | null>(null)
   const [showConfirmSuspendRepartidor, setShowConfirmSuspendRepartidor] = useState(false)
-  const [showConfirmRechazarRepartidor, setShowConfirmRechazarRepartidor] = useState<typeof repartidores[number] | null>(null)
+  const [showConfirmRechazarRepartidor, setShowConfirmRechazarRepartidor] = useState<RepartidorAdmin | null>(null)
 
     /**
    * Maneja el evento de guardar la configuración de comisiones.
@@ -779,28 +740,29 @@ export default function AdminPanel({ onLogout }: Props) {
         {activeTab === 'dashboard' && (
           <div>
             <Title text="Dashboard" />
+            {/* TODO: reemplazar con datos reales del backend (GET /api/admin/stats) */}
             <div className="grid grid-cols-2 gap-3 mb-6">
               <StatCard 
                 label="Usuarios Totales" 
-                value="1,245" 
+                value={String(usuarios.length)} 
                 icon="👥" 
                 onClick={() => setActiveTab('usuarios')} 
               />
               <StatCard 
                 label="Locales Activos" 
-                value="34" 
+                value={String(locales.filter(l => l.status === 'Activo').length)} 
                 icon="🏪" 
                 onClick={() => setActiveTab('locales')} 
               />
               <StatCard 
                 label="Repartidores" 
-                value="89" 
+                value={String(repartidores.length)} 
                 icon="🏍️" 
                 onClick={() => setActiveTab('repartidores')} 
               />
               <StatCard 
                 label="Pedidos de Hoy" 
-                value="215" 
+                value="0" 
                 icon="📦" 
                 onClick={() => setActiveTab('pedidos')} 
               />
@@ -1189,17 +1151,11 @@ export default function AdminPanel({ onLogout }: Props) {
           <div>
             <Title text="Visión global de pedidos" />
             <div className="space-y-3">
-              <div className="bg-[#232427] border border-[#35373b] hover:border-[#d9a05b]/50 transition-colors p-4 rounded-xl relative overflow-hidden">
-                <div className="absolute left-0 top-0 bottom-0 w-1 bg-[#5bc827]"></div>
-                <div className="flex justify-between items-center mb-3 pl-2">
-                  <p className="font-bold text-lg text-[#d9a05b]" style={{ fontFamily: 'Barlow Condensed, sans-serif' }}>#ORD-9921</p>
-                  <span className="text-[#5bc827] text-[10px] uppercase font-bold bg-[#5bc827]/10 px-2 py-1 rounded">En camino</span>
-                </div>
-                <div className="pl-2 space-y-1">
-                  <p className="text-[#c4c6ca] text-xs"><span className="text-[#9a9da3] mr-1">Local:</span> Burger King</p>
-                  <p className="text-[#c4c6ca] text-xs"><span className="text-[#9a9da3] mr-1">Repartidor:</span> Carlos R.</p>
-                  <p className="text-[#c4c6ca] text-xs"><span className="text-[#9a9da3] mr-1">Cliente:</span> Juan Sierra</p>
-                </div>
+              {/* TODO: reemplazar con datos reales del backend (GET /api/admin/orders) */}
+              <div className="flex flex-col items-center justify-center py-12 text-center bg-[#232427] border border-[#35373b] rounded-xl">
+                <span className="text-4xl mb-2">📦</span>
+                <p className="text-white font-semibold text-sm">No hay pedidos registrados</p>
+                <p className="text-[#9a9da3] text-xs mt-1">Los pedidos de la plataforma aparecerán aquí</p>
               </div>
             </div>
           </div>
