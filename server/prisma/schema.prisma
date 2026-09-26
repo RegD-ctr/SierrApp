@@ -87,6 +87,9 @@ model User {
   telefono     String?
   rol          Role
   status       UserStatus @default(ACTIVO)
+  emailVerified        Boolean   @default(false)
+  failedLoginAttempts  Int       @default(0)
+  lockedUntil          DateTime?
   createdAt    DateTime   @default(now())
   updatedAt    DateTime   @updatedAt
 
@@ -96,6 +99,9 @@ model User {
 
   // Relaciones comunes
   addresses      Address[]
+  emailVerificationTokens EmailVerificationToken[]
+  passwordResetTokens     PasswordResetToken[]
+  refreshTokens           RefreshToken[]
   paymentMethods PaymentMethodSaved[]
   favorites      Favorite[]
   notifications  Notification[]
@@ -468,5 +474,42 @@ model SupportMessage {
 
   @@index([userId, createdAt])
   @@index([orderId])
+}
+
+model EmailVerificationToken {
+  id        String   @id @default(uuid())
+  userId    String
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  tokenHash String   @unique
+  expiresAt DateTime
+  createdAt DateTime @default(now())
+
+  @@index([userId])
+}
+
+model PasswordResetToken {
+  id        String    @id @default(uuid())
+  userId    String
+  user      User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  tokenHash String    @unique
+  expiresAt DateTime
+  usedAt    DateTime?
+  createdAt DateTime  @default(now())
+
+  @@index([userId])
+}
+// Guarda el HASH del refresh token, nunca el token en texto plano.
+// Permite revocar sesiones individuales (ej. "cerrar sesión en todos
+// los dispositivos") sin depender solo de que el JWT expire solo.
+model RefreshToken {
+  id        String    @id @default(uuid())
+  userId    String
+  user      User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  tokenHash String    @unique
+  expiresAt DateTime
+  revokedAt DateTime?
+  createdAt DateTime  @default(now())
+
+  @@index([userId])
 }
 
