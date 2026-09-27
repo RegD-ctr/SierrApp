@@ -340,7 +340,8 @@ function HomeView({
       {/* Hero */}
       <section className="mt-5 rounded-2xl overflow-hidden relative bg-[#232427] border border-[#35373b]">
         <div className="absolute inset-0">
-          <img src="https://images.unsplash.com/photo-1505826759037-406b40feb4cd?crop=entropy&cs=tinysrgb&fit=crop&fm=jpg&w=1200&h=320&auto=format" alt="Comida" className="w-full h-full object-cover opacity-30" />
+          {/* TODO: reemplazar con imagen propia subida vía backend (GET /api/uploads o similar) cuando exista ese módulo */}
+          <div className="absolute inset-0 bg-gradient-to-br from-[#232427] via-[#1a1b1e] to-[#0d0e10] opacity-60" />
           <div className="absolute inset-0 bg-gradient-to-r from-[#1a1b1e] via-[#1a1b1e]/70 to-transparent" />
         </div>
         <div className="relative px-6 py-8 sm:py-12 flex items-center justify-between">

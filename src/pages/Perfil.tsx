@@ -8,11 +8,12 @@ const roleLabels: Record<Role, { label: string; icon: string; color: string }> =
   repartidor: { label: 'Repartidor', icon: '🏍️', color: 'text-[#7ed944]' },
 }
 
+// TODO: los subtítulos de cada item (dirección predeterminada, método de pago default, etc.) se calcularán dinámicamente cuando el backend esté conectado (GET /api/users/profile)
 const menuItems = [
-  { icon: '📍', label: 'Mis direcciones', sub: 'Calle Pino #24, Sierra Norte', view: 'addresses' },
-  { icon: '💳', label: 'Métodos de pago', sub: '•••• 4821 · Efectivo', view: 'payment-methods' },
-  { icon: '🎁', label: 'Promociones y cupones', sub: 'SIERRA1 disponible', view: 'promotions' },
-  { icon: '⭐', label: 'Favoritos', sub: '3 restaurantes guardados', view: 'favorites' },
+  { icon: '📍', label: 'Mis direcciones', sub: null, view: 'addresses' },
+  { icon: '💳', label: 'Métodos de pago', sub: null, view: 'payment-methods' },
+  { icon: '🎁', label: 'Promociones y cupones', sub: null, view: 'promotions' },
+  { icon: '⭐', label: 'Favoritos', sub: null, view: 'favorites' },
   { icon: '🔔', label: 'Notificaciones', sub: 'Activadas', view: 'notifications' },
   { icon: '🔒', label: 'Privacidad y seguridad', sub: null, view: null },
   { icon: '❓', label: 'Ayuda y soporte', sub: null, view: 'support' },
