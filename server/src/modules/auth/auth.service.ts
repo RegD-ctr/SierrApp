@@ -376,3 +376,17 @@ export async function resetPassword(rawToken: string, newPassword: string) {
   ])
   await revokeAllSessions(record.userId)
 }
+
+export async function getMe(userId: string) {
+  const user = await prisma.user.findUnique({
+    where: { id: userId },
+    select: {
+      id: true, email: true, nombre: true, telefono: true, rol: true,
+      status: true, emailVerified: true,
+      driverProfile: { select: { matricula: true, tieneVehiculo: true, vehiculo: true, fotoUrl: true, ratingPromedio: true } },
+      restaurant: { select: { id: true, nombre: true, status: true, isOpen: true } },
+    },
+  })
+  if (!user) throw new AuthError('Usuario no encontrado.', 404)
+  return user
+}

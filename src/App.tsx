@@ -1,7 +1,8 @@
-import { useState, useRef } from 'react'
+import { useState, useRef, useEffect } from 'react'
 import logoImg from '@/imports/logo.jpeg'
 import Login from '@/pages/Login'
 import type { Role } from '@/pages/Login'
+import { restoreSession, api, setAccessToken, type CurrentUser } from '@/lib/api'
 import Explorar from '@/pages/Explorar'
 import Pedidos from '@/pages/Pedidos'
 import Perfil from '@/pages/Perfil'
@@ -26,8 +27,6 @@ import RateOrder from '@/pages/RateOrder'
 
 type View = 'inicio' | 'explorar' | 'pedidos' | 'perfil' | 'checkout' | 'order-confirmation' | 'payment-methods' | 'addresses' | 'favorites' | 'promotions' | 'notifications' | 'support' | 'order-tracking' | 'rate-order'
 
-
-
 const categories = [
   { icon: '🍔', label: 'Comida' }, { icon: '🛒', label: 'Super' }, { icon: '💊', label: 'Farmacia' },
   { icon: '🍕', label: 'Pizza' }, { icon: '🍣', label: 'Sushi' }, { icon: '🥩', label: 'Carnes' },
@@ -47,7 +46,38 @@ const navItems: { icon: string; label: string; view: View }[] = [
  * la navegación y el carrito de compras.
  */
 export default function App() {
-  const [role, setRole] = useState<Role | null>(null)
+  const [currentUser, setCurrentUser] = useState<CurrentUser | null>(null)
+  const [isRestoringSession, setIsRestoringSession] = useState(true)
+
+  useEffect(() => {
+    let isMounted = true
+    restoreSession()
+      .then(user => {
+        if (isMounted && user) {
+          setCurrentUser(user)
+        }
+      })
+      .finally(() => {
+        if (isMounted) {
+          setIsRestoringSession(false)
+        }
+      })
+    return () => {
+      isMounted = false
+    }
+  }, [])
+
+  const handleLogout = async () => {
+    try {
+      await api.post('/api/auth/logout')
+    } catch {
+      // Ignorar si la sesión ya expiró
+    }
+    setAccessToken(null)
+    setCurrentUser(null)
+  }
+
+  const role: Role | null = currentUser ? (currentUser.rol.toLowerCase() as Role) : null
   const [viewHistory, setViewHistory] = useState<View[]>(['inicio'])
   const view = viewHistory[viewHistory.length - 1]
 
@@ -132,10 +162,20 @@ export default function App() {
    */
   const removeItem = (cartId: string) => setCartItems(items => items.filter(i => i.cartId !== cartId))
 
-  if (!role) return <Login onLogin={(r) => setRole(r)} />
-  if (role === 'local') return <LocalPanel onLogout={() => setRole(null)} />
-  if (role === 'repartidor') return <RepartidorPanel onLogout={() => setRole(null)} />
-  if (role === 'admin') return <AdminPanel onLogout={() => setRole(null)} />
+  if (isRestoringSession) {
+    return (
+      <div className="min-h-screen bg-[#1a1b1e] flex flex-col items-center justify-center text-white">
+        <img src={logoImg} alt="Sierra App" className="w-16 h-16 rounded-2xl mb-4 animate-pulse object-cover" />
+        <div className="w-6 h-6 border-2 border-[#5bc827] border-t-transparent rounded-full animate-spin mb-3" />
+        <p className="text-xs text-[#9a9da3] tracking-widest uppercase">Cargando sesión...</p>
+      </div>
+    )
+  }
+
+  if (!currentUser || !role) return <Login onLogin={(user) => setCurrentUser(user)} />
+  if (role === 'local') return <LocalPanel onLogout={handleLogout} />
+  if (role === 'repartidor') return <RepartidorPanel onLogout={handleLogout} />
+  if (role === 'admin') return <AdminPanel onLogout={handleLogout} />
 
   if (view === 'checkout') return (
     <Checkout
@@ -276,7 +316,7 @@ export default function App() {
           )}
           {view === 'explorar' && <Explorar onSelectRestaurant={setSelectedRestaurant} />}
           {view === 'pedidos' && <Pedidos activeOrder={activeOrder} onOpenTracking={() => navigateTo('order-tracking')} />}
-          {view === 'perfil' && <Perfil role={role} onLogout={() => setRole(null)} onNavigate={(v: any) => { if (v === 'addresses') setAddressSelectMode(false); navigateTo(v); }} />}
+          {view === 'perfil' && <Perfil role={role} user={currentUser} onLogout={handleLogout} onNavigate={(v: any) => { if (v === 'addresses') setAddressSelectMode(false); navigateTo(v); }} />}
         </main>
       )}
 

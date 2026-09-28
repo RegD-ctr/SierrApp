@@ -1,4 +1,5 @@
 import logoImg from '@/imports/logo.jpeg'
+import type { CurrentUser } from '@/lib/api'
 
 type Role = 'usuario' | 'local' | 'repartidor'
 
@@ -31,6 +32,7 @@ interface PerfilProps {
   role: Role
   onLogout: () => void
   onNavigate: (view: string) => void
+  user?: CurrentUser | null
 }
 
 /**
@@ -39,7 +41,7 @@ interface PerfilProps {
  * 
  * @param {PerfilProps} props - Propiedades que incluyen rol actual, y callbacks para cerrar sesión y navegar.
  */
-export default function Perfil({ role, onLogout, onNavigate }: PerfilProps) {
+export default function Perfil({ role, onLogout, onNavigate, user }: PerfilProps) {
   const roleInfo = roleLabels[role]
 
   return (
@@ -65,8 +67,8 @@ export default function Perfil({ role, onLogout, onNavigate }: PerfilProps) {
             </button>
           </div>
           <div className="flex-1">
-            <h2 className="text-white font-bold text-lg leading-tight">Usuario</h2>
-            <p className="text-[#9a9da3] text-xs">—</p>
+            <h2 className="text-white font-bold text-lg leading-tight">{user?.nombre || 'Usuario'}</h2>
+            <p className="text-[#9a9da3] text-xs">{user?.email || '—'}</p>
             <div className={`inline-flex items-center gap-1.5 mt-1.5 px-2.5 py-1 rounded-full bg-[#1a1b1e] border border-[#35373b]`}>
               <span className="text-xs">{roleInfo.icon}</span>
               <span className={`text-[10px] font-bold ${roleInfo.color}`}>{roleInfo.label}</span>

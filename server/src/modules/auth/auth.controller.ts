@@ -131,3 +131,12 @@ export async function resetPassword(req: Request, res: Response) {
     handleError(res, err)
   }
 }
+
+export async function me(req: Request, res: Response) {
+  try {
+    const user = await authService.getMe(req.user!.userId)
+    res.json(user)
+  } catch (err) {
+    handleError(res, err)
+  }
+}

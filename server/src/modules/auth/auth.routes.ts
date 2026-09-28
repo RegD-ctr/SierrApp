@@ -3,8 +3,11 @@
 import { Router } from 'express'
 import * as authController from './auth.controller'
 import { loginLimiter, registerLimiter, passwordResetLimiter } from '../../middleware/rateLimiter'
+import { requireAuth } from '../../middleware/auth'
 
 export const authRouter = Router()
+
+authRouter.get('/me', requireAuth, authController.me)
 
 authRouter.post('/register/usuario', registerLimiter, authController.registerUsuario)
 authRouter.post('/register/local', registerLimiter, authController.registerLocal)
