@@ -20,7 +20,6 @@ import Favorites from '@/pages/Favorites'
 import Promotions from '@/pages/Promotions'
 import Notifications from '@/pages/Notifications'
 import Support from '@/pages/Support'
-import Onboarding from '@/pages/Onboarding'
 import OrderTracking from '@/pages/OrderTracking'
 import type { Order } from '@/pages/OrderTracking'
 import RateOrder from '@/pages/RateOrder'
@@ -49,7 +48,6 @@ const navItems: { icon: string; label: string; view: View }[] = [
  */
 export default function App() {
   const [role, setRole] = useState<Role | null>(null)
-  const [showOnboarding, setShowOnboarding] = useState(true)
   const [viewHistory, setViewHistory] = useState<View[]>(['inicio'])
   const view = viewHistory[viewHistory.length - 1]
 
@@ -134,7 +132,6 @@ export default function App() {
    */
   const removeItem = (cartId: string) => setCartItems(items => items.filter(i => i.cartId !== cartId))
 
-  if (showOnboarding) return <Onboarding onComplete={() => setShowOnboarding(false)} />
   if (!role) return <Login onLogin={(r) => setRole(r)} />
   if (role === 'local') return <LocalPanel onLogout={() => setRole(null)} />
   if (role === 'repartidor') return <RepartidorPanel onLogout={() => setRole(null)} />

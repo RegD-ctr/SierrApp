@@ -1,11 +1,13 @@
 import { useState, useRef } from 'react'
 import logoImg from '@/imports/logo.jpeg'
+import Onboarding from '@/pages/Onboarding'
 
 export type Role = 'usuario' | 'local' | 'repartidor' | 'admin'
 type Screen =
   | 'roleSelect'
   | 'login'
   | 'register_roleSelect'
+  | 'register_usuario_intro'
   | 'register_usuario'
   | 'register_local'
   | 'register_local_platillos'
@@ -60,11 +62,13 @@ export default function Login({ onLogin }: Props) {
   const [uCiudad, setUCiudad] = useState('')
   const [uEstado, setUEstado] = useState('')
   const [uReferencias, setUReferencias] = useState('')
+  const [uAceptaTerminos, setUAceptaTerminos] = useState(false)
 
   // Local register fields
   const [lNombre, setLNombre] = useState('')
   const [lDir, setLDir] = useState('')
   const [lTel, setLTel] = useState('')
+  const [lAceptaTerminos, setLAceptaTerminos] = useState(false)
 
   // Repartidor register fields
   const [rNombre, setRNombre] = useState('')
@@ -72,6 +76,8 @@ export default function Login({ onLogin }: Props) {
   const [rTieneVehiculo, setRTieneVehiculo] = useState<boolean | null>(null)
   const [rFoto, setRFoto] = useState<string | null>(null)
   const [rMatricula] = useState(genMatricula)
+  const [rAceptaTerminos, setRAceptaTerminos] = useState(false)
+  const [showTermsModal, setShowTermsModal] = useState(false)
   const fotoRef = useRef<HTMLInputElement>(null)
 
   const activeRole = selectedRole === 'repartidor' ? repartidorRole : selectedRole === 'admin' ? adminRole : roles.find(r => r.id === selectedRole)
@@ -170,7 +176,18 @@ export default function Login({ onLogin }: Props) {
         <h2 className="text-3xl font-bold text-white mb-1 uppercase" style={{ fontFamily: 'Barlow Condensed, sans-serif' }}>Iniciar sesión</h2>
         <p className="text-[#9a9da3] text-xs mb-6">
           ¿No tienes cuenta?{' '}
-          <button onClick={() => setScreen('register_roleSelect')} className={`${activeRole.text} font-semibold hover:underline`}>Regístrate aquí</button>
+          <button
+            type="button"
+            onClick={() => {
+              if (selectedRole === 'usuario') setScreen('register_usuario_intro')
+              else if (selectedRole === 'local') setScreen('register_local')
+              else if (selectedRole === 'repartidor') setScreen('register_repartidor')
+              else setScreen('register_roleSelect')
+            }}
+            className={`${activeRole.text} font-semibold hover:underline cursor-pointer`}
+          >
+            Regístrate aquí
+          </button>
         </p>
         <form onSubmit={e => { e.preventDefault(); onLogin(selectedRole!) }} className="space-y-3">
           <div>
@@ -203,11 +220,11 @@ export default function Login({ onLogin }: Props) {
         <p className="text-[#9a9da3] text-sm mb-6">¿Qué tipo de cuenta deseas crear?</p>
         <div className="space-y-3">
           {[
-            { id: 'usuario', label: 'Usuario / Cliente', desc: 'Realiza pedidos de comida y más', icon: '👤', screen: 'register_usuario' as Screen },
+            { id: 'usuario', label: 'Usuario / Cliente', desc: 'Realiza pedidos de comida y más', icon: '👤', screen: 'register_usuario_intro' as Screen },
             { id: 'local', label: 'Restaurante', desc: 'Registra y administra tu negocio', icon: '🏪', screen: 'register_local' as Screen },
           ].map(opt => (
             <button key={opt.id} onClick={() => setScreen(opt.screen)}
-              className="w-full flex items-center gap-4 p-4 rounded-2xl border border-[#2a4830] bg-[#142a17] hover:bg-[#1a3320] hover:border-[#5bc827]/50 transition-all text-left">
+              className="w-full flex items-center gap-4 p-4 rounded-2xl border border-[#2a4830] bg-[#142a17] hover:bg-[#1a3320] hover:border-[#5bc827]/50 transition-all text-left cursor-pointer">
               <span className="text-3xl">{opt.icon}</span>
               <div className="flex-1">
                 <p className="font-bold text-sm text-white">{opt.label}</p>
@@ -220,12 +237,20 @@ export default function Login({ onLogin }: Props) {
         <div className="w-full h-px bg-[#35373b] my-5"></div>
         <p className="text-center text-[#9a9da3] text-sm">
           ¿Eres o quieres ser repartidor?{' '}
-          <button onClick={() => setScreen('register_repartidor')} className="text-[#7ed944] font-semibold hover:underline">
+          <button onClick={() => setScreen('register_repartidor')} className="text-[#7ed944] font-semibold hover:underline cursor-pointer">
             Regístrate aquí
           </button>
         </p>
       </div>
     </div>
+  )
+
+  // ---- Register: Usuario Intro (Onboarding para usuarios únicamente) ----
+  if (screen === 'register_usuario_intro') return (
+    <Onboarding
+      onComplete={() => setScreen('register_usuario')}
+      onBack={() => setScreen('register_roleSelect')}
+    />
   )
 
   // ---- Register: Usuario ----
@@ -239,7 +264,7 @@ export default function Login({ onLogin }: Props) {
           <h2 className="text-2xl font-bold text-white uppercase" style={{ fontFamily: 'Barlow Condensed, sans-serif' }}>Crear cuenta de usuario</h2>
         </div>
 
-        <form onSubmit={e => { e.preventDefault(); onLogin('usuario') }} className="space-y-3">
+        <form onSubmit={e => { e.preventDefault(); if (!uAceptaTerminos) return; onLogin('usuario') }} className="space-y-3">
           <SectionTitle>Datos personales</SectionTitle>
           <Field label="Nombre completo" value={uNombre} onChange={setUNombre} placeholder="Juan Sierra" />
           <Field label="Correo electrónico" value={uEmail} onChange={setUEmail} placeholder="juan@correo.com" type="email" />
@@ -281,11 +306,39 @@ export default function Login({ onLogin }: Props) {
             </div>
           </div>
 
-          <button type="submit" className="w-full py-3.5 rounded-xl bg-[#5bc827] hover:bg-[#7ed944] text-[#1a1b1e] font-bold text-sm transition-all hover:scale-[1.02] mt-2 shadow-lg shadow-[#5bc827]/20">
+          {/* Términos y condiciones */}
+          <div className="flex items-start gap-2.5 pt-2">
+            <input
+              id="u-terminos"
+              type="checkbox"
+              checked={uAceptaTerminos}
+              onChange={e => setUAceptaTerminos(e.target.checked)}
+              className="mt-0.5 w-4 h-4 rounded border-[#35373b] bg-[#232427] text-[#5bc827] focus:ring-[#5bc827]/40 focus:ring-2 cursor-pointer accent-[#5bc827]"
+              required
+            />
+            <label htmlFor="u-terminos" className="text-xs text-[#c4c6ca] leading-tight cursor-pointer select-none">
+              Acepto los{' '}
+              <button
+                type="button"
+                onClick={() => setShowTermsModal(true)}
+                className="text-[#5bc827] underline hover:text-[#7ed944] font-semibold cursor-pointer"
+              >
+                términos y condiciones
+              </button>{' '}
+              del servicio y la política de privacidad de Sierra App.
+            </label>
+          </div>
+
+          <button
+            type="submit"
+            disabled={!uAceptaTerminos}
+            className="w-full py-3.5 rounded-xl bg-[#5bc827] hover:bg-[#7ed944] text-[#1a1b1e] font-bold text-sm transition-all hover:scale-[1.02] mt-2 shadow-lg shadow-[#5bc827]/20 disabled:opacity-40 disabled:cursor-not-allowed disabled:hover:scale-100 cursor-pointer"
+          >
             Crear cuenta
           </button>
         </form>
       </div>
+      {showTermsModal && <TermsModal onClose={() => setShowTermsModal(false)} />}
     </div>
   )
 
@@ -300,7 +353,7 @@ export default function Login({ onLogin }: Props) {
           <h2 className="text-2xl font-bold text-white uppercase" style={{ fontFamily: 'Barlow Condensed, sans-serif' }}>Registrar restaurante</h2>
         </div>
 
-        <form onSubmit={e => { e.preventDefault(); setScreen('register_local_platillos') }} className="space-y-3">
+        <form onSubmit={e => { e.preventDefault(); if (!lAceptaTerminos) return; setScreen('register_local_platillos') }} className="space-y-3">
           <Field label="Nombre del restaurante" value={lNombre} onChange={setLNombre} placeholder="Ej. Taquería El Gordo" />
           <Field label="Dirección" value={lDir} onChange={setLDir} placeholder="Av. Sierra #45, Col. Centro" />
           <Field label="Teléfono de contacto" value={lTel} onChange={setLTel} placeholder="+52 614 000 0000" type="tel" />
@@ -332,11 +385,39 @@ export default function Login({ onLogin }: Props) {
             </div>
           </div>
 
-          <button type="submit" className="w-full py-3.5 rounded-xl bg-gradient-to-r from-[#1a5c27] to-[#0d3318] border border-[#2a8c3a] text-white font-bold text-sm transition-all hover:scale-[1.02] mt-2">
+          {/* Términos y condiciones */}
+          <div className="flex items-start gap-2.5 pt-2">
+            <input
+              id="l-terminos"
+              type="checkbox"
+              checked={lAceptaTerminos}
+              onChange={e => setLAceptaTerminos(e.target.checked)}
+              className="mt-0.5 w-4 h-4 rounded border-[#35373b] bg-[#232427] text-[#4dbd5a] focus:ring-[#4dbd5a]/40 focus:ring-2 cursor-pointer accent-[#4dbd5a]"
+              required
+            />
+            <label htmlFor="l-terminos" className="text-xs text-[#c4c6ca] leading-tight cursor-pointer select-none">
+              Acepto los{' '}
+              <button
+                type="button"
+                onClick={() => setShowTermsModal(true)}
+                className="text-[#4dbd5a] underline hover:text-[#7ed944] font-semibold cursor-pointer"
+              >
+                términos y condiciones
+              </button>{' '}
+              para comercios asociados y aliados de Sierra App.
+            </label>
+          </div>
+
+          <button
+            type="submit"
+            disabled={!lAceptaTerminos}
+            className="w-full py-3.5 rounded-xl bg-gradient-to-r from-[#1a5c27] to-[#0d3318] border border-[#2a8c3a] text-white font-bold text-sm transition-all hover:scale-[1.02] mt-2 disabled:opacity-40 disabled:cursor-not-allowed disabled:hover:scale-100 cursor-pointer"
+          >
             Crear restaurante y agregar platillos →
           </button>
         </form>
       </div>
+      {showTermsModal && <TermsModal onClose={() => setShowTermsModal(false)} />}
     </div>
   )
 
@@ -372,7 +453,7 @@ export default function Login({ onLogin }: Props) {
           <h2 className="text-2xl font-bold text-white uppercase" style={{ fontFamily: 'Barlow Condensed, sans-serif' }}>Registro de repartidor</h2>
         </div>
 
-        <form onSubmit={e => { e.preventDefault(); if (rTieneVehiculo === null) return; setScreen('register_repartidor_result') }} className="space-y-4">
+        <form onSubmit={e => { e.preventDefault(); if (rTieneVehiculo === null || !rAceptaTerminos) return; setScreen('register_repartidor_result') }} className="space-y-4">
           <div>
             <label className="text-[#c4c6ca] text-xs font-semibold block mb-1">Nombre completo</label>
             <input value={rNombre} onChange={e => setRNombre(e.target.value)} required placeholder="Juan Pérez"
@@ -430,15 +511,39 @@ export default function Login({ onLogin }: Props) {
             </div>
           </div>
 
+          {/* Términos y condiciones */}
+          <div className="flex items-start gap-2.5 pt-1">
+            <input
+              id="r-terminos"
+              type="checkbox"
+              checked={rAceptaTerminos}
+              onChange={e => setRAceptaTerminos(e.target.checked)}
+              className="mt-0.5 w-4 h-4 rounded border-[#35373b] bg-[#232427] text-[#7ed944] focus:ring-[#7ed944]/40 focus:ring-2 cursor-pointer accent-[#7ed944]"
+              required
+            />
+            <label htmlFor="r-terminos" className="text-xs text-[#c4c6ca] leading-tight cursor-pointer select-none">
+              Acepto los{' '}
+              <button
+                type="button"
+                onClick={() => setShowTermsModal(true)}
+                className="text-[#7ed944] underline hover:text-white font-semibold cursor-pointer"
+              >
+                términos y condiciones
+              </button>{' '}
+              del servicio de repartidores y las normas de entrega de Sierra App.
+            </label>
+          </div>
+
           <button 
             type="submit" 
-            disabled={rTieneVehiculo === null}
-            className="w-full py-3.5 rounded-xl bg-gradient-to-r from-[#35373b] to-[#232427] border border-[#7ed944] text-[#7ed944] font-bold text-sm transition-all hover:scale-[1.02] disabled:opacity-40 disabled:cursor-not-allowed cursor-pointer"
+            disabled={rTieneVehiculo === null || !rAceptaTerminos}
+            className="w-full py-3.5 rounded-xl bg-gradient-to-r from-[#35373b] to-[#232427] border border-[#7ed944] text-[#7ed944] font-bold text-sm transition-all hover:scale-[1.02] disabled:opacity-40 disabled:cursor-not-allowed disabled:hover:scale-100 cursor-pointer"
           >
             Generar matrícula y registrarme
           </button>
         </form>
       </div>
+      {showTermsModal && <TermsModal onClose={() => setShowTermsModal(false)} />}
     </div>
   )
 
@@ -516,3 +621,82 @@ function Field({ label, value, onChange, placeholder, type = 'text', error = '' 
     </div>
   )
 }
+
+/**
+ * Modal interactivo con los Términos y Condiciones de Sierra App.
+ */
+function TermsModal({ onClose }: { onClose: () => void }) {
+  return (
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/75 backdrop-blur-sm p-4">
+      <div className="bg-[#232427] border border-[#35373b] w-full max-w-md max-h-[85vh] rounded-2xl flex flex-col shadow-2xl overflow-hidden">
+        <div className="p-4 border-b border-[#35373b] flex items-center justify-between">
+          <div className="flex items-center gap-2">
+            <span className="text-xl">📋</span>
+            <h3 className="font-bold text-white text-base uppercase" style={{ fontFamily: 'Barlow Condensed, sans-serif' }}>
+              Términos y Condiciones
+            </h3>
+          </div>
+          <button
+            type="button"
+            onClick={onClose}
+            className="text-[#9a9da3] hover:text-white text-xl leading-none p-1 transition-colors cursor-pointer"
+          >
+            ✕
+          </button>
+        </div>
+
+        <div className="p-5 overflow-y-auto space-y-4 text-xs text-[#c4c6ca] leading-relaxed">
+          <p className="text-[#9a9da3]">
+            Última actualización: Septiembre 2026 · Sierra App (El Salto, Pueblo Nuevo, Durango).
+          </p>
+
+          <div>
+            <h4 className="font-bold text-[#5bc827] text-sm mb-1">1. Objeto y Alcance de la Plataforma</h4>
+            <p>
+              Sierra App es una plataforma digital de intermediación que conecta a usuarios consumidores, comercios y restaurantes aliados, y repartidores independientes dentro de la región de El Salto, Pueblo Nuevo, Durango.
+            </p>
+          </div>
+
+          <div>
+            <h4 className="font-bold text-[#5bc827] text-sm mb-1">2. Registro y Veracidad de la Información</h4>
+            <p>
+              Al crear una cuenta como Usuario, Comercio Colaborador o Repartidor, te comprometes a proporcionar información real, vigente y verificable. Eres responsable de mantener la confidencialidad de tus credenciales de acceso.
+            </p>
+          </div>
+
+          <div>
+            <h4 className="font-bold text-[#5bc827] text-sm mb-1">3. Pedidos, Pagos y Precios</h4>
+            <p>
+              Los precios de los platillos y productos son fijados directamente por cada comercio afiliado. Sierra App gestiona la comunicación, comisiones de servicio y logística de entrega en tiempo real. Los métodos de pago aceptados incluyen tarjeta, efectivo y pago en ventanilla según disponibilidad.
+            </p>
+          </div>
+
+          <div>
+            <h4 className="font-bold text-[#5bc827] text-sm mb-1">4. Normas para Comercios y Repartidores</h4>
+            <p>
+              Los colaboradores comerciales garantizan la higiene y calidad de los alimentos preparados. Los repartidores se comprometen a respetar las normas de tránsito locales, cuidar la integridad de los pedidos y mantener un trato respetuoso hacia clientes y comercios.
+            </p>
+          </div>
+
+          <div>
+            <h4 className="font-bold text-[#5bc827] text-sm mb-1">5. Privacidad y Protección de Datos</h4>
+            <p>
+              Tus datos personales y de ubicación se emplean exclusivamente para procesar tus pedidos, calcular tiempos de entrega y contactarte en caso de incidencias con tu orden, de conformidad con las leyes de privacidad aplicables.
+            </p>
+          </div>
+        </div>
+
+        <div className="p-4 border-t border-[#35373b] bg-[#1a1b1e]">
+          <button
+            type="button"
+            onClick={onClose}
+            className="w-full py-3 rounded-xl bg-[#5bc827] hover:bg-[#7ed944] text-[#1a1b1e] font-bold text-sm transition-all cursor-pointer"
+          >
+            Entendido
+          </button>
+        </div>
+      </div>
+    </div>
+  )
+}
+
