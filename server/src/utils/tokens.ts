@@ -14,6 +14,9 @@ if (!ACCESS_SECRET || !REFRESH_SECRET) {
   throw new Error('JWT_ACCESS_SECRET y JWT_REFRESH_SECRET deben estar definidos en .env')
 }
 
+const validAccessSecret: string = ACCESS_SECRET
+const validRefreshSecret: string = REFRESH_SECRET
+
 export interface AccessTokenPayload {
   userId: string
   rol: string
@@ -22,11 +25,11 @@ export interface AccessTokenPayload {
 // Corta duración a propósito: si un access token se filtra, la ventana
 // de daño es de minutos, no de días.
 export function signAccessToken(payload: AccessTokenPayload): string {
-  return jwt.sign(payload, ACCESS_SECRET, { expiresIn: '15m' })
+  return jwt.sign(payload, validAccessSecret, { expiresIn: '15m' })
 }
 
 export function verifyAccessToken(token: string): AccessTokenPayload {
-  return jwt.verify(token, ACCESS_SECRET) as AccessTokenPayload
+  return jwt.verify(token, validAccessSecret) as unknown as AccessTokenPayload
 }
 
 // El refresh token JWT solo lleva el userId — su validez real depende
@@ -34,11 +37,11 @@ export function verifyAccessToken(token: string): AccessTokenPayload {
 // la tabla RefreshToken (ver auth.service.ts). Esto es lo que permite
 // "cerrar sesión en todos los dispositivos" de verdad.
 export function signRefreshToken(userId: string): string {
-  return jwt.sign({ userId }, REFRESH_SECRET, { expiresIn: '7d' })
+  return jwt.sign({ userId }, validRefreshSecret, { expiresIn: '7d' })
 }
 
 export function verifyRefreshToken(token: string): { userId: string } {
-  return jwt.verify(token, REFRESH_SECRET) as { userId: string }
+  return jwt.verify(token, validRefreshSecret) as unknown as { userId: string }
 }
 
 // Para hashear el refresh token antes de guardarlo en la base de datos

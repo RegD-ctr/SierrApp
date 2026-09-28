@@ -1,8 +1,4 @@
-// Destino: server/src/utils/errors.ts
-//
-// Mismo concepto que AuthError en el módulo de auth, pero de nombre
-// genérico para usarse en el resto de los módulos (restaurants, orders,
-// etc.) sin acoplarlos al módulo de auth.
+import { ZodError } from 'zod'
 
 export class AppError extends Error {
   status: number
@@ -16,6 +12,12 @@ export function handleServiceError(err: unknown): { status: number; message: str
   if (err instanceof AppError) {
     return { status: err.status, message: err.message }
   }
+
+  if (err instanceof ZodError) {
+    const message = err.issues.map(issue => issue.message).join(' ')
+    return { status: 400, message: message || 'Datos inválidos.' }
+  }
+
   console.error(err)
   return { status: 500, message: 'Ocurrió un error inesperado.' }
 }

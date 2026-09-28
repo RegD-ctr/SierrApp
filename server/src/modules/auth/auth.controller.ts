@@ -1,6 +1,7 @@
 // Destino: server/src/modules/auth/auth.controller.ts
 
 import type { Request, Response } from 'express'
+import { ZodError } from 'zod'
 import * as authService from './auth.service'
 import {
   registerUsuarioSchema,
@@ -28,6 +29,10 @@ const refreshCookieOptions = {
 function handleError(res: Response, err: unknown) {
   if (err instanceof authService.AuthError) {
     return res.status(err.status).json({ error: err.message })
+  }
+  if (err instanceof ZodError) {
+    const message = err.issues.map(issue => issue.message).join(' ')
+    return res.status(400).json({ error: message || 'Datos inválidos.' })
   }
   console.error(err)
   return res.status(500).json({ error: 'Ocurrió un error inesperado.' })

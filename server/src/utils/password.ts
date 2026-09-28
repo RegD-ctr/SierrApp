@@ -13,7 +13,7 @@ const ARGON2_OPTIONS = {
   memoryCost: 19456, // ~19 MB
   timeCost: 2,
   parallelism: 1,
-}
+} as const
 
 export async function hashPassword(plain: string): Promise<string> {
   return argon2.hash(plain, ARGON2_OPTIONS)

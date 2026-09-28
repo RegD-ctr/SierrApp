@@ -10,6 +10,7 @@ import cors from 'cors'
 import cookieParser from 'cookie-parser'
 import { authRouter } from './modules/auth/auth.routes'
 import { restaurantsRouter } from './modules/restaurants/restaurants.routes'
+import { ordersRouter } from './modules/orders/orders.routes'
 import { generalLimiter } from './middleware/rateLimiter'
 
 export const app = express()
@@ -41,6 +42,7 @@ app.get('/api/health', (_req, res) => {
 
 app.use('/api/auth', authRouter)
 app.use('/api/restaurants', restaurantsRouter)
+app.use('/api/orders', ordersRouter)
 
 // Manejador de errores de último recurso — nunca dejes que un error
 // no capturado filtre un stack trace al cliente en producción.

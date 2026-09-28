@@ -1,0 +1,96 @@
+import type { Request, Response } from 'express'
+import * as ordersService from './orders.service'
+import { handleServiceError } from '../../utils/errors'
+import { createOrderSchema, idParamSchema } from './orders.validation'
+
+function respondError(res: Response, err: unknown) {
+  const { status, message } = handleServiceError(err)
+  res.status(status).json({ error: message })
+}
+
+export async function create(req: Request, res: Response) {
+  try {
+    const input = createOrderSchema.parse(req.body)
+    const order = await ordersService.createOrder(req.user!.userId, input)
+    res.status(201).json(order)
+  } catch (err) {
+    respondError(res, err)
+  }
+}
+
+export async function listMine(req: Request, res: Response) {
+  try {
+    const orders = await ordersService.listMyOrders(req.user!.userId)
+    res.json(orders)
+  } catch (err) {
+    respondError(res, err)
+  }
+}
+
+export async function listMineActive(req: Request, res: Response) {
+  try {
+    const orders = await ordersService.listMyActiveOrders(req.user!.userId)
+    res.json(orders)
+  } catch (err) {
+    respondError(res, err)
+  }
+}
+
+export async function cancel(req: Request, res: Response) {
+  try {
+    const { id } = idParamSchema.parse(req.params)
+    const order = await ordersService.cancelOrder(id, req.user!.userId)
+    res.json(order)
+  } catch (err) {
+    respondError(res, err)
+  }
+}
+
+export async function getById(req: Request, res: Response) {
+  try {
+    const { id } = idParamSchema.parse(req.params)
+    const order = await ordersService.getOrderDetail(id, req.user!)
+    res.json(order)
+  } catch (err) {
+    respondError(res, err)
+  }
+}
+
+export async function listForRestaurant(req: Request, res: Response) {
+  try {
+    const orders = await ordersService.listRestaurantOrders(req.user!.userId)
+    res.json(orders)
+  } catch (err) {
+    respondError(res, err)
+  }
+}
+
+export async function accept(req: Request, res: Response) {
+  try {
+    const { id } = idParamSchema.parse(req.params)
+    const order = await ordersService.acceptOrder(id, req.user!.userId)
+    res.json(order)
+  } catch (err) {
+    respondError(res, err)
+  }
+}
+
+export async function reject(req: Request, res: Response) {
+  try {
+    const { id } = idParamSchema.parse(req.params)
+    const order = await ordersService.rejectOrder(id, req.user!.userId)
+    res.json(order)
+  } catch (err) {
+    respondError(res, err)
+  }
+}
+
+export async function markReady(req: Request, res: Response) {
+  try {
+    const { id } = idParamSchema.parse(req.params)
+    const order = await ordersService.markOrderReady(id, req.user!.userId)
+    res.json(order)
+  } catch (err) {
+    respondError(res, err)
+  }
+}
