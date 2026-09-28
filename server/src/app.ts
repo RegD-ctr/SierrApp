@@ -11,6 +11,9 @@ import cookieParser from 'cookie-parser'
 import { authRouter } from './modules/auth/auth.routes'
 import { restaurantsRouter } from './modules/restaurants/restaurants.routes'
 import { ordersRouter } from './modules/orders/orders.routes'
+import { usersRouter } from './modules/users/users.routes'
+import { uploadsRouter } from './modules/uploads/uploads.routes'
+import { UPLOAD_DIR } from './modules/uploads/uploads.service'
 import { generalLimiter } from './middleware/rateLimiter'
 
 export const app = express()
@@ -34,6 +37,21 @@ app.use(cookieParser())
 // de denegación de servicio.
 app.use(express.json({ limit: '1mb' }))
 
+app.use(
+  '/uploads',
+  express.static(UPLOAD_DIR, {
+    index: false,
+    dotfiles: 'deny',
+    setHeaders: res => {
+      // Helmet pone "same-origin" por default, lo que bloquearía que el
+      // frontend (otro origen) muestre estas imágenes.
+      res.setHeader('Cross-Origin-Resource-Policy', 'cross-origin')
+      // Los nombres son UUID únicos, así que es seguro cachear "para siempre".
+      res.setHeader('Cache-Control', 'public, max-age=31536000, immutable')
+    },
+  })
+)
+
 app.use(generalLimiter)
 
 app.get('/api/health', (_req, res) => {
@@ -43,6 +61,8 @@ app.get('/api/health', (_req, res) => {
 app.use('/api/auth', authRouter)
 app.use('/api/restaurants', restaurantsRouter)
 app.use('/api/orders', ordersRouter)
+app.use('/api/users', usersRouter)
+app.use('/api/uploads', uploadsRouter)
 
 // Manejador de errores de último recurso — nunca dejes que un error
 // no capturado filtre un stack trace al cliente en producción.

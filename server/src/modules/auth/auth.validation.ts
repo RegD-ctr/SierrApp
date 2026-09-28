@@ -8,6 +8,7 @@
 // inesperados llegando hasta Prisma.
 
 import { z } from 'zod'
+import { uploadedImagePathSchema } from '../uploads/uploads.validation'
 
 const emailSchema = z.string().trim().toLowerCase().email('Correo inválido').max(255)
 const passwordSchema = z.string().min(10).max(128)
@@ -44,7 +45,7 @@ export const registerRepartidorSchema = z.object({
   telefono: telefonoSchema,
   tieneVehiculo: z.boolean(),
   vehiculo: z.string().trim().max(100).optional(),
-  fotoUrl: z.string().url().optional(), // viene del módulo de subida de imágenes, no un archivo crudo aquí
+  fotoUrl: uploadedImagePathSchema.optional(), // viene del módulo de subida de imágenes, no un archivo crudo aquí
 })
 
 export const loginSchema = z.object({

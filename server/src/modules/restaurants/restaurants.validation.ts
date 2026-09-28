@@ -1,6 +1,7 @@
 // Destino: server/src/modules/restaurants/restaurants.validation.ts
 
 import { z } from 'zod'
+import { uploadedImagePathSchema } from '../uploads/uploads.validation'
 
 export const updateRestaurantSchema = z.object({
   nombre: z.string().trim().min(2).max(100).optional(),
@@ -9,7 +10,7 @@ export const updateRestaurantSchema = z.object({
   deliveryFee: z.number().min(0).max(500).optional(),
   deliveryFeeTexto: z.string().trim().max(50).optional(),
   direccion: z.string().trim().min(5).max(200).optional(),
-  coverImg: z.string().url().optional(),
+  coverImg: uploadedImagePathSchema.optional(),
   badge: z.string().trim().max(30).optional(),
 })
 
@@ -22,7 +23,7 @@ export const createDishSchema = z.object({
   descripcion: z.string().trim().max(300).default(''),
   categoria: z.string().trim().min(2).max(50),
   precio: z.number().positive().max(50000),
-  imagen: z.string().url().optional(),
+  imagen: uploadedImagePathSchema.optional(),
 })
 
 export const updateDishSchema = z.object({
@@ -30,7 +31,7 @@ export const updateDishSchema = z.object({
   descripcion: z.string().trim().max(300).optional(),
   categoria: z.string().trim().min(2).max(50).optional(),
   precio: z.number().positive().max(50000).optional(),
-  imagen: z.string().url().optional(),
+  imagen: uploadedImagePathSchema.optional(),
   disponible: z.boolean().optional(),
 })
 
