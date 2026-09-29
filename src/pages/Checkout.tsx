@@ -1,13 +1,14 @@
 import { useState } from 'react'
 import type { CartItem } from '@/data'
 import type { AddressItem } from './Addresses'
+import { api } from '@/lib/api'
 
 interface Props {
   items: CartItem[]
   savedAddresses: AddressItem[]
   deliveryAddressId: string | number
   onChangeAddress: () => void
-  onConfirm: () => void
+  onConfirm: (order: any) => void
   onBack: () => void
 }
 
@@ -21,6 +22,8 @@ export default function Checkout({ items, savedAddresses, deliveryAddressId, onC
   const [payment, setPayment] = useState('Tarjeta terminada en 4242')
   const [instructions, setInstructions] = useState('')
   const [showPaymentOptions, setShowPaymentOptions] = useState(false)
+  const [submitting, setSubmitting] = useState(false)
+  const [error, setError] = useState<string | null>(null)
 
   const selectedAddr = savedAddresses.find(a => a.id === deliveryAddressId) || savedAddresses[0]
   const addressDisplay = selectedAddr ? `${selectedAddr.street}, ${selectedAddr.col}` : 'Seleccionar dirección'
@@ -29,6 +32,48 @@ export default function Checkout({ items, savedAddresses, deliveryAddressId, onC
   const subtotal = items.reduce((s, i) => s + (i.platillo.precio + i.extrasTotal) * i.cantidad, 0)
   const envio = items.length > 0 ? (items[0].restaurant.deliveryFee ?? 0) : 0
   const total = subtotal + envio
+
+  const handleConfirmOrder = async () => {
+    if (items.length === 0 || submitting) return
+    const addressId = String(selectedAddr?.id || deliveryAddressId || '')
+    if (!addressId) {
+      setError('Debes seleccionar una dirección de entrega antes de confirmar el pedido.')
+      return
+    }
+
+    setSubmitting(true)
+    setError(null)
+    try {
+      let metodoPago: 'TARJETA' | 'EFECTIVO' | 'VENTANILLA' = 'TARJETA'
+      if (payment.toLowerCase().includes('tarjeta')) {
+        metodoPago = 'TARJETA'
+      } else if (payment.toLowerCase().includes('efectivo')) {
+        metodoPago = 'EFECTIVO'
+      } else if (payment.toLowerCase().includes('ventanilla')) {
+        metodoPago = 'VENTANILLA'
+      }
+
+      const payload = {
+        restaurantId: String(items[0].restaurant.id),
+        addressId,
+        metodoPago,
+        instrucciones: instructions.trim() || undefined,
+        items: items.map(i => ({
+          dishId: String(i.platillo.id),
+          cantidad: i.cantidad,
+          notas: i.notas ? i.notas.trim() : undefined,
+          selectedOptionItemIds: i.selectedOptionItemIds || [],
+        })),
+      }
+
+      const res = await api.post<any>('/api/orders', payload)
+      onConfirm(res)
+    } catch (err: any) {
+      setError(err?.message || 'Error al procesar el pedido. Intenta nuevamente.')
+    } finally {
+      setSubmitting(false)
+    }
+  }
 
   return (
     <div className="min-h-screen bg-[#1a1b1e] text-white flex flex-col">
@@ -40,6 +85,13 @@ export default function Checkout({ items, savedAddresses, deliveryAddressId, onC
       </header>
 
       <div className="flex-1 p-4 max-w-lg mx-auto w-full space-y-6 pb-24">
+        {error && (
+          <div className="bg-red-500/10 border border-red-500/30 text-red-400 text-xs p-3 rounded-xl flex items-center gap-2">
+            <span>⚠️</span>
+            <span>{error}</span>
+          </div>
+        )}
+
         {/* Resumen */}
         <section>
           <h2 className="text-[#9a9da3] text-sm font-semibold mb-3 uppercase tracking-wider">Tu Pedido</h2>
@@ -157,10 +209,15 @@ export default function Checkout({ items, savedAddresses, deliveryAddressId, onC
       <div className="fixed bottom-0 left-0 right-0 p-4 bg-[#1a1b1e]/95 backdrop-blur-sm border-t border-[#35373b] z-40">
         <div className="max-w-lg mx-auto">
           <button
-            onClick={onConfirm}
-            className="w-full py-3.5 rounded-xl bg-[#5bc827] hover:bg-[#7ed944] text-[#1a1b1e] font-bold text-base transition-all hover:scale-[1.01] active:scale-[0.99] shadow-lg shadow-[#5bc827]/20"
+            onClick={handleConfirmOrder}
+            disabled={submitting || items.length === 0}
+            className={`w-full py-3.5 rounded-xl font-bold text-base transition-all shadow-lg shadow-[#5bc827]/20 ${
+              submitting || items.length === 0
+                ? 'bg-[#35373b] text-[#9a9da3] cursor-not-allowed'
+                : 'bg-[#5bc827] hover:bg-[#7ed944] text-[#1a1b1e] hover:scale-[1.01] active:scale-[0.99] cursor-pointer'
+            }`}
           >
-            Confirmar Pedido • ${total.toFixed(0)}
+            {submitting ? 'Confirmando...' : `Confirmar Pedido • $${total.toFixed(0)}`}
           </button>
         </div>
       </div>

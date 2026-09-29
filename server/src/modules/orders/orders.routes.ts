@@ -16,3 +16,4 @@ ordersRouter.patch('/:id/reject', requireAuth, requireRole('LOCAL'), ordersContr
 ordersRouter.patch('/:id/ready', requireAuth, requireRole('LOCAL'), ordersController.markReady)
 
 ordersRouter.get('/:id', requireAuth, ordersController.getById)
+ordersRouter.patch('/:id/rate', requireAuth, requireRole('USUARIO'), ordersController.rate)

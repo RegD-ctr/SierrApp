@@ -18,3 +18,9 @@ export const createOrderSchema = z.object({
 export const idParamSchema = z.object({
   id: z.string().uuid('ID de pedido inválido'),
 })
+
+export const rateOrderSchema = z.object({
+  ratingRestaurant: z.number().int().min(0).max(5),
+  ratingRepartidor: z.number().int().min(0).max(5).optional(),
+  comentario: z.string().trim().max(500).optional(),
+})

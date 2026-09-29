@@ -1,7 +1,7 @@
 import type { Request, Response } from 'express'
 import * as ordersService from './orders.service'
 import { handleServiceError } from '../../utils/errors'
-import { createOrderSchema, idParamSchema } from './orders.validation'
+import { createOrderSchema, idParamSchema, rateOrderSchema } from './orders.validation'
 
 function respondError(res: Response, err: unknown) {
   const { status, message } = handleServiceError(err)
@@ -89,6 +89,17 @@ export async function markReady(req: Request, res: Response) {
   try {
     const { id } = idParamSchema.parse(req.params)
     const order = await ordersService.markOrderReady(id, req.user!.userId)
+    res.json(order)
+  } catch (err) {
+    respondError(res, err)
+  }
+}
+
+export async function rate(req: Request, res: Response) {
+  try {
+    const { id } = idParamSchema.parse(req.params)
+    const input = rateOrderSchema.parse(req.body)
+    const order = await ordersService.rateOrder(id, req.user!.userId, input)
     res.json(order)
   } catch (err) {
     respondError(res, err)

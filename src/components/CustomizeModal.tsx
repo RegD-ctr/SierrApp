@@ -96,12 +96,25 @@ export default function CustomizeModal({ platillo, restaurant, onClose, onAdd }:
     })
     if (missing.length > 0) { setMissingRequired(missing); return }
 
+    const selectedOptionItemIds: string[] = []
+    groups.forEach(g => {
+      const sel = selecciones[g.id]
+      if (g.tipo === 'RADIO' && typeof sel === 'string' && sel) {
+        selectedOptionItemIds.push(sel)
+      } else if (g.tipo === 'CHECKBOX' && Array.isArray(sel)) {
+        sel.forEach(id => {
+          if (id) selectedOptionItemIds.push(id)
+        })
+      }
+    })
+
     onAdd({
       cartId: `${platillo.id}-${Date.now()}`,
       platillo,
       restaurant,
       cantidad,
       selecciones: buildSelsForCart(),
+      selectedOptionItemIds,
       extrasTotal,
       notas,
     })

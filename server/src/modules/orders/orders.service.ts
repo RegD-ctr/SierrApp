@@ -250,3 +250,72 @@ export async function transitionStatus(orderId: string, estado: OrderStatus, ext
     },
   })
 }
+
+export async function rateOrder(
+  orderId: string,
+  userId: string,
+  input: { ratingRestaurant: number; ratingRepartidor?: number; comentario?: string }
+) {
+  const order = await prisma.order.findUnique({
+    where: { id: orderId },
+    include: { restaurant: true },
+  })
+
+  if (!order || order.userId !== userId) {
+    throw new AppError('Pedido no encontrado.', 404)
+  }
+
+  if (order.ratingRestaurant !== null) {
+    throw new AppError('Este pedido ya fue calificado.', 409)
+  }
+
+  const updatedOrder = await prisma.order.update({
+    where: { id: orderId },
+    data: {
+      ratingRestaurant: input.ratingRestaurant,
+      ratingRepartidor: input.ratingRepartidor ?? null,
+      comentario: input.comentario ?? null,
+    },
+  })
+
+  const ratedOrders = await prisma.order.findMany({
+    where: {
+      restaurantId: order.restaurantId,
+      ratingRestaurant: { not: null },
+    },
+    select: { ratingRestaurant: true },
+  })
+
+  const totalReviews = ratedOrders.length
+  if (totalReviews > 0) {
+    const sumRatings = ratedOrders.reduce((sum, o) => sum + (o.ratingRestaurant ?? 0), 0)
+    const avg = Math.round((sumRatings / totalReviews) * 10) / 10
+    await prisma.restaurant.update({
+      where: { id: order.restaurantId },
+      data: {
+        rating: avg,
+        reviews: totalReviews,
+      },
+    })
+  }
+
+  if (order.repartidorId && input.ratingRepartidor !== undefined) {
+    const driverRatedOrders = await prisma.order.findMany({
+      where: {
+        repartidorId: order.repartidorId,
+        ratingRepartidor: { not: null },
+      },
+      select: { ratingRepartidor: true },
+    })
+    if (driverRatedOrders.length > 0) {
+      const sumDriverRatings = driverRatedOrders.reduce((sum, o) => sum + (o.ratingRepartidor ?? 0), 0)
+      const avgDriver = Math.round((sumDriverRatings / driverRatedOrders.length) * 10) / 10
+      await prisma.driverProfile.updateMany({
+        where: { userId: order.repartidorId },
+        data: { ratingPromedio: avgDriver },
+      })
+    }
+  }
+
+  return updatedOrder
+}

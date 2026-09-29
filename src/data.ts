@@ -75,6 +75,7 @@ export interface CartItem {
   restaurant: Restaurant
   cantidad: number
   selecciones: Record<string, string | string[]>
+  selectedOptionItemIds?: string[]
   extrasTotal: number
   notas: string
 }

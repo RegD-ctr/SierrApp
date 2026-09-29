@@ -62,6 +62,7 @@ export default function RestaurantPage({ restaurant, onBack, onAddToCart }: Prop
         restaurant: currentRest,
         cantidad: 1,
         selecciones: {},
+        selectedOptionItemIds: [],
         extrasTotal: 0,
         notas: '',
       })

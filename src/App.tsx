@@ -156,8 +156,10 @@ export default function App() {
     setTimeout(() => setToast(null), 3000)
   }
 
-  // TODO: reemplazar con datos reales del backend (GET /api/orders/active)
+  // Pedidos y seguimiento en tiempo real
   const [activeOrder, setActiveOrder] = useState<Order | null>(null)
+  const [confirmedOrder, setConfirmedOrder] = useState<any>(null)
+  const [activeOrderId, setActiveOrderId] = useState<string | null>(null)
 
   const activeAddress = savedAddresses.find(a => a.id === deliveryAddressId) || savedAddresses[0]
   const cartCount = cartItems.reduce((s, i) => s + i.cantidad, 0)
@@ -217,11 +219,35 @@ export default function App() {
       savedAddresses={savedAddresses}
       deliveryAddressId={deliveryAddressId}
       onChangeAddress={() => { setAddressSelectMode(true); navigateTo('addresses') }}
-      onConfirm={() => { setCartItems([]); setCartOpen(false); setSelectedRestaurant(null); navigateTo('order-confirmation') }}
+      onConfirm={(order) => {
+        setConfirmedOrder(order)
+        setActiveOrderId(order.id)
+        setCartItems([])
+        setCartOpen(false)
+        setSelectedRestaurant(null)
+        navigateTo('order-confirmation')
+      }}
       onBack={goBack}
     />
   )
-  if (view === 'order-confirmation') return <OrderConfirmation onTrack={() => { setSelectedRestaurant(null); navigateTo('pedidos') }} onHome={() => { setSelectedRestaurant(null); navigateTo('inicio') }} />
+  if (view === 'order-confirmation') return (
+    <OrderConfirmation
+      order={confirmedOrder}
+      onTrack={() => {
+        setSelectedRestaurant(null)
+        if (confirmedOrder?.id) {
+          setActiveOrderId(confirmedOrder.id)
+          navigateTo('order-tracking')
+        } else {
+          navigateTo('pedidos')
+        }
+      }}
+      onHome={() => {
+        setSelectedRestaurant(null)
+        navigateTo('inicio')
+      }}
+    />
+  )
   if (view === 'payment-methods') return <PaymentMethods onBack={goBack} />
   if (view === 'addresses') return (
     <Addresses 
@@ -250,18 +276,18 @@ export default function App() {
   if (view === 'notifications') return <Notifications onBack={goBack} />
   if (view === 'support') return <Support onBack={goBack} />
 
-  if (view === 'order-tracking' && activeOrder) {
+  if (view === 'order-tracking') {
     return (
       <OrderTracking
+        orderId={activeOrderId || undefined}
         order={activeOrder}
         onBack={goBack}
         onSupport={() => navigateTo('support')}
-        onDeliveryComplete={() => {
-          setActiveOrder(prev => prev ? {
-            ...prev,
-            status: 4,
-            statuses: prev.statuses.map((s, idx) => idx === 3 ? { ...s, time: 'Ahora' } : s)
-          } : null)
+        onDeliveryComplete={(delivered) => {
+          if (delivered) {
+            setConfirmedOrder(delivered)
+            setActiveOrderId(delivered.id)
+          }
           navigateTo('rate-order')
         }}
       />
@@ -271,12 +297,11 @@ export default function App() {
   if (view === 'rate-order') {
     return (
       <RateOrder
-        restaurantName={activeOrder?.restaurant || 'el restaurante'}
-        driverName={activeOrder?.driver.name || 'tu repartidor'}
-        onSubmit={(ratings) => {
-          console.log('Calificaciones enviadas:', ratings)
+        orderId={activeOrderId || confirmedOrder?.id}
+        restaurantName={confirmedOrder?.restaurant?.nombre || confirmedOrder?.restaurant?.name || 'el restaurante'}
+        driverName={confirmedOrder?.repartidor?.nombre || 'tu repartidor'}
+        onSubmit={(_ratings) => {
           showToast('¡Gracias por tu calificación! ⭐')
-          navigateTo('pedidos')
         }}
         onSkip={() => navigateTo('pedidos')}
       />
@@ -338,8 +363,22 @@ export default function App() {
               onGoToExplore={() => navigateTo('explorar')}
             />
           )}
-          {view === 'explorar' && <Explorar onSelectRestaurant={setSelectedRestaurant} />}
-          {view === 'pedidos' && <Pedidos activeOrder={activeOrder} onOpenTracking={() => navigateTo('order-tracking')} />}
+          {view === 'pedidos' && (
+            <Pedidos
+              onOpenTracking={(orderId) => {
+                if (typeof orderId === 'string') {
+                  setActiveOrderId(orderId)
+                } else if (orderId && orderId.id) {
+                  setActiveOrderId(orderId.id)
+                }
+                navigateTo('order-tracking')
+              }}
+              onRateOrder={(orderId) => {
+                setActiveOrderId(orderId)
+                navigateTo('rate-order')
+              }}
+            />
+          )}
           {view === 'perfil' && <Perfil role={role} user={currentUser} onLogout={handleLogout} onNavigate={(v: any) => { if (v === 'addresses') setAddressSelectMode(false); navigateTo(v); }} />}
         </main>
       )}
