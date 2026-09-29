@@ -9,7 +9,7 @@ interface Props {
 
 export default function Favorites({ onBack, onSelectRestaurant }: Props) {
   // TODO: reemplazar con datos reales del backend (GET /api/users/favorites)
-  const [liked, setLiked] = useState<Record<number, boolean>>({})
+  const [liked, setLiked] = useState<Record<string | number, boolean>>({})
   
   const favs = restaurants.filter(r => liked[r.id])
 

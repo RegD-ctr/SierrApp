@@ -1,5 +1,13 @@
 const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:4000'
 
+export function getImageUrl(path?: string | null): string {
+  if (!path) return ''
+  if (path.startsWith('http://') || path.startsWith('https://') || path.startsWith('data:')) {
+    return path
+  }
+  return `${API_URL}${path.startsWith('/') ? '' : '/'}${path}`
+}
+
 let accessToken: string | null = null
 
 export function setAccessToken(token: string | null) {

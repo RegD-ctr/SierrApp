@@ -2,7 +2,7 @@ import { useState, useRef, useEffect } from 'react'
 import logoImg from '@/imports/logo.jpeg'
 import Login from '@/pages/Login'
 import type { Role } from '@/pages/Login'
-import { restoreSession, api, setAccessToken, type CurrentUser } from '@/lib/api'
+import { restoreSession, api, setAccessToken, getImageUrl, type CurrentUser } from '@/lib/api'
 import Explorar from '@/pages/Explorar'
 import Pedidos from '@/pages/Pedidos'
 import Perfil from '@/pages/Perfil'
@@ -12,7 +12,7 @@ import AdminPanel from '@/pages/AdminPanel'
 import CartDrawer from '@/components/CartDrawer'
 import RestaurantPage from '@/components/RestaurantPage'
 import type { CartItem, Restaurant } from '@/data'
-import { restaurants as allRestaurants } from '@/data'
+import { getCategoryEmoji } from '@/data'
 import Checkout from '@/pages/Checkout'
 import OrderConfirmation from '@/pages/OrderConfirmation'
 import PaymentMethods from '@/pages/PaymentMethods'
@@ -111,10 +111,44 @@ export default function App() {
   const [cartOpen, setCartOpen] = useState(false)
   const [cartItems, setCartItems] = useState<CartItem[]>([])
 
-  // TODO: reemplazar con datos reales del backend (GET /api/users/addresses)
   const [savedAddresses, setSavedAddresses] = useState<AddressItem[]>([])
-  const [deliveryAddressId, setDeliveryAddressId] = useState(1)
+  const [deliveryAddressId, setDeliveryAddressId] = useState<string>('')
   const [addressSelectMode, setAddressSelectMode] = useState(false)
+
+  useEffect(() => {
+    if (currentUser?.rol === 'USUARIO') {
+      api.get<any[]>('/api/users/me/addresses')
+        .then(data => {
+          const mapped: AddressItem[] = data.map(a => ({
+            id: a.id,
+            name: a.etiqueta,
+            street: `${a.calle} #${a.numero}`,
+            col: a.colonia,
+            default: a.predeterminada,
+            etiqueta: a.etiqueta,
+            calle: a.calle,
+            numero: a.numero,
+            colonia: a.colonia,
+            cp: a.cp,
+            ciudad: a.ciudad,
+            estado: a.estado,
+            referencias: a.referencias || '',
+          }))
+          setSavedAddresses(mapped)
+          setDeliveryAddressId(prev => {
+            if (prev && mapped.some(m => m.id === prev)) return prev
+            const def = mapped.find(m => m.default) || mapped[0]
+            return def ? def.id : ''
+          })
+        })
+        .catch(err => {
+          console.error('Error al cargar direcciones:', err)
+        })
+    } else {
+      setSavedAddresses([])
+      setDeliveryAddressId('')
+    }
+  }, [currentUser])
 
   const [toast, setToast] = useState<string | null>(null)
   const showToast = (msg: string) => {
@@ -193,24 +227,14 @@ export default function App() {
     <Addresses 
       onBack={goBack}
       addresses={savedAddresses}
-      onAddAddress={(a) => setSavedAddresses(prev => {
-        const isFirst = prev.length === 0
-        const newAddr = { ...a, id: Date.now(), default: isFirst }
-        if (isFirst) setDeliveryAddressId(newAddr.id)
-        return [...prev, newAddr]
-      })}
-      onDeleteAddress={(id) => setSavedAddresses(prev => {
-        const remaining = prev.filter(x => x.id !== id)
-        if (deliveryAddressId === id && remaining.length > 0) {
-          setDeliveryAddressId(remaining[0].id)
-        }
-        return remaining
-      })}
-      onSetDefault={(id) => {
-        setSavedAddresses(prev => prev.map(x => ({ ...x, default: x.id === id })))
-        setDeliveryAddressId(id)
+      onAddressesChange={(updated) => {
+        setSavedAddresses(updated)
+        setDeliveryAddressId(prev => {
+          if (prev && updated.some(m => m.id === prev)) return prev
+          const def = updated.find(m => m.default) || updated[0]
+          return def ? def.id : ''
+        })
       }}
-      onEditAddress={(updated) => setSavedAddresses(prev => prev.map(x => x.id === updated.id ? { ...x, ...updated } : x))}
       selectable={addressSelectMode}
       selectedId={deliveryAddressId}
       onSelect={(id) => { setDeliveryAddressId(id); setAddressSelectMode(false); navigateTo('checkout') }}
@@ -371,6 +395,32 @@ function HomeView({
   onGoToExplore: () => void
 }) {
   const restaurantsRef = useRef<HTMLDivElement>(null)
+  const [restaurants, setRestaurants] = useState<Restaurant[]>([])
+  const [loading, setLoading] = useState(true)
+  const [error, setError] = useState<string | null>(null)
+
+  const loadRestaurants = async () => {
+    try {
+      setLoading(true)
+      setError(null)
+      const data = await api.get<Restaurant[]>('/api/restaurants')
+      setRestaurants(data)
+    } catch (err: any) {
+      setError(err.message || 'Error al cargar los restaurantes.')
+    } finally {
+      setLoading(false)
+    }
+  }
+
+  useEffect(() => {
+    loadRestaurants()
+  }, [])
+
+  const filteredRestaurants = restaurants.filter(r => {
+    if (activeCategory === 'Comida') return true
+    const cat = (r.categoria || r.category || '').toLowerCase()
+    return cat.includes(activeCategory.toLowerCase())
+  })
 
   return (
     <div className="px-4 pb-24">
@@ -416,7 +466,7 @@ function HomeView({
         <div className="flex gap-2 overflow-x-auto pb-1">
           {categories.map(cat => (
             <button key={cat.label} onClick={() => setActiveCategory(cat.label)}
-              className={`flex-shrink-0 flex flex-col items-center gap-1.5 px-4 py-3 rounded-xl border transition-all ${activeCategory === cat.label ? 'bg-[#5bc827] border-[#5bc827] text-[#1a1b1e]' : 'bg-[#232427] border-[#35373b] text-[#c4c6ca] hover:border-[#5bc827] hover:text-white'}`}>
+              className={`flex-shrink-0 flex flex-col items-center gap-1.5 px-4 py-3 rounded-xl border transition-all cursor-pointer ${activeCategory === cat.label ? 'bg-[#5bc827] border-[#5bc827] text-[#1a1b1e]' : 'bg-[#232427] border-[#35373b] text-[#c4c6ca] hover:border-[#5bc827] hover:text-white'}`}>
               <span className="text-xl">{cat.icon}</span>
               <span className="text-[11px] font-semibold whitespace-nowrap">{cat.label}</span>
             </button>
@@ -430,11 +480,54 @@ function HomeView({
           <h2 className="text-2xl font-bold text-white uppercase tracking-wide" style={{ fontFamily: 'Barlow Condensed, sans-serif' }}>Restaurantes cerca</h2>
           <button onClick={onGoToExplore} className="text-[#5bc827] text-sm font-semibold hover:text-[#7ed944] transition-colors cursor-pointer">Ver todos →</button>
         </div>
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
-          {allRestaurants.map(r => (
-            <RestaurantCard key={r.id} r={r} onClick={() => onSelectRestaurant(r)} />
-          ))}
-        </div>
+
+        {loading ? (
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+            {[1, 2, 3].map(n => (
+              <div key={n} className="animate-pulse bg-[#232427] border border-[#35373b] rounded-2xl overflow-hidden h-64">
+                <div className="h-40 bg-[#1a1b1e]" />
+                <div className="p-3 space-y-2">
+                  <div className="h-4 bg-[#1a1b1e] rounded w-2/3" />
+                  <div className="h-3 bg-[#1a1b1e] rounded w-1/3" />
+                </div>
+              </div>
+            ))}
+          </div>
+        ) : error ? (
+          <div className="flex flex-col items-center justify-center py-12 text-center bg-[#232427] border border-[#35373b] rounded-2xl p-6">
+            <span className="text-4xl mb-3">⚠️</span>
+            <p className="text-white font-semibold">{error}</p>
+            <button
+              onClick={loadRestaurants}
+              className="mt-4 px-5 py-2 bg-[#5bc827] text-[#1a1b1e] font-bold text-xs rounded-full hover:bg-[#7ed944] transition-all cursor-pointer"
+            >
+              Reintentar
+            </button>
+          </div>
+        ) : restaurants.length === 0 ? (
+          <div className="flex flex-col items-center justify-center py-12 text-center bg-[#232427] border border-[#35373b] rounded-2xl p-6">
+            <span className="text-5xl mb-3">🍽️</span>
+            <p className="text-white font-semibold">No hay restaurantes disponibles en este momento</p>
+            <p className="text-[#9a9da3] text-sm mt-1">Vuelve a consultar más tarde</p>
+          </div>
+        ) : filteredRestaurants.length === 0 ? (
+          <div className="flex flex-col items-center justify-center py-12 text-center bg-[#232427] border border-[#35373b] rounded-2xl p-6">
+            <span className="text-4xl mb-3">🔍</span>
+            <p className="text-white font-semibold">Sin resultados en {activeCategory}</p>
+            <button
+              onClick={() => setActiveCategory('Comida')}
+              className="mt-3 text-xs font-semibold text-[#5bc827] hover:underline cursor-pointer"
+            >
+              Ver todos los restaurantes
+            </button>
+          </div>
+        ) : (
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+            {filteredRestaurants.map(r => (
+              <RestaurantCard key={r.id} r={r} onClick={() => onSelectRestaurant(r)} />
+            ))}
+          </div>
+        )}
       </section>
     </div>
   )
@@ -448,11 +541,27 @@ function HomeView({
  */
 function RestaurantCard({ r, onClick }: { r: Restaurant; onClick: () => void }) {
   const [liked, setLiked] = useState(false)
+  const nombre = r.nombre || r.name || 'Restaurante'
+  const categoria = r.categoria || r.category || ''
+  const tiempoEntrega = r.tiempoEntrega || r.time || '—'
+  const deliveryFee = r.deliveryFee ?? 0
+  const deliveryFeeTexto = r.deliveryFeeTexto || r.delivery || (deliveryFee === 0 ? 'Envío gratis' : `Envío $${deliveryFee}`)
 
   return (
     <div onClick={onClick} className="bg-[#232427] border border-[#35373b] rounded-2xl overflow-hidden group cursor-pointer hover:border-[#5bc827]/50 transition-all hover:shadow-lg hover:shadow-[#5bc827]/10">
-      <div className="relative h-40 overflow-hidden bg-[#1a3320]">
-        <img src={r.coverImg} alt={r.name} className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500" />
+      <div className="relative h-40 overflow-hidden bg-gradient-to-br from-[#232427] via-[#1a1b1e] to-[#0d0e10] flex items-center justify-center">
+        {r.coverImg ? (
+          <img
+            src={getImageUrl(r.coverImg)}
+            alt={nombre}
+            className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500"
+            onError={(e) => {
+              (e.currentTarget as HTMLElement).style.display = 'none'
+            }}
+          />
+        ) : (
+          <span className="text-5xl">{getCategoryEmoji(categoria)}</span>
+        )}
         <div className="absolute inset-0 bg-gradient-to-t from-[#1a1b1e]/60 to-transparent" />
         {r.badge && (
           <span className="absolute top-2 left-2 bg-[#5bc827] text-[#1a1b1e] text-[10px] font-bold px-2 py-0.5 rounded-full uppercase tracking-wide">{r.badge}</span>
@@ -461,12 +570,12 @@ function RestaurantCard({ r, onClick }: { r: Restaurant; onClick: () => void }) 
           <span className="absolute bottom-2 left-2 bg-[#1a1b1e]/80 text-[#5bc827] text-[10px] font-semibold px-2 py-0.5 rounded-full border border-[#5bc827]/40">🏷 {r.promo}</span>
         )}
         {!r.isOpen && (
-          <div className="absolute inset-0 bg-black/50 flex items-center justify-center">
-            <span className="bg-[#1a1b1e]/80 text-[#9a9da3] text-xs font-bold px-3 py-1 rounded-full border border-[#35373b]">Cerrado</span>
+          <div className="absolute inset-0 bg-black/60 flex items-center justify-center">
+            <span className="bg-[#1a1b1e]/90 text-red-400 text-xs font-bold px-3 py-1 rounded-full border border-red-900">Cerrado</span>
           </div>
         )}
         <button onClick={e => { e.stopPropagation(); setLiked(l => !l) }}
-          className="absolute top-2 right-2 bg-[#1a1b1e]/60 rounded-full p-1.5 hover:bg-[#1a1b1e]/80 transition-colors">
+          className="absolute top-2 right-2 bg-[#1a1b1e]/60 rounded-full p-1.5 hover:bg-[#1a1b1e]/80 transition-colors cursor-pointer">
           <svg className={`w-3.5 h-3.5 ${liked ? 'text-[#5bc827] fill-[#5bc827]' : 'text-white'}`} fill="none" stroke="currentColor" viewBox="0 0 24 24">
             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4.318 6.318a4.5 4.5 0 000 6.364L12 20.364l7.682-7.682a4.5 4.5 0 00-6.364-6.364L12 7.636l-1.318-1.318a4.5 4.5 0 00-6.364 0z" />
           </svg>
@@ -474,18 +583,18 @@ function RestaurantCard({ r, onClick }: { r: Restaurant; onClick: () => void }) 
       </div>
       <div className="p-3">
         <div className="flex items-start justify-between gap-2 mb-1">
-          <h3 className="font-semibold text-sm text-white leading-tight">{r.name}</h3>
+          <h3 className="font-semibold text-sm text-white leading-tight">{nombre}</h3>
           <div className="flex items-center gap-0.5 shrink-0">
             <span className="text-[#5bc827] text-xs">★</span>
             <span className="text-xs font-semibold text-white">{r.rating}</span>
           </div>
         </div>
-        <p className="text-[#9a9da3] text-xs mb-2">{r.category}</p>
+        <p className="text-[#9a9da3] text-xs mb-2">{categoria}</p>
         <div className="flex items-center justify-between">
           <div className="flex items-center gap-2 text-[10px] text-[#9a9da3]">
-            <span>⏱ {r.time}</span>
+            <span>⏱ {tiempoEntrega}</span>
             <span className="text-[#35373b]">·</span>
-            <span className={r.deliveryFee === 0 ? 'text-[#5bc827] font-semibold' : ''}>{r.delivery}</span>
+            <span className={deliveryFee === 0 ? 'text-[#5bc827] font-semibold' : ''}>{deliveryFeeTexto}</span>
           </div>
           <span className="text-[#5bc827] text-xs font-semibold group-hover:underline">Ver menú →</span>
         </div>

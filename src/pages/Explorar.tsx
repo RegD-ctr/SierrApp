@@ -1,5 +1,7 @@
-import { useState } from 'react'
-import { restaurants as allRestaurants } from '@/data'
+import { useState, useEffect } from 'react'
+import type { Restaurant } from '@/data'
+import { getCategoryEmoji } from '@/data'
+import { api, getImageUrl } from '@/lib/api'
 
 const allCategories = [
   { icon: '🍔', label: 'Hamburguesas' },
@@ -22,17 +24,46 @@ const allCategories = [
 
 const filters = ['Más populares', 'Más rápidos', 'Mejor precio', 'Mejor rating']
 
-export default function Explorar({ onSelectRestaurant }: { onSelectRestaurant?: (r: import('@/data').Restaurant) => void }) {
+export default function Explorar({ onSelectRestaurant }: { onSelectRestaurant?: (r: Restaurant) => void }) {
   const [search, setSearch] = useState('')
   const [activeFilter, setActiveFilter] = useState('Más populares')
   const [activeCategory, setActiveCategory] = useState<string | null>(null)
+  const [restaurants, setRestaurants] = useState<Restaurant[]>([])
+  const [loading, setLoading] = useState(true)
+  const [error, setError] = useState<string | null>(null)
 
-  // TODO: reemplazar con datos reales del backend (GET /api/restaurants)
-  const filtered = allRestaurants.filter(r => {
-    const matchSearch = r.name.toLowerCase().includes(search.toLowerCase()) || r.category.toLowerCase().includes(search.toLowerCase())
-    const matchCat = !activeCategory || r.category.toLowerCase().includes(activeCategory.toLowerCase())
-    return matchSearch && matchCat
-  })
+  const loadRestaurants = async () => {
+    try {
+      setLoading(true)
+      setError(null)
+      const data = await api.get<Restaurant[]>('/api/restaurants')
+      setRestaurants(data)
+    } catch (err: any) {
+      setError(err.message || 'Error al cargar los restaurantes.')
+    } finally {
+      setLoading(false)
+    }
+  }
+
+  useEffect(() => {
+    loadRestaurants()
+  }, [])
+
+  const filtered = restaurants
+    .filter(r => {
+      const name = (r.nombre || r.name || '').toLowerCase()
+      const cat = (r.categoria || r.category || '').toLowerCase()
+      const q = search.toLowerCase().trim()
+      const matchSearch = !q || name.includes(q) || cat.includes(q)
+      const matchCat = !activeCategory || cat.includes(activeCategory.toLowerCase())
+      return matchSearch && matchCat
+    })
+    .sort((a, b) => {
+      if (activeFilter === 'Mejor rating') return b.rating - a.rating
+      if (activeFilter === 'Mejor precio') return (a.deliveryFee ?? 0) - (b.deliveryFee ?? 0)
+      if (activeFilter === 'Más populares') return (b.reviews ?? 0) - (a.reviews ?? 0)
+      return 0
+    })
 
   return (
     <div className="min-h-screen bg-[#1a1b1e] pb-24">
@@ -112,7 +143,37 @@ export default function Explorar({ onSelectRestaurant }: { onSelectRestaurant?: 
           )}
         </div>
 
-        {filtered.length === 0 ? (
+        {loading ? (
+          <div className="space-y-3 py-2">
+            {[1, 2, 3].map(n => (
+              <div key={n} className="animate-pulse flex gap-3 bg-[#232427] border border-[#35373b] rounded-2xl p-2.5">
+                <div className="w-24 h-24 bg-[#1a1b1e] rounded-xl shrink-0" />
+                <div className="flex-1 py-2 space-y-2">
+                  <div className="h-4 bg-[#1a1b1e] rounded w-3/4" />
+                  <div className="h-3 bg-[#1a1b1e] rounded w-1/2" />
+                  <div className="h-3 bg-[#1a1b1e] rounded w-1/4 mt-4" />
+                </div>
+              </div>
+            ))}
+          </div>
+        ) : error ? (
+          <div className="flex flex-col items-center justify-center py-16 text-center">
+            <span className="text-4xl mb-3">⚠️</span>
+            <p className="text-white font-semibold">{error}</p>
+            <button
+              onClick={loadRestaurants}
+              className="mt-4 px-5 py-2 bg-[#5bc827] text-[#1a1b1e] font-bold text-xs rounded-full hover:bg-[#7ed944] transition-all cursor-pointer"
+            >
+              Reintentar
+            </button>
+          </div>
+        ) : restaurants.length === 0 ? (
+          <div className="flex flex-col items-center justify-center py-16 text-center">
+            <span className="text-5xl mb-3">🍽️</span>
+            <p className="text-white font-semibold">No hay restaurantes disponibles en este momento</p>
+            <p className="text-[#9a9da3] text-sm mt-1">Vuelve a consultar más tarde</p>
+          </div>
+        ) : filtered.length === 0 ? (
           <div className="flex flex-col items-center justify-center py-16 text-center">
             <span className="text-5xl mb-3">🔍</span>
             <p className="text-white font-semibold">Sin resultados</p>
@@ -124,22 +185,44 @@ export default function Explorar({ onSelectRestaurant }: { onSelectRestaurant?: 
               <div
                 key={r.id}
                 onClick={() => onSelectRestaurant && onSelectRestaurant(r)}
-                className="flex gap-3 bg-[#232427] border border-[#35373b] rounded-2xl overflow-hidden hover:border-[#5bc827]/40 transition-all cursor-pointer"
+                className="flex gap-3 bg-[#232427] border border-[#35373b] rounded-2xl overflow-hidden hover:border-[#5bc827]/40 transition-all cursor-pointer group"
               >
-                <img src={r.coverImg} alt={r.name} className="w-24 h-24 object-cover shrink-0" />
+                <div className="w-24 h-24 shrink-0 relative overflow-hidden bg-gradient-to-br from-[#232427] via-[#1a1b1e] to-[#0d0e10] flex items-center justify-center">
+                  {r.coverImg ? (
+                    <img
+                      src={getImageUrl(r.coverImg)}
+                      alt={r.nombre || r.name}
+                      className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300"
+                      onError={(e) => {
+                        (e.currentTarget as HTMLElement).style.display = 'none'
+                      }}
+                    />
+                  ) : (
+                    <span className="text-3xl">{getCategoryEmoji(r.categoria || r.category || '')}</span>
+                  )}
+                  {!r.isOpen && (
+                    <div className="absolute inset-0 bg-black/60 flex items-center justify-center">
+                      <span className="bg-[#1a1b1e]/90 text-red-400 text-[9px] font-bold px-1.5 py-0.5 rounded border border-red-900">
+                        Cerrado
+                      </span>
+                    </div>
+                  )}
+                </div>
                 <div className="flex flex-col justify-center py-2 pr-3 flex-1">
                   <div className="flex items-center justify-between">
-                    <h3 className="font-semibold text-sm text-white">{r.name}</h3>
+                    <h3 className="font-semibold text-sm text-white">{r.nombre || r.name}</h3>
                     <div className="flex items-center gap-0.5">
                       <span className="text-[#5bc827] text-xs">★</span>
                       <span className="text-xs text-white font-semibold">{r.rating}</span>
                     </div>
                   </div>
-                  <p className="text-[#9a9da3] text-xs mt-0.5">{r.category}</p>
+                  <p className="text-[#9a9da3] text-xs mt-0.5">{r.categoria || r.category}</p>
                   <div className="flex items-center gap-2 mt-2 text-[10px] text-[#9a9da3]">
-                    <span>⏱ {r.time}</span>
+                    <span>⏱ {r.tiempoEntrega || r.time || '—'}</span>
                     <span className="text-[#35373b]">·</span>
-                    <span>{r.delivery}</span>
+                    <span className={r.deliveryFee === 0 ? 'text-[#5bc827] font-semibold' : ''}>
+                      {r.deliveryFeeTexto || r.delivery || (r.deliveryFee === 0 ? 'Envío gratis' : `Envío $${r.deliveryFee}`)}
+                    </span>
                   </div>
                 </div>
               </div>
@@ -150,3 +233,4 @@ export default function Explorar({ onSelectRestaurant }: { onSelectRestaurant?: 
     </div>
   )
 }
+

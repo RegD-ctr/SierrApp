@@ -1,20 +1,22 @@
 export interface OpcionItem {
   id: string
   label: string
-  extra: number
+  extra?: number
+  extraPrecio?: number
 }
 
 export interface OpcionGroup {
   id: string
   titulo: string
   obligatoria: boolean
-  tipo: 'radio' | 'checkbox'
+  tipo: 'RADIO' | 'CHECKBOX'
   opciones: OpcionItem[]
+  orden?: number
 }
 
 export interface Platillo {
-  id: number
-  restaurantId: number
+  id: string | number
+  restaurantId?: string | number
   nombre: string
   descripcion: string
   categoria: string
@@ -22,22 +24,49 @@ export interface Platillo {
   imagen: string | null
   disponible: boolean
   opciones?: OpcionGroup[]
+  optionGroups?: OpcionGroup[]
 }
 
 export interface Restaurant {
-  id: number
-  name: string
-  category: string
+  id: string | number
+  nombre?: string
+  name?: string
+  categoria?: string
+  category?: string
   rating: number
   reviews: number
-  time: string
-  delivery: string
+  tiempoEntrega?: string
+  time?: string
+  deliveryFeeTexto?: string
+  delivery?: string
   deliveryFee: number
-  promo: string | null
+  promo?: string | null
   coverImg: string
-  badge: string | null
-  address: string
+  badge?: string | null
+  direccion?: string
+  address?: string
   isOpen: boolean
+  status?: string
+  dishes?: Platillo[]
+}
+
+export function getCategoryEmoji(categoria: string = ''): string {
+  const cat = categoria.toLowerCase()
+  if (cat.includes('burger') || cat.includes('hamb')) return '🍔'
+  if (cat.includes('pizza') || cat.includes('ital')) return '🍕'
+  if (cat.includes('taco') || cat.includes('mexic')) return '🌮'
+  if (cat.includes('sushi') || cat.includes('jap')) return '🍣'
+  if (cat.includes('carne') || cat.includes('steak')) return '🥩'
+  if (cat.includes('pollo') || cat.includes('chicken')) return '🐔'
+  if (cat.includes('postre') || cat.includes('pastel') || cat.includes('cake')) return '🍰'
+  if (cat.includes('café') || cat.includes('cafe')) return '☕'
+  if (cat.includes('ensalada') || cat.includes('salad')) return '🥗'
+  if (cat.includes('super') || cat.includes('súper')) return '🛒'
+  if (cat.includes('farma') || cat.includes('medic')) return '💊'
+  if (cat.includes('bebida') || cat.includes('drink')) return '🥤'
+  if (cat.includes('helad') || cat.includes('ice')) return '🍦'
+  if (cat.includes('ramen')) return '🍜'
+  return '🍽️'
 }
 
 export interface CartItem {
@@ -50,9 +79,7 @@ export interface CartItem {
   notas: string
 }
 
-// TODO: reemplazar con datos reales del backend (GET /api/restaurants)
+// Datos vacíos por defecto; la aplicación consume el backend real vía API
 export const restaurants: Restaurant[] = []
-
-// TODO: reemplazar con datos reales del backend (GET /api/restaurants/:id/platillos)
 export const platillos: Platillo[] = []
 

@@ -5,7 +5,7 @@ import type { AddressItem } from './Addresses'
 interface Props {
   items: CartItem[]
   savedAddresses: AddressItem[]
-  deliveryAddressId: number
+  deliveryAddressId: string | number
   onChangeAddress: () => void
   onConfirm: () => void
   onBack: () => void
