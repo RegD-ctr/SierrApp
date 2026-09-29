@@ -8,8 +8,8 @@ import rateLimit from 'express-rate-limit'
 // Límite estricto para login: previene fuerza bruta contra una cuenta
 // específica, más allá del bloqueo de cuenta que ya maneja auth.service.ts.
 export const loginLimiter = rateLimit({
-  windowMs: 15 * 60 * 1000, // 15 minutos
-  max: 10, // 10 intentos por IP en esa ventana
+  windowMs: 15 * 60 * 1000,
+  max: process.env.NODE_ENV === 'production' ? 10 : 50,
   standardHeaders: true,
   legacyHeaders: false,
   message: { error: 'Demasiados intentos. Espera unos minutos e inténtalo de nuevo.' },

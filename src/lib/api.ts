@@ -48,11 +48,12 @@ async function tryRefresh(): Promise<boolean> {
 }
 
 async function request<T>(path: string, options: RequestInit = {}, isRetry = false): Promise<T> {
+  const isFormData = typeof FormData !== 'undefined' && options.body instanceof FormData
   const res = await fetch(`${API_URL}${path}`, {
     ...options,
     credentials: 'include',
     headers: {
-      ...(options.body ? { 'Content-Type': 'application/json' } : {}),
+      ...(options.body && !isFormData ? { 'Content-Type': 'application/json' } : {}),
       ...(accessToken ? { Authorization: `Bearer ${accessToken}` } : {}),
       ...options.headers,
     },
@@ -80,9 +81,10 @@ async function request<T>(path: string, options: RequestInit = {}, isRetry = fal
 
 export const api = {
   get: <T>(path: string) => request<T>(path),
-  post: <T>(path: string, body?: unknown) => request<T>(path, { method: 'POST', body: body ? JSON.stringify(body) : undefined }),
-  patch: <T>(path: string, body?: unknown) => request<T>(path, { method: 'PATCH', body: body ? JSON.stringify(body) : undefined }),
+  post: <T>(path: string, body?: unknown) => request<T>(path, { method: 'POST', body: body ? (body instanceof FormData ? body : JSON.stringify(body)) : undefined }),
+  patch: <T>(path: string, body?: unknown) => request<T>(path, { method: 'PATCH', body: body ? (body instanceof FormData ? body : JSON.stringify(body)) : undefined }),
   delete: <T>(path: string) => request<T>(path, { method: 'DELETE' }),
+  upload: <T>(path: string, formData: FormData) => request<T>(path, { method: 'POST', body: formData }),
 }
 
 export interface CurrentUser {
