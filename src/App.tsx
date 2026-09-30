@@ -363,6 +363,9 @@ export default function App() {
               onGoToExplore={() => navigateTo('explorar')}
             />
           )}
+          {view === 'explorar' && (
+            <Explorar onSelectRestaurant={setSelectedRestaurant} />
+          )}
           {view === 'pedidos' && (
             <Pedidos
               onOpenTracking={(orderId) => {
