@@ -105,3 +105,71 @@ export async function rate(req: Request, res: Response) {
     respondError(res, err)
   }
 }
+
+export async function listAvailable(req: Request, res: Response) {
+  try {
+    const orders = await ordersService.listAvailableOrders()
+    res.json(orders)
+  } catch (err) {
+    respondError(res, err)
+  }
+}
+
+export async function claim(req: Request, res: Response) {
+  try {
+    const { id } = idParamSchema.parse(req.params)
+    const order = await ordersService.claimOrder(id, req.user!.userId)
+    res.json(order)
+  } catch (err) {
+    respondError(res, err)
+  }
+}
+
+export async function markPickedUp(req: Request, res: Response) {
+  try {
+    const { id } = idParamSchema.parse(req.params)
+    const order = await ordersService.markOrderPickedUp(id, req.user!.userId)
+    res.json(order)
+  } catch (err) {
+    respondError(res, err)
+  }
+}
+
+export async function startDelivery(req: Request, res: Response) {
+  try {
+    const { id } = idParamSchema.parse(req.params)
+    const order = await ordersService.startOrderDelivery(id, req.user!.userId)
+    res.json(order)
+  } catch (err) {
+    respondError(res, err)
+  }
+}
+
+export async function deliver(req: Request, res: Response) {
+  try {
+    const { id } = idParamSchema.parse(req.params)
+    const order = await ordersService.deliverOrder(id, req.user!.userId)
+    res.json(order)
+  } catch (err) {
+    respondError(res, err)
+  }
+}
+
+export async function getActiveDelivery(req: Request, res: Response) {
+  try {
+    const order = await ordersService.getActiveDelivery(req.user!.userId)
+    res.json(order)
+  } catch (err) {
+    respondError(res, err)
+  }
+}
+
+export async function listDeliveries(req: Request, res: Response) {
+  try {
+    const orders = await ordersService.listDriverDeliveries(req.user!.userId)
+    res.json(orders)
+  } catch (err) {
+    respondError(res, err)
+  }
+}
+

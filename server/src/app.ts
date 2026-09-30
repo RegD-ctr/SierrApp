@@ -13,6 +13,7 @@ import { restaurantsRouter } from './modules/restaurants/restaurants.routes'
 import { ordersRouter } from './modules/orders/orders.routes'
 import { usersRouter } from './modules/users/users.routes'
 import { uploadsRouter } from './modules/uploads/uploads.routes'
+import { adminRouter } from './modules/admin/admin.routes'
 import { UPLOAD_DIR } from './modules/uploads/uploads.service'
 import { generalLimiter } from './middleware/rateLimiter'
 
@@ -62,6 +63,7 @@ app.use('/api/auth', authRouter)
 app.use('/api/restaurants', restaurantsRouter)
 app.use('/api/orders', ordersRouter)
 app.use('/api/users', usersRouter)
+app.use('/api/admin', adminRouter)
 app.use('/api/uploads', uploadsRouter)
 
 // Manejador de errores de último recurso — nunca dejes que un error

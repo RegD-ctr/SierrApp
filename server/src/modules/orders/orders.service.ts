@@ -160,8 +160,9 @@ export async function getOrderDetail(orderId: string, requester: { userId: strin
     include: {
       items: { include: { opciones: true } },
       statusHistory: { orderBy: { timestamp: 'asc' } },
-      restaurant: { select: { id: true, nombre: true, ownerId: true, coverImg: true } },
+      restaurant: { select: { id: true, nombre: true, ownerId: true, coverImg: true, direccion: true } },
       repartidor: { select: { id: true, nombre: true, driverProfile: { select: { ratingPromedio: true } } } },
+      user: { select: { id: true, nombre: true, telefono: true } },
     },
   })
 
@@ -319,3 +320,154 @@ export async function rateOrder(
 
   return updatedOrder
 }
+
+export async function listAvailableOrders() {
+  return prisma.order.findMany({
+    where: {
+      estado: 'LISTO',
+      repartidorId: null,
+    },
+    orderBy: { createdAt: 'desc' },
+    include: {
+      restaurant: { select: { id: true, nombre: true, direccion: true, coverImg: true } },
+      user: { select: { id: true, nombre: true, telefono: true } },
+      items: { select: { id: true, nombreSnapshot: true, cantidad: true } },
+    },
+  })
+}
+
+export async function claimOrder(orderId: string, driverUserId: string) {
+  // Verificar si el repartidor ya tiene una entrega activa
+  const activeExisting = await prisma.order.findFirst({
+    where: {
+      repartidorId: driverUserId,
+      estado: { in: ['REPARTIDOR_ASIGNADO', 'RECOGIDO', 'EN_CAMINO'] },
+    },
+  })
+  if (activeExisting) {
+    throw new AppError('Ya tienes una entrega en curso. Complétala antes de tomar otra.', 409)
+  }
+
+  // Operación atómica de reclamo
+  const updateResult = await prisma.order.updateMany({
+    where: {
+      id: orderId,
+      estado: 'LISTO',
+      repartidorId: null,
+    },
+    data: {
+      repartidorId: driverUserId,
+      estado: 'REPARTIDOR_ASIGNADO',
+    },
+  })
+
+  if (updateResult.count === 0) {
+    const existing = await prisma.order.findUnique({ where: { id: orderId } })
+    if (!existing) {
+      throw new AppError('Pedido no encontrado.', 404)
+    }
+    throw new AppError('Este pedido ya no está disponible.', 409)
+  }
+
+  await prisma.orderStatusHistory.create({
+    data: {
+      orderId,
+      estado: 'REPARTIDOR_ASIGNADO',
+    },
+  })
+
+  return getOrderDetail(orderId, { userId: driverUserId, rol: 'REPARTIDOR' })
+}
+
+export async function markOrderPickedUp(orderId: string, driverUserId: string) {
+  const order = await prisma.order.findUnique({ where: { id: orderId } })
+  if (!order || order.repartidorId !== driverUserId) {
+    throw new AppError('Pedido no encontrado o no asignado a ti.', 404)
+  }
+  if (order.estado !== 'REPARTIDOR_ASIGNADO') {
+    throw new AppError('El pedido no está en espera de ser recogido.', 409)
+  }
+  await transitionStatus(orderId, 'RECOGIDO')
+  return getOrderDetail(orderId, { userId: driverUserId, rol: 'REPARTIDOR' })
+}
+
+export async function startOrderDelivery(orderId: string, driverUserId: string) {
+  const order = await prisma.order.findUnique({ where: { id: orderId } })
+  if (!order || order.repartidorId !== driverUserId) {
+    throw new AppError('Pedido no encontrado o no asignado a ti.', 404)
+  }
+  if (order.estado !== 'RECOGIDO') {
+    throw new AppError('El pedido debe estar recogido antes de iniciar camino.', 409)
+  }
+  await transitionStatus(orderId, 'EN_CAMINO')
+  return getOrderDetail(orderId, { userId: driverUserId, rol: 'REPARTIDOR' })
+}
+
+export async function deliverOrder(orderId: string, driverUserId: string) {
+  const order = await prisma.order.findUnique({ where: { id: orderId } })
+  if (!order || order.repartidorId !== driverUserId) {
+    throw new AppError('Pedido no encontrado o no asignado a ti.', 404)
+  }
+  if (order.estado !== 'EN_CAMINO') {
+    throw new AppError('El pedido debe estar en camino para poder entregarlo.', 409)
+  }
+
+  return prisma.$transaction(async (tx) => {
+    const updated = await tx.order.update({
+      where: { id: orderId },
+      data: {
+        estado: 'ENTREGADO',
+        statusHistory: { create: { estado: 'ENTREGADO' } },
+      },
+      include: {
+        items: { include: { opciones: true } },
+        restaurant: { select: { id: true, nombre: true, direccion: true, coverImg: true } },
+        user: { select: { id: true, nombre: true, telefono: true } },
+      },
+    })
+
+    // Crear DriverEarning con la comisionRepartidorFija del pedido
+    await tx.driverEarning.create({
+      data: {
+        repartidorId: driverUserId,
+        orderId: order.id,
+        monto: order.comisionRepartidorFija,
+      },
+    })
+
+    return updated
+  })
+}
+
+export async function getActiveDelivery(driverUserId: string) {
+  const order = await prisma.order.findFirst({
+    where: {
+      repartidorId: driverUserId,
+      estado: { in: ['REPARTIDOR_ASIGNADO', 'RECOGIDO', 'EN_CAMINO'] },
+    },
+    include: {
+      items: { include: { opciones: true } },
+      restaurant: { select: { id: true, nombre: true, direccion: true, coverImg: true } },
+      user: { select: { id: true, nombre: true, telefono: true } },
+      statusHistory: { orderBy: { timestamp: 'asc' } },
+    },
+  })
+  return order ?? null
+}
+
+export async function listDriverDeliveries(driverUserId: string) {
+  return prisma.order.findMany({
+    where: {
+      repartidorId: driverUserId,
+      estado: 'ENTREGADO',
+    },
+    orderBy: { updatedAt: 'desc' },
+    include: {
+      items: { include: { opciones: true } },
+      restaurant: { select: { id: true, nombre: true, direccion: true } },
+      user: { select: { id: true, nombre: true, telefono: true } },
+      driverEarning: true,
+    },
+  })
+}
+
