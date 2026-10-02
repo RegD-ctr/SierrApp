@@ -10,6 +10,7 @@ import {
   generateSecureToken,
 } from '../../utils/tokens'
 import { sendVerificationEmail, sendPasswordResetEmail, sendAccountLockedAlert } from '../../utils/email'
+import { notifyAdmins } from '../../realtime/socket'
 
 const MAX_FAILED_ATTEMPTS = 5
 const LOCK_DURATION_MS = 15 * 60 * 1000 // 15 minutos
@@ -141,6 +142,7 @@ export async function registerLocal(input: {
   })
 
   await createEmailVerification(user.id, user.email)
+  await notifyAdmins('registro', 'Nueva solicitud de local', `"${input.nombreNegocio}" quiere registrarse como restaurante.`)
   return { userId: user.id }
 }
 
@@ -179,6 +181,7 @@ export async function registerRepartidor(input: {
   })
 
   await createEmailVerification(user.id, user.email)
+  await notifyAdmins('registro', 'Nueva solicitud de repartidor', `${input.nombre} quiere registrarse como repartidor.`)
   return { userId: user.id, matricula }
 }
 

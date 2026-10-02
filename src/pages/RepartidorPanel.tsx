@@ -2,6 +2,7 @@ import { useState, useEffect } from 'react'
 import logoImg from '@/imports/logo.jpeg'
 import EarningsRepartidor from '@/pages/EarningsRepartidor'
 import { api } from '@/lib/api'
+import { getSocket } from '@/lib/socket'
 
 type RepView = 'mapa' | 'ordenes' | 'activa' | 'historial' | 'perfil' | 'ganancias'
 type OrderStatus = 'nueva' | 'dirigete' | 'esperando' | 'recibido' | 'en_camino' | 'entregado'
@@ -87,6 +88,7 @@ export default function RepartidorPanel({ onLogout }: Props) {
   const [actionLoading, setActionLoading] = useState(false)
   const [errorMessage, setErrorMessage] = useState<string | null>(null)
   const [driverProfile, setDriverProfile] = useState<any>(null)
+  const [socketConnected, setSocketConnected] = useState(() => getSocket()?.connected ?? false)
 
   const activeOrderId = activeOrder?.id ?? null
 
@@ -173,6 +175,50 @@ export default function RepartidorPanel({ onLogout }: Props) {
 
     return () => clearInterval(interval)
   }, [isOnline, activeOrderId])
+
+  // Escuchar estado de conexión de WebSockets
+  useEffect(() => {
+    const socket = getSocket()
+    if (!socket) return
+
+    const onConnect = () => setSocketConnected(true)
+    const onDisconnect = () => setSocketConnected(false)
+
+    if (socket.connected) setSocketConnected(true)
+    socket.on('connect', onConnect)
+    socket.on('disconnect', onDisconnect)
+
+    return () => {
+      socket.off('connect', onConnect)
+      socket.off('disconnect', onDisconnect)
+    }
+  }, [])
+
+  // Escuchar eventos de pedidos en tiempo real
+  useEffect(() => {
+    const socket = getSocket()
+    if (!socket) return
+
+    const handleOrderAvailable = () => {
+      if (!activeOrderId) {
+        fetchAvailableOrders()
+      }
+    }
+
+    const handleOrderClaimed = (payload: { orderId: string }) => {
+      if (payload?.orderId) {
+        setOrders(prev => prev.filter(o => o.id !== payload.orderId))
+      }
+    }
+
+    socket.on('order:available', handleOrderAvailable)
+    socket.on('order:claimed', handleOrderClaimed)
+
+    return () => {
+      socket.off('order:available', handleOrderAvailable)
+      socket.off('order:claimed', handleOrderClaimed)
+    }
+  }, [activeOrderId])
 
   // Reclamar pedido disponible
   const handleClaimOrder = async (orderId: string) => {
@@ -274,15 +320,28 @@ export default function RepartidorPanel({ onLogout }: Props) {
               </p>
             </div>
           </div>
-          <button
-            onClick={() => setIsOnline(v => !v)}
-            className={`flex items-center gap-2 px-3 py-1.5 rounded-full border text-xs font-bold transition-all ${
-              isOnline ? 'border-[#5bc827]/50 text-[#5bc827] bg-[#5bc827]/10' : 'border-[#35373b] text-[#9a9da3]'
-            }`}
-          >
-            <span className={`w-2 h-2 rounded-full ${isOnline ? 'bg-[#5bc827] animate-pulse' : 'bg-[#9a9da3]'}`} />
-            {isOnline ? 'En línea' : 'Desconectado'}
-          </button>
+          <div className="flex items-center gap-2">
+            <span
+              className={`flex items-center gap-1.5 px-2.5 py-1 rounded-full text-[11px] font-medium border ${
+                socketConnected
+                  ? 'bg-emerald-500/10 border-emerald-500/30 text-emerald-400'
+                  : 'bg-zinc-800 border-zinc-700 text-zinc-400'
+              }`}
+              title={socketConnected ? 'Conectado al servidor en tiempo real' : 'Desconectado del tiempo real'}
+            >
+              <span className={`w-1.5 h-1.5 rounded-full ${socketConnected ? 'bg-emerald-400 animate-pulse' : 'bg-zinc-500'}`} />
+              {socketConnected ? 'En vivo' : 'Reconectando...'}
+            </span>
+            <button
+              onClick={() => setIsOnline(v => !v)}
+              className={`flex items-center gap-2 px-3 py-1.5 rounded-full border text-xs font-bold transition-all ${
+                isOnline ? 'border-[#5bc827]/50 text-[#5bc827] bg-[#5bc827]/10' : 'border-[#35373b] text-[#9a9da3]'
+              }`}
+            >
+              <span className={`w-2 h-2 rounded-full ${isOnline ? 'bg-[#5bc827] animate-pulse' : 'bg-[#9a9da3]'}`} />
+              {isOnline ? 'En línea' : 'Desconectado'}
+            </button>
+          </div>
         </div>
       </header>
 

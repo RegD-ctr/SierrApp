@@ -1,5 +1,6 @@
 import { useState, useEffect, useCallback, useRef } from 'react'
 import { api } from '@/lib/api'
+import { getSocket } from '@/lib/socket'
 
 export interface Order {
   id: string
@@ -106,6 +107,23 @@ export default function OrderTracking({ orderId, order: propOrder, onBack, onSup
 
     return () => clearInterval(interval)
   }, [fetchOrderDetail])
+
+  // Actualización en tiempo real vía WebSockets
+  useEffect(() => {
+    const socket = getSocket()
+    if (!socket || !targetId) return
+
+    const handleOrderUpdated = (payload: { orderId: string; estado?: string }) => {
+      if (payload?.orderId === targetId) {
+        fetchOrderDetail()
+      }
+    }
+
+    socket.on('order:updated', handleOrderUpdated)
+    return () => {
+      socket.off('order:updated', handleOrderUpdated)
+    }
+  }, [targetId, fetchOrderDetail])
 
   if (loading && !orderDetail) {
     return (

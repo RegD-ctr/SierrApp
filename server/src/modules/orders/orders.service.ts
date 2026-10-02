@@ -1,6 +1,7 @@
 import { prisma } from '../../db/prisma'
 import { AppError } from '../../utils/errors'
 import type { OrderStatus } from '@prisma/client'
+import { emitToUser, broadcastToDrivers, createNotification } from '../../realtime/socket'
 
 type CreateOrderItemInput = {
   dishId: string
@@ -132,6 +133,17 @@ export async function createOrder(userId: string, input: {
     include: { items: { include: { opciones: true } } },
   })
 
+  // Alerta en vivo al local (LocalPanel la usará para sonido + aparición
+  // instantánea, en una parte posterior) + queda en su bandeja de
+  // notificaciones para siempre.
+  emitToUser(restaurant.ownerId, 'order:new', { orderId: order.id, total: order.total })
+  await createNotification(
+    restaurant.ownerId,
+    'pedido',
+    'Nuevo pedido',
+    `Tienes un nuevo pedido por $${order.total.toFixed(2)}.`
+  )
+
   return order
 }
 
@@ -191,7 +203,18 @@ export async function cancelOrder(orderId: string, userId: string) {
     throw new AppError('Ya no puedes cancelar este pedido, el local ya lo está preparando.', 409)
   }
 
-  return transitionStatus(orderId, 'CANCELADO')
+  const updated = await transitionStatus(orderId, 'CANCELADO')
+
+  const restaurant = await prisma.restaurant.findUnique({
+    where: { id: order.restaurantId },
+    select: { ownerId: true },
+  })
+  if (restaurant) {
+    emitToUser(restaurant.ownerId, 'order:updated', { orderId, estado: 'CANCELADO' })
+    await createNotification(restaurant.ownerId, 'pedido', 'Pedido cancelado', 'El cliente canceló un pedido antes de que lo aceptaras.')
+  }
+
+  return updated
 }
 
 async function getOwnRestaurantOrderOrThrow(orderId: string, ownerUserId: string) {
@@ -222,7 +245,10 @@ export async function acceptOrder(orderId: string, ownerUserId: string) {
   if (order.estado !== 'PENDIENTE') {
     throw new AppError('Este pedido ya fue procesado.', 409)
   }
-  return transitionStatus(orderId, 'ACEPTADO')
+  const updated = await transitionStatus(orderId, 'ACEPTADO')
+  emitToUser(order.userId, 'order:updated', { orderId, estado: 'ACEPTADO' })
+  await createNotification(order.userId, 'pedido', 'Pedido aceptado', 'El restaurante aceptó tu pedido y ya lo está preparando.')
+  return updated
 }
 
 export async function rejectOrder(orderId: string, ownerUserId: string) {
@@ -230,7 +256,10 @@ export async function rejectOrder(orderId: string, ownerUserId: string) {
   if (order.estado !== 'PENDIENTE') {
     throw new AppError('Este pedido ya fue procesado.', 409)
   }
-  return transitionStatus(orderId, 'RECHAZADO')
+  const updated = await transitionStatus(orderId, 'RECHAZADO')
+  emitToUser(order.userId, 'order:updated', { orderId, estado: 'RECHAZADO' })
+  await createNotification(order.userId, 'pedido', 'Pedido rechazado', 'El restaurante no pudo tomar tu pedido esta vez. Cualquier cargo será cancelado.')
+  return updated
 }
 
 export async function markOrderReady(orderId: string, ownerUserId: string) {
@@ -238,7 +267,21 @@ export async function markOrderReady(orderId: string, ownerUserId: string) {
   if (order.estado !== 'ACEPTADO') {
     throw new AppError('El pedido debe estar aceptado antes de marcarlo listo.', 409)
   }
-  return transitionStatus(orderId, 'LISTO')
+  const updated = await transitionStatus(orderId, 'LISTO')
+
+  // Broadcast efímero a todo el pool de repartidores conectados — no se
+  // persiste, es solo el aviso instantáneo de "hay algo nuevo que ver".
+  const restaurant = await prisma.restaurant.findUnique({
+    where: { id: order.restaurantId },
+    select: { nombre: true, direccion: true },
+  })
+  broadcastToDrivers('order:available', {
+    orderId,
+    restaurantNombre: restaurant?.nombre,
+    restaurantDireccion: restaurant?.direccion,
+  })
+
+  return updated
 }
 
 export async function transitionStatus(orderId: string, estado: OrderStatus, extraData: Record<string, unknown> = {}) {
@@ -376,7 +419,17 @@ export async function claimOrder(orderId: string, driverUserId: string) {
     },
   })
 
-  return getOrderDetail(orderId, { userId: driverUserId, rol: 'REPARTIDOR' })
+  const order = await getOrderDetail(orderId, { userId: driverUserId, rol: 'REPARTIDOR' })
+
+  if (order) {
+    // Que desaparezca de la pantalla de los DEMÁS repartidores al
+    // instante, sin esperar a que su próximo polling descubra el 409.
+    broadcastToDrivers('order:claimed', { orderId })
+    emitToUser(order.userId, 'order:updated', { orderId, estado: 'REPARTIDOR_ASIGNADO' })
+    await createNotification(order.userId, 'pedido', 'Repartidor asignado', 'Un repartidor va en camino a recoger tu pedido.')
+  }
+
+  return order
 }
 
 export async function markOrderPickedUp(orderId: string, driverUserId: string) {
@@ -400,6 +453,8 @@ export async function startOrderDelivery(orderId: string, driverUserId: string) 
     throw new AppError('El pedido debe estar recogido antes de iniciar camino.', 409)
   }
   await transitionStatus(orderId, 'EN_CAMINO')
+  emitToUser(order.userId, 'order:updated', { orderId, estado: 'EN_CAMINO' })
+  await createNotification(order.userId, 'pedido', 'Pedido en camino', 'Tu repartidor va en camino a tu dirección.')
   return getOrderDetail(orderId, { userId: driverUserId, rol: 'REPARTIDOR' })
 }
 
@@ -412,8 +467,8 @@ export async function deliverOrder(orderId: string, driverUserId: string) {
     throw new AppError('El pedido debe estar en camino para poder entregarlo.', 409)
   }
 
-  return prisma.$transaction(async (tx) => {
-    const updated = await tx.order.update({
+  const updated = await prisma.$transaction(async (tx) => {
+    const res = await tx.order.update({
       where: { id: orderId },
       data: {
         estado: 'ENTREGADO',
@@ -435,8 +490,13 @@ export async function deliverOrder(orderId: string, driverUserId: string) {
       },
     })
 
-    return updated
+    return res
   })
+
+  emitToUser(order.userId, 'order:updated', { orderId, estado: 'ENTREGADO' })
+  await createNotification(order.userId, 'pedido', '¡Pedido entregado!', 'Tu pedido fue entregado. ¡Esperamos que lo disfrutes!')
+
+  return updated
 }
 
 export async function getActiveDelivery(driverUserId: string) {

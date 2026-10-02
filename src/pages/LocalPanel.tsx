@@ -2,6 +2,8 @@ import { useState, useRef, useEffect } from 'react'
 import logoImg from '@/imports/logo.jpeg'
 import LocalOrderDetail from '@/components/LocalOrderDetail'
 import { api, getImageUrl } from '@/lib/api'
+import { getSocket } from '@/lib/socket'
+import { playOrderAlertSound } from '@/lib/sound'
 
 type Role = 'usuario' | 'local' | 'repartidor'
 type Filter = 'todos' | 'disponibles' | 'agotados'
@@ -257,11 +259,34 @@ export default function LocalPanel({ onLogout }: Props) {
     }
   }
 
+  const [orderAlertBanner, setOrderAlertBanner] = useState<string | null>(null)
+
+  const showOrderBanner = (msg: string) => {
+    setOrderAlertBanner(msg)
+    setTimeout(() => setOrderAlertBanner(null), 5000)
+  }
+
   useEffect(() => {
     loadRestaurant()
     loadOrders()
     const timer = setInterval(loadOrders, 10000)
     return () => clearInterval(timer)
+  }, [])
+
+  useEffect(() => {
+    const socket = getSocket()
+    if (!socket) return
+
+    const handleNewOrder = () => {
+      playOrderAlertSound()
+      showOrderBanner('🔔 ¡Nuevo pedido recibido!')
+      loadOrders()
+    }
+
+    socket.on('order:new', handleNewOrder)
+    return () => {
+      socket.off('order:new', handleNewOrder)
+    }
   }, [])
 
   const filtered = platillos.filter(p =>
@@ -571,6 +596,12 @@ export default function LocalPanel({ onLogout }: Props) {
 
   return (
     <div className="min-h-screen bg-[#1a1b1e] text-white">
+      {orderAlertBanner && (
+        <div className="fixed top-4 left-1/2 -translate-x-1/2 z-50 bg-[#5bc827] text-[#1a1b1e] font-bold text-sm px-6 py-3 rounded-full shadow-2xl flex items-center gap-2 border border-white/30 animate-bounce">
+          <span>🔔</span> {orderAlertBanner}
+        </div>
+      )}
+
       {/* Header */}
       <header className="sticky top-0 z-50 bg-[#1a1b1e]/95 backdrop-blur-sm border-b border-[#35373b]">
         <div className="max-w-5xl mx-auto px-4 py-3 flex items-center justify-between gap-3">

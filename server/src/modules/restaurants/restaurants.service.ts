@@ -2,6 +2,7 @@
 
 import { prisma } from '../../db/prisma'
 import { AppError } from '../../utils/errors'
+import { emitToUser, createNotification } from '../../realtime/socket'
 
 // ------------------------------------------------------------
 // LECTURA PÚBLICA (Explorar.tsx, App.tsx home, RestaurantPage.tsx)
@@ -146,9 +147,6 @@ async function setRestaurantStatus(id: string, status: 'ACTIVO' | 'SUSPENDIDO') 
     throw new AppError('Restaurante no encontrado.', 404)
   }
 
-  // Aprobar un local pendiente también activa la cuenta de su dueño —
-  // sin esto, el dueño quedaría con un restaurante ACTIVO pero sin
-  // poder iniciar sesión porque su User.status sigue en PENDIENTE.
   if (status === 'ACTIVO') {
     await prisma.user.update({ where: { id: restaurant.ownerId }, data: { status: 'ACTIVO' } })
   }
@@ -156,7 +154,19 @@ async function setRestaurantStatus(id: string, status: 'ACTIVO' | 'SUSPENDIDO') 
     await prisma.user.update({ where: { id: restaurant.ownerId }, data: { status: 'SUSPENDIDO' } })
   }
 
-  return prisma.restaurant.update({ where: { id }, data: { status } })
+  const updated = await prisma.restaurant.update({ where: { id }, data: { status } })
+
+  emitToUser(restaurant.ownerId, 'account:updated', { status })
+  await createNotification(
+    restaurant.ownerId,
+    'cuenta',
+    status === 'ACTIVO' ? '¡Tu restaurante fue aprobado!' : 'Tu restaurante fue suspendido',
+    status === 'ACTIVO'
+      ? 'Tu restaurante ya está activo y visible para los clientes.'
+      : 'Tu restaurante fue suspendido y ya no aparece para los clientes. Contacta a soporte para más información.'
+  )
+
+  return updated
 }
 
 export async function approveRestaurant(id: string) {

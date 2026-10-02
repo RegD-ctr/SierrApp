@@ -2,7 +2,8 @@ import { useState, useRef, useEffect } from 'react'
 import logoImg from '@/imports/logo.jpeg'
 import Login from '@/pages/Login'
 import type { Role } from '@/pages/Login'
-import { restoreSession, api, setAccessToken, getImageUrl, type CurrentUser } from '@/lib/api'
+import { restoreSession, api, setAccessToken, getAccessToken, getImageUrl, type CurrentUser } from '@/lib/api'
+import { connectSocket, disconnectSocket, getSocket } from '@/lib/socket'
 import Explorar from '@/pages/Explorar'
 import Pedidos from '@/pages/Pedidos'
 import Perfil from '@/pages/Perfil'
@@ -48,6 +49,7 @@ const navItems: { icon: string; label: string; view: View }[] = [
 export default function App() {
   const [currentUser, setCurrentUser] = useState<CurrentUser | null>(null)
   const [isRestoringSession, setIsRestoringSession] = useState(true)
+  const [unreadCount, setUnreadCount] = useState(0)
 
   useEffect(() => {
     let isMounted = true
@@ -67,7 +69,39 @@ export default function App() {
     }
   }, [])
 
+  useEffect(() => {
+    if (currentUser) {
+      const token = getAccessToken()
+      if (token) {
+        const s = connectSocket(token)
+        s.on('disconnect', (reason) => {
+          if (currentUser) {
+            console.warn('Socket desconectado:', reason)
+          }
+        })
+      }
+      api.get<{ count: number }>('/api/notifications/unread-count')
+        .then(res => setUnreadCount(res.count))
+        .catch(() => {})
+    } else {
+      setUnreadCount(0)
+    }
+  }, [currentUser])
+
+  useEffect(() => {
+    const socket = getSocket()
+    if (!socket) return
+    const handleNewNotif = () => {
+      setUnreadCount(prev => prev + 1)
+    }
+    socket.on('notification:new', handleNewNotif)
+    return () => {
+      socket.off('notification:new', handleNewNotif)
+    }
+  }, [currentUser])
+
   const handleLogout = async () => {
+    disconnectSocket()
     try {
       await api.post('/api/auth/logout')
     } catch {
@@ -333,8 +367,13 @@ export default function App() {
               className="w-full bg-[#232427] border border-[#35373b] rounded-full py-2 pl-9 pr-4 text-sm text-white placeholder-[#9a9da3] focus:outline-none focus:border-[#5bc827] transition-colors" />
           </div>
 
-          <button onClick={() => navigateTo('notifications')} className="relative shrink-0 text-[#9a9da3] hover:text-white transition-colors mr-1">
+          <button onClick={() => { setUnreadCount(0); navigateTo('notifications') }} className="relative shrink-0 text-[#9a9da3] hover:text-white transition-colors mr-1">
             <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 17h5l-1.405-1.405A2.032 2.032 0 0118 14.158V11a6.002 6.002 0 00-4-5.659V5a2 2 0 10-4 0v.341C7.67 6.165 6 8.388 6 11v3.159c0 .538-.214 1.055-.595 1.436L4 17h5m6 0v1a3 3 0 11-6 0v-1m6 0H9" /></svg>
+            {unreadCount > 0 && (
+              <span className="absolute -top-1 -right-1 bg-[#5bc827] text-[#1a1b1e] text-[10px] font-bold rounded-full w-4 h-4 flex items-center justify-center">
+                {unreadCount > 9 ? '9+' : unreadCount}
+              </span>
+            )}
           </button>
           <button onClick={() => setCartOpen(true)} className="relative shrink-0 bg-[#5bc827] hover:bg-[#7ed944] text-[#1a1b1e] rounded-full p-2 transition-colors">
             <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 3h2l.4 2M7 13h10l4-8H5.4M7 13L5.4 5M7 13l-2.293 2.293c-.63.63-.184 1.707.707 1.707H17m0 0a2 2 0 100 4 2 2 0 000-4zm-8 2a2 2 0 11-4 0 2 2 0 014 0z" /></svg>

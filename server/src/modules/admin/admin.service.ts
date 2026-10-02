@@ -1,5 +1,6 @@
 import { prisma } from '../../db/prisma'
 import { AppError } from '../../utils/errors'
+import { emitToUser, createNotification } from '../../realtime/socket'
 
 // ------------------------------------------------------------
 // REPARTIDORES
@@ -40,7 +41,10 @@ export async function approveRepartidor(id: string) {
   if (user.status !== 'PENDIENTE') {
     throw new AppError('Esta solicitud ya fue procesada.', 409)
   }
-  return prisma.user.update({ where: { id }, data: { status: 'ACTIVO' } })
+  const updated = await prisma.user.update({ where: { id }, data: { status: 'ACTIVO' } })
+  emitToUser(id, 'account:updated', { status: 'ACTIVO' })
+  await createNotification(id, 'cuenta', '¡Cuenta aprobada!', 'Tu cuenta de repartidor fue aprobada. Ya puedes iniciar sesión y empezar a recibir pedidos.')
+  return updated
 }
 
 export async function rejectRepartidor(id: string) {
@@ -48,17 +52,25 @@ export async function rejectRepartidor(id: string) {
   if (user.status !== 'PENDIENTE') {
     throw new AppError('Esta solicitud ya fue procesada.', 409)
   }
-  return prisma.user.update({ where: { id }, data: { status: 'RECHAZADO' } })
+  const updated = await prisma.user.update({ where: { id }, data: { status: 'RECHAZADO' } })
+  await createNotification(id, 'cuenta', 'Solicitud rechazada', 'Tu solicitud para ser repartidor fue rechazada. Contacta a soporte para más información.')
+  return updated
 }
 
 export async function suspendRepartidor(id: string) {
   await getRepartidorOrThrow(id)
-  return prisma.user.update({ where: { id }, data: { status: 'SUSPENDIDO' } })
+  const updated = await prisma.user.update({ where: { id }, data: { status: 'SUSPENDIDO' } })
+  emitToUser(id, 'account:updated', { status: 'SUSPENDIDO' })
+  await createNotification(id, 'cuenta', 'Cuenta suspendida', 'Tu cuenta de repartidor fue suspendida. Contacta a soporte para más información.')
+  return updated
 }
 
 export async function reactivateRepartidor(id: string) {
   await getRepartidorOrThrow(id)
-  return prisma.user.update({ where: { id }, data: { status: 'ACTIVO' } })
+  const updated = await prisma.user.update({ where: { id }, data: { status: 'ACTIVO' } })
+  emitToUser(id, 'account:updated', { status: 'ACTIVO' })
+  await createNotification(id, 'cuenta', 'Cuenta reactivada', 'Tu cuenta de repartidor fue reactivada. Ya puedes volver a recibir pedidos.')
+  return updated
 }
 
 // ------------------------------------------------------------
@@ -83,12 +95,18 @@ async function getUsuarioOrThrow(id: string) {
 
 export async function suspendUsuario(id: string) {
   await getUsuarioOrThrow(id)
-  return prisma.user.update({ where: { id }, data: { status: 'SUSPENDIDO' } })
+  const updated = await prisma.user.update({ where: { id }, data: { status: 'SUSPENDIDO' } })
+  emitToUser(id, 'account:updated', { status: 'SUSPENDIDO' })
+  await createNotification(id, 'cuenta', 'Cuenta suspendida', 'Tu cuenta fue suspendida. Contacta a soporte para más información.')
+  return updated
 }
 
 export async function reactivateUsuario(id: string) {
   await getUsuarioOrThrow(id)
-  return prisma.user.update({ where: { id }, data: { status: 'ACTIVO' } })
+  const updated = await prisma.user.update({ where: { id }, data: { status: 'ACTIVO' } })
+  emitToUser(id, 'account:updated', { status: 'ACTIVO' })
+  await createNotification(id, 'cuenta', 'Cuenta reactivada', 'Tu cuenta fue reactivada.')
+  return updated
 }
 
 // ------------------------------------------------------------

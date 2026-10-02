@@ -14,6 +14,10 @@ export function setAccessToken(token: string | null) {
   accessToken = token
 }
 
+export function getAccessToken(): string | null {
+  return accessToken
+}
+
 export class ApiError extends Error {
   status: number
   constructor(message: string, status: number) {
