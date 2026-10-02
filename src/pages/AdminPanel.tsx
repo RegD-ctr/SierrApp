@@ -1,4 +1,5 @@
-import { useState } from 'react'
+import { useState, useEffect, useMemo } from 'react'
+import { api } from '@/lib/api'
 
 type Tab = 'dashboard' | 'usuarios' | 'locales' | 'repartidores' | 'pedidos' | 'config'
 type Timeframe = 'hoy' | 'semana' | 'mes' | 'anio' | 'personalizado'
@@ -82,6 +83,74 @@ function generarIngresosPorFecha(dia: number | null, mes: number, anio: number) 
   return { total: 0, efectivo: 0, tarjeta: 0, comisionUsuario: 0, comisionLocales: 0 }
 }
 
+interface AdminOrder {
+  id: string
+  estado: string
+  subtotal: number
+  envio: number
+  comisionUsuarioFija: number
+  comisionRepartidorFija: number
+  comisionLocalMonto: number
+  total: number
+  metodoPago: string
+  createdAt: string
+  restaurant?: { nombre: string }
+  user?: { nombre: string }
+}
+
+function isOrderInTimeframe(
+  createdAtStr: string,
+  timeframe: Timeframe,
+  fechaCustom: { dia: number | null; mes: number; anio: number }
+): boolean {
+  const d = new Date(createdAtStr)
+  const now = new Date()
+
+  if (timeframe === 'hoy') {
+    return (
+      d.getDate() === now.getDate() &&
+      d.getMonth() === now.getMonth() &&
+      d.getFullYear() === now.getFullYear()
+    )
+  }
+
+  if (timeframe === 'semana') {
+    const startOfWeek = new Date(now)
+    const dayOfWeek = (now.getDay() + 6) % 7 // Lunes = 0
+    startOfWeek.setDate(now.getDate() - dayOfWeek)
+    startOfWeek.setHours(0, 0, 0, 0)
+    return d >= startOfWeek && d <= now
+  }
+
+  if (timeframe === 'mes') {
+    return (
+      d.getMonth() === now.getMonth() &&
+      d.getFullYear() === now.getFullYear()
+    )
+  }
+
+  if (timeframe === 'anio') {
+    return d.getFullYear() === now.getFullYear()
+  }
+
+  if (timeframe === 'personalizado') {
+    if (fechaCustom.dia !== null) {
+      return (
+        d.getDate() === fechaCustom.dia &&
+        d.getMonth() === fechaCustom.mes &&
+        d.getFullYear() === fechaCustom.anio
+      )
+    } else {
+      return (
+        d.getMonth() === fechaCustom.mes &&
+        d.getFullYear() === fechaCustom.anio
+      )
+    }
+  }
+
+  return true
+}
+
 /**
  * Componente principal del Panel de Administración.
  *  * Gestiona la navegación entre las diferentes pestañas (dashboard, usuarios, locales, etc.)
@@ -109,7 +178,7 @@ export default function AdminPanel({ onLogout }: Props) {
     anio: new Date().getFullYear(),
   })
 interface UsuarioAdmin {
-  id: number
+  id: string
   name: string
   email: string
   status: string
@@ -150,11 +219,140 @@ interface RepartidorAdmin {
   gananciasTotales: number
 }
 
-  // Estados para el de usuario seleccionado
-  // TODO: reemplazar con datos reales del backend (GET /api/admin/users)
+  // Estados para usuarios
   const [usuarios, setUsuarios] = useState<UsuarioAdmin[]>([])
+  const [loadingUsuarios, setLoadingUsuarios] = useState<boolean>(false)
   const [selectedUsuario, setSelectedUsuario] = useState<UsuarioAdmin | null>(null)
-  const [showConfirmSuspend, setShowConfirmSuspend] = useState(false)
+  const [showConfirmSuspend, setShowConfirmSuspend] = useState<boolean>(false)
+  const [updatingUser, setUpdatingUser] = useState<boolean>(false)
+
+  // Estados para configuración de comisiones
+  const [loadingConfig, setLoadingConfig] = useState<boolean>(false)
+  const [savingConfig, setSavingConfig] = useState<boolean>(false)
+
+  // Estados para pedidos del dashboard
+  const [adminOrders, setAdminOrders] = useState<AdminOrder[]>([])
+  const [loadingOrders, setLoadingOrders] = useState<boolean>(false)
+
+  // Carga de usuarios desde el backend
+  const loadUsuarios = async () => {
+    try {
+      setLoadingUsuarios(true)
+      const data = await api.get<any[]>('/api/admin/usuarios')
+      const mapped: UsuarioAdmin[] = (data || []).map(u => ({
+        id: u.id,
+        name: u.nombre || u.name || 'Usuario',
+        email: u.email,
+        status: (u.status === 'ACTIVO' || u.status === 'Activo') ? 'Activo' : 'Suspendido',
+        telefono: u.telefono || 'Sin teléfono',
+        fechaRegistro: u.createdAt
+          ? new Date(u.createdAt).toLocaleDateString('es-MX', {
+              year: 'numeric',
+              month: 'short',
+              day: 'numeric',
+            })
+          : 'Reciente',
+        pedidosTotales: u.pedidosTotales ?? 0,
+        gastoTotal: u.gastoTotal ?? 0,
+        rating: u.rating ?? 5,
+        direccionPrincipal: u.direccionPrincipal || 'No especificada',
+      }))
+      setUsuarios(mapped)
+    } catch (err) {
+      console.error('Error al cargar usuarios:', err)
+    } finally {
+      setLoadingUsuarios(false)
+    }
+  }
+
+  // Acción de suspender/reactivar usuario
+  const handleToggleSuspendUsuario = async () => {
+    if (!selectedUsuario || updatingUser) return
+    setUpdatingUser(true)
+    try {
+      const isActivo = selectedUsuario.status === 'Activo'
+      const endpoint = isActivo
+        ? `/api/admin/usuarios/${selectedUsuario.id}/suspend`
+        : `/api/admin/usuarios/${selectedUsuario.id}/reactivate`
+      const updated = await api.patch<any>(endpoint)
+      const nuevoStatus = (updated.status === 'ACTIVO' || updated.status === 'Activo') ? 'Activo' : 'Suspendido'
+      setSelectedUsuario(prev => (prev ? { ...prev, status: nuevoStatus } : null))
+      setShowConfirmSuspend(false)
+      await loadUsuarios()
+    } catch (err) {
+      console.error('Error al suspender/reactivar usuario:', err)
+    } finally {
+      setUpdatingUser(false)
+    }
+  }
+
+  // Carga de comisiones desde el backend
+  const loadConfig = async () => {
+    try {
+      setLoadingConfig(true)
+      const config = await api.get<{
+        id: string
+        comisionLocalPorcentaje: number
+        comisionRepartidorFija: number
+        comisionUsuarioFija: number
+      }>('/api/admin/config')
+      setComisionLocal(config.comisionLocalPorcentaje)
+      setComisionRepartidor(config.comisionRepartidorFija)
+      setComisionUsuario(config.comisionUsuarioFija)
+    } catch (err) {
+      console.error('Error al cargar configuración:', err)
+    } finally {
+      setLoadingConfig(false)
+    }
+  }
+
+  // Guardado de comisiones hacia el backend
+  const handleSaveConfig = async () => {
+    if (savingConfig) return
+    setSavingConfig(true)
+    try {
+      const updated = await api.patch<{
+        id: string
+        comisionLocalPorcentaje: number
+        comisionRepartidorFija: number
+        comisionUsuarioFija: number
+      }>('/api/admin/config', {
+        comisionLocalPorcentaje: Number(comisionLocal),
+        comisionRepartidorFija: Number(comisionRepartidor),
+        comisionUsuarioFija: Number(comisionUsuario),
+      })
+      setComisionLocal(updated.comisionLocalPorcentaje)
+      setComisionRepartidor(updated.comisionRepartidorFija)
+      setComisionUsuario(updated.comisionUsuarioFija)
+      setShowToast(true)
+      setTimeout(() => setShowToast(false), 3000)
+    } catch (err) {
+      console.error('Error al guardar configuración:', err)
+    } finally {
+      setSavingConfig(false)
+    }
+  }
+
+  // Carga de pedidos para el dashboard
+  const loadAdminOrders = async () => {
+    try {
+      setLoadingOrders(true)
+      const data = await api.get<AdminOrder[]>('/api/orders/admin/all')
+      setAdminOrders(data || [])
+    } catch (err) {
+      console.error('Error al cargar pedidos para dashboard:', err)
+      setAdminOrders([])
+    } finally {
+      setLoadingOrders(false)
+    }
+  }
+
+  // Carga inicial al montar el componente
+  useEffect(() => {
+    loadUsuarios()
+    loadConfig()
+    loadAdminOrders()
+  }, [])
 
   // Estados para el local seleccionado
   // TODO: reemplazar con datos reales del backend (GET /api/admin/restaurants)
@@ -180,18 +378,56 @@ interface RepartidorAdmin {
   const [showConfirmSuspendRepartidor, setShowConfirmSuspendRepartidor] = useState(false)
   const [showConfirmRechazarRepartidor, setShowConfirmRechazarRepartidor] = useState<RepartidorAdmin | null>(null)
 
-    /**
-   * Maneja el evento de guardar la configuración de comisiones.
-   * Muestra una notificación temporal (toast) de éxito durante 3 segundos.
+  /**
+   * NOTA DE ARQUITECTURA / INTEGRACIÓN:
+   * Este cálculo se realiza temporalmente en el cliente a partir de GET /api/orders/admin/all.
+   * A futuro, con más volumen de pedidos, convendrá un endpoint de agregación dedicado en el
+   * backend (ej. GET /api/orders/admin/summary?desde=&hasta=).
+   * 
+   * DEFINICIÓN DE COMISIÓN TOTAL DE LA PLATAFORMA:
+   * - Solo se consideran pedidos con estado ENTREGADO (ingreso real liquidado).
+   * - comisionUsuarioFija: Cargo por servicio pagado por el usuario (INGRESO).
+   * - comisionLocalMonto: Comisión cobrada al local por venta (INGRESO).
+   * - comisionRepartidorFija: Es un EGRESO pagado al repartidor, NO un ingreso de la plataforma,
+   *   por lo que NO debe sumarse aquí.
    */
-  const handleSaveConfig = () => {
-    setShowToast(true)
-    setTimeout(() => setShowToast(false), 3000)
-  }
+  const currentIngresos = useMemo(() => {
+    const filtered = adminOrders.filter(o =>
+      isOrderInTimeframe(o.createdAt, selectedTimeframe, fechaSeleccionada)
+    )
 
-  const currentIngresos = selectedTimeframe === 'personalizado'
-    ? generarIngresosPorFecha(fechaSeleccionada.dia, fechaSeleccionada.mes, fechaSeleccionada.anio)
-    : DATA_INGRESOS[selectedTimeframe]
+    const delivered = filtered.filter(o => o.estado === 'ENTREGADO')
+
+    let total = 0
+    let efectivo = 0
+    let tarjeta = 0
+    let comisionUsuario = 0
+    let comisionLocales = 0
+
+    for (const o of delivered) {
+      const orderTotal = Number(o.total) || 0
+      total += orderTotal
+
+      const metodo = (o.metodoPago || '').toUpperCase()
+      if (metodo === 'EFECTIVO') {
+        efectivo += orderTotal
+      } else {
+        tarjeta += orderTotal
+      }
+
+      comisionUsuario += Number(o.comisionUsuarioFija) || 0
+      comisionLocales += Number(o.comisionLocalMonto) || 0
+    }
+
+    return {
+      total,
+      efectivo,
+      tarjeta,
+      comisionUsuario,
+      comisionLocales,
+      comisionPlataforma: comisionUsuario + comisionLocales,
+    }
+  }, [adminOrders, selectedTimeframe, fechaSeleccionada])
 
   const navItems: { id: Tab, label: string, icon: string }[] = [
     { id: 'dashboard', label: 'Dashboard', icon: '📊' },
@@ -300,15 +536,11 @@ interface RepartidorAdmin {
                   Cancelar
                 </button>
                 <button
-                  onClick={() => {
-                    const nuevoStatus = selectedUsuario.status === 'Activo' ? 'Suspendido' : 'Activo'
-                    setUsuarios(prev => prev.map(u => u.id === selectedUsuario.id ? { ...u, status: nuevoStatus } : u))
-                    setSelectedUsuario(prev => prev ? { ...prev, status: nuevoStatus } : null)
-                    setShowConfirmSuspend(false)
-                  }}
-                  className={`flex-1 py-3 rounded-xl font-bold transition-colors cursor-pointer ${selectedUsuario.status === 'Activo' ? 'bg-red-600 hover:bg-red-500 text-white' : 'bg-[#5bc827] hover:bg-[#7ed944] text-[#1a1b1e]'}`}
+                  disabled={updatingUser}
+                  onClick={handleToggleSuspendUsuario}
+                  className={`flex-1 py-3 rounded-xl font-bold transition-colors cursor-pointer disabled:opacity-50 ${selectedUsuario.status === 'Activo' ? 'bg-red-600 hover:bg-red-500 text-white' : 'bg-[#5bc827] hover:bg-[#7ed944] text-[#1a1b1e]'}`}
                 >
-                  Confirmar
+                  {updatingUser ? 'Procesando...' : 'Confirmar'}
                 </button>
               </div>
             </div>
@@ -762,7 +994,7 @@ interface RepartidorAdmin {
               />
               <StatCard 
                 label="Pedidos de Hoy" 
-                value="0" 
+                value={String(adminOrders.filter(o => isOrderInTimeframe(o.createdAt, 'hoy', fechaSeleccionada)).length)} 
                 icon="📦" 
                 onClick={() => setActiveTab('pedidos')} 
               />
@@ -1053,25 +1285,38 @@ interface RepartidorAdmin {
         {activeTab === 'usuarios' && (
           <div>
             <Title text="Usuarios" />
-            <div className="space-y-3">
-              {usuarios.map((u) => (
-                <div key={u.id} className="bg-[#232427] border border-[#35373b] hover:border-[#d9a05b]/50 p-4 rounded-xl flex items-center justify-between transition-colors">
-                  <div>
-                    <p className="font-bold text-sm text-white">{u.name}</p>
-                    <p className="text-[#9a9da3] text-xs">{u.email}</p>
+            {loadingUsuarios ? (
+              <div className="flex flex-col items-center justify-center py-12 text-center bg-[#232427] border border-[#35373b] rounded-xl">
+                <div className="w-8 h-8 border-2 border-[#d9a05b] border-t-transparent rounded-full animate-spin mb-3" />
+                <p className="text-[#9a9da3] text-sm">Cargando usuarios...</p>
+              </div>
+            ) : usuarios.length === 0 ? (
+              <div className="flex flex-col items-center justify-center py-12 text-center bg-[#232427] border border-[#35373b] rounded-xl">
+                <span className="text-4xl mb-2">👥</span>
+                <p className="text-white font-semibold text-sm">No hay usuarios registrados</p>
+                <p className="text-[#9a9da3] text-xs mt-1">Los clientes de la plataforma aparecerán aquí</p>
+              </div>
+            ) : (
+              <div className="space-y-3">
+                {usuarios.map((u) => (
+                  <div key={u.id} className="bg-[#232427] border border-[#35373b] hover:border-[#d9a05b]/50 p-4 rounded-xl flex items-center justify-between transition-colors">
+                    <div>
+                      <p className="font-bold text-sm text-white">{u.name}</p>
+                      <p className="text-[#9a9da3] text-xs">{u.email}</p>
+                    </div>
+                    <div className="flex items-center gap-3">
+                      <span className={`${u.status === 'Activo' ? 'text-[#5bc827] bg-[#5bc827]/10' : 'text-red-400 bg-red-400/10'} text-[10px] uppercase font-bold px-2 py-1 rounded`}>{u.status}</span>
+                      <button 
+                        onClick={() => setSelectedUsuario(u)}
+                        className="text-xs font-semibold bg-[#35373b] hover:bg-[#d9a05b] hover:text-[#1a1b1e] text-white px-3 py-1.5 rounded-lg transition-colors cursor-pointer"
+                      >
+                        Ver
+                      </button>
+                    </div>
                   </div>
-                  <div className="flex items-center gap-3">
-                    <span className={`${u.status === 'Activo' ? 'text-[#5bc827] bg-[#5bc827]/10' : 'text-red-400 bg-red-400/10'} text-[10px] uppercase font-bold px-2 py-1 rounded`}>{u.status}</span>
-                    <button 
-                      onClick={() => setSelectedUsuario(u)}
-                      className="text-xs font-semibold bg-[#35373b] hover:bg-[#d9a05b] hover:text-[#1a1b1e] text-white px-3 py-1.5 rounded-lg transition-colors cursor-pointer"
-                    >
-                      Ver
-                    </button>
-                  </div>
-                </div>
-              ))}
-            </div>
+                ))}
+              </div>
+            )}
           </div>
         )}
 
@@ -1244,9 +1489,10 @@ interface RepartidorAdmin {
 
               <button 
                 onClick={handleSaveConfig} 
-                className="w-full py-4 rounded-xl bg-gradient-to-r from-[#d9a05b] to-[#b38346] shadow-lg shadow-[#d9a05b]/20 text-[#1a1b1e] font-bold text-sm mt-5 transition-all hover:scale-[1.02] active:scale-[0.98]"
+                disabled={savingConfig || loadingConfig}
+                className="w-full py-4 rounded-xl bg-gradient-to-r from-[#d9a05b] to-[#b38346] shadow-lg shadow-[#d9a05b]/20 text-[#1a1b1e] font-bold text-sm mt-5 transition-all hover:scale-[1.02] active:scale-[0.98] disabled:opacity-50 cursor-pointer"
               >
-                {showToast ? 'Cambios guardados ✓' : 'Guardar cambios'}
+                {savingConfig ? 'Guardando cambios...' : showToast ? 'Cambios guardados ✓' : 'Guardar cambios'}
               </button>
             </div>
           </div>
