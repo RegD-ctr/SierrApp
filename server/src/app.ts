@@ -15,6 +15,7 @@ import { usersRouter } from './modules/users/users.routes'
 import { uploadsRouter } from './modules/uploads/uploads.routes'
 import { adminRouter } from './modules/admin/admin.routes'
 import { notificationsRouter } from './modules/notifications/notifications.routes'
+import { promotionsRouter } from './modules/promotions/promotions.routes'
 import { UPLOAD_DIR } from './modules/uploads/uploads.service'
 import { generalLimiter } from './middleware/rateLimiter'
 
@@ -66,6 +67,7 @@ app.use('/api/orders', ordersRouter)
 app.use('/api/users', usersRouter)
 app.use('/api/admin', adminRouter)
 app.use('/api/notifications', notificationsRouter)
+app.use('/api/promotions', promotionsRouter)
 app.use('/api/uploads', uploadsRouter)
 
 // Manejador de errores de último recurso — nunca dejes que un error

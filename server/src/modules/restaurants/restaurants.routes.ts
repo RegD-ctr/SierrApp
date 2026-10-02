@@ -32,5 +32,11 @@ restaurantsRouter.patch('/admin/:id/approve', requireAuth, requireRole('ADMIN'),
 restaurantsRouter.patch('/admin/:id/suspend', requireAuth, requireRole('ADMIN'), restaurantsController.suspend)
 restaurantsRouter.patch('/admin/:id/reactivate', requireAuth, requireRole('ADMIN'), restaurantsController.reactivate)
 
+// --- Promociones (rol LOCAL) ---
+restaurantsRouter.get('/me/promotions', requireAuth, requireRole('LOCAL'), restaurantsController.listMyPromotions)
+restaurantsRouter.post('/me/promotions', requireAuth, requireRole('LOCAL'), restaurantsController.createPromotion)
+restaurantsRouter.patch('/me/promotions/:id', requireAuth, requireRole('LOCAL'), restaurantsController.updatePromotion)
+restaurantsRouter.delete('/me/promotions/:id', requireAuth, requireRole('LOCAL'), restaurantsController.deletePromotion)
+
 // --- Público (sin login) — AL FINAL a propósito, ver nota de arriba ---
 restaurantsRouter.get('/:id', restaurantsController.getById)

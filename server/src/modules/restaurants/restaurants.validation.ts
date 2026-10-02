@@ -45,3 +45,16 @@ export const listRestaurantsQuerySchema = z.object({
 export const idParamSchema = z.object({
   id: z.string().uuid('ID inválido'),
 })
+
+export const createPromotionSchema = z.object({
+  titulo: z.string().trim().min(2).max(100),
+  descripcion: z.string().trim().max(300).optional(),
+  descuentoPorcentaje: z.number().min(0).max(100).optional(),
+  codigo: z.string().trim().max(30).optional(),
+  vigenciaInicio: z.coerce.date().optional(),
+  vigenciaFin: z.coerce.date().optional(),
+})
+
+export const updatePromotionSchema = createPromotionSchema.partial().extend({
+  activo: z.boolean().optional(),
+})

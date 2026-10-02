@@ -180,3 +180,54 @@ export async function suspendRestaurant(id: string) {
 export async function reactivateRestaurant(id: string) {
   return setRestaurantStatus(id, 'ACTIVO')
 }
+
+// ------------------------------------------------------------
+// PROMOCIONES (rol LOCAL)
+// ------------------------------------------------------------
+
+export async function createPromotion(userId: string, data: {
+  titulo: string
+  descripcion?: string
+  descuentoPorcentaje?: number
+  codigo?: string
+  vigenciaInicio?: Date
+  vigenciaFin?: Date
+}) {
+  const restaurant = await getOwnRestaurantOrThrow(userId)
+  return prisma.promotion.create({ data: { ...data, restaurantId: restaurant.id } })
+}
+
+export async function listMyPromotions(userId: string) {
+  const restaurant = await getOwnRestaurantOrThrow(userId)
+  return prisma.promotion.findMany({
+    where: { restaurantId: restaurant.id },
+    orderBy: { createdAt: 'desc' },
+  })
+}
+
+async function getOwnPromotionOrThrow(userId: string, promotionId: string) {
+  const restaurant = await getOwnRestaurantOrThrow(userId)
+  const promo = await prisma.promotion.findUnique({ where: { id: promotionId } })
+  if (!promo || promo.restaurantId !== restaurant.id) {
+    throw new AppError('Promoción no encontrada.', 404)
+  }
+  return promo
+}
+
+export async function updatePromotion(userId: string, promotionId: string, data: Partial<{
+  titulo: string
+  descripcion: string
+  descuentoPorcentaje: number
+  codigo: string
+  vigenciaInicio: Date
+  vigenciaFin: Date
+  activo: boolean
+}>) {
+  await getOwnPromotionOrThrow(userId, promotionId)
+  return prisma.promotion.update({ where: { id: promotionId }, data })
+}
+
+export async function deletePromotion(userId: string, promotionId: string) {
+  await getOwnPromotionOrThrow(userId, promotionId)
+  await prisma.promotion.delete({ where: { id: promotionId } })
+}

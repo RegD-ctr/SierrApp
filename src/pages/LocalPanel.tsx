@@ -7,7 +7,20 @@ import { playOrderAlertSound } from '@/lib/sound'
 
 type Role = 'usuario' | 'local' | 'repartidor'
 type Filter = 'todos' | 'disponibles' | 'agotados'
-type LocalView = 'dashboard' | 'platillos' | 'pedidos' | 'perfil'
+type LocalView = 'dashboard' | 'platillos' | 'pedidos' | 'promociones' | 'perfil'
+
+interface PromotionMe {
+  id: string
+  restaurantId: string
+  titulo: string
+  descripcion: string | null
+  descuentoPorcentaje: number | null
+  codigo: string | null
+  vigenciaInicio: string | null
+  vigenciaFin: string | null
+  activo: boolean
+  createdAt: string
+}
 
 interface Platillo {
   id: string
@@ -225,6 +238,113 @@ export default function LocalPanel({ onLogout }: Props) {
   const [profileError, setProfileError] = useState<string | null>(null)
   const coverRef = useRef<HTMLInputElement>(null)
 
+  // Gestión de Promociones
+  const [promociones, setPromociones] = useState<PromotionMe[]>([])
+  const [loadingPromos, setLoadingPromos] = useState(false)
+  const [promoError, setPromoError] = useState<string | null>(null)
+  const [showPromoModal, setShowPromoModal] = useState(false)
+  const [savingPromo, setSavingPromo] = useState(false)
+  const [confirmDeletePromoId, setConfirmDeletePromoId] = useState<string | null>(null)
+  const [deletingPromo, setDeletingPromo] = useState(false)
+  const [togglingPromoId, setTogglingPromoId] = useState<string | null>(null)
+  const [promoFilter, setPromoFilter] = useState<'todas' | 'activas' | 'inactivas'>('todas')
+
+  const initialPromoForm = {
+    titulo: '',
+    descripcion: '',
+    descuentoPorcentaje: '',
+    codigo: '',
+    vigenciaInicio: '',
+    vigenciaFin: '',
+  }
+  const [promoForm, setPromoForm] = useState(initialPromoForm)
+
+  const loadPromotions = async () => {
+    try {
+      setLoadingPromos(true)
+      setPromoError(null)
+      const data = await api.get<PromotionMe[]>('/api/restaurants/me/promotions')
+      setPromociones(data)
+    } catch (err: any) {
+      setPromoError(err?.message || 'Error al cargar las promociones.')
+    } finally {
+      setLoadingPromos(false)
+    }
+  }
+
+  const handleSavePromo = async (e: React.FormEvent) => {
+    e.preventDefault()
+    setPromoError(null)
+    if (!promoForm.titulo.trim()) {
+      setPromoError('El título de la promoción es obligatorio.')
+      return
+    }
+
+    const payload: any = {
+      titulo: promoForm.titulo.trim(),
+    }
+    if (promoForm.descripcion.trim()) {
+      payload.descripcion = promoForm.descripcion.trim()
+    }
+    if (promoForm.descuentoPorcentaje.trim()) {
+      const num = parseFloat(promoForm.descuentoPorcentaje)
+      if (isNaN(num) || num < 0 || num > 100) {
+        setPromoError('El porcentaje de descuento debe estar entre 0 y 100.')
+        return
+      }
+      payload.descuentoPorcentaje = num
+    }
+    if (promoForm.codigo.trim()) {
+      payload.codigo = promoForm.codigo.trim().toUpperCase()
+    }
+    if (promoForm.vigenciaInicio) {
+      payload.vigenciaInicio = new Date(promoForm.vigenciaInicio + 'T00:00:00')
+    }
+    if (promoForm.vigenciaFin) {
+      payload.vigenciaFin = new Date(promoForm.vigenciaFin + 'T23:59:59')
+    }
+
+    setSavingPromo(true)
+    try {
+      const created = await api.post<PromotionMe>('/api/restaurants/me/promotions', payload)
+      setPromociones(prev => [created, ...prev])
+      setShowPromoModal(false)
+      setPromoForm(initialPromoForm)
+    } catch (err: any) {
+      setPromoError(err?.message || 'Error al guardar la promoción.')
+    } finally {
+      setSavingPromo(false)
+    }
+  }
+
+  const handleTogglePromo = async (id: string, activoActual: boolean) => {
+    if (togglingPromoId) return
+    setTogglingPromoId(id)
+    try {
+      const updated = await api.patch<PromotionMe>(`/api/restaurants/me/promotions/${id}`, {
+        activo: !activoActual,
+      })
+      setPromociones(prev => prev.map(p => p.id === id ? { ...p, activo: updated.activo } : p))
+    } catch (err: any) {
+      alert(err?.message || 'Error al cambiar estado de la promoción.')
+    } finally {
+      setTogglingPromoId(null)
+    }
+  }
+
+  const handleDeletePromo = async (id: string) => {
+    setDeletingPromo(true)
+    try {
+      await api.delete(`/api/restaurants/me/promotions/${id}`)
+      setPromociones(prev => prev.filter(p => p.id !== id))
+      setConfirmDeletePromoId(null)
+    } catch (err: any) {
+      alert(err?.message || 'Error al eliminar la promoción.')
+    } finally {
+      setDeletingPromo(false)
+    }
+  }
+
   // Carga inicial del restaurante propio y de pedidos
   const loadRestaurant = async () => {
     try {
@@ -269,9 +389,16 @@ export default function LocalPanel({ onLogout }: Props) {
   useEffect(() => {
     loadRestaurant()
     loadOrders()
+    loadPromotions()
     const timer = setInterval(loadOrders, 10000)
     return () => clearInterval(timer)
   }, [])
+
+  useEffect(() => {
+    if (view === 'promociones') {
+      loadPromotions()
+    }
+  }, [view])
 
   useEffect(() => {
     const socket = getSocket()
@@ -555,6 +682,7 @@ export default function LocalPanel({ onLogout }: Props) {
     { icon: '📊', label: 'Panel', view: 'dashboard' },
     { icon: '🍽️', label: 'Platillos', view: 'platillos' },
     { icon: '📦', label: 'Pedidos', view: 'pedidos' },
+    { icon: '🏷️', label: 'Promos', view: 'promociones' },
     { icon: '👤', label: 'Perfil', view: 'perfil' },
   ]
 
@@ -1152,6 +1280,139 @@ export default function LocalPanel({ onLogout }: Props) {
           </div>
         )}
 
+        {/* PROMOCIONES */}
+        {view === 'promociones' && (
+          <div className="pt-5">
+            <div className="flex items-center justify-between mb-5">
+              <h1 className="text-3xl font-bold text-white uppercase" style={{ fontFamily: 'Barlow Condensed, sans-serif' }}>
+                Mis Promociones
+              </h1>
+              <button
+                onClick={() => {
+                  setPromoError(null)
+                  setPromoForm(initialPromoForm)
+                  setShowPromoModal(true)
+                }}
+                className="bg-[#5bc827] hover:bg-[#7ed944] text-[#1a1b1e] font-bold text-sm px-4 py-2 rounded-full flex items-center gap-1.5 transition-all hover:scale-105 active:scale-95 cursor-pointer"
+              >
+                <span className="text-base leading-none">+</span> Nueva promoción
+              </button>
+            </div>
+
+            {/* Filters */}
+            <div className="flex bg-[#232427] rounded-full p-1 w-fit gap-1 mb-5">
+              {(['todas', 'activas', 'inactivas'] as const).map(f => (
+                <button
+                  key={f}
+                  onClick={() => setPromoFilter(f)}
+                  className={`px-4 py-1.5 rounded-full text-xs font-bold capitalize transition-all cursor-pointer ${
+                    promoFilter === f ? 'bg-[#5bc827] text-[#1a1b1e]' : 'text-[#9a9da3] hover:text-white'
+                  }`}
+                >
+                  {f.charAt(0).toUpperCase() + f.slice(1)}
+                  <span className="ml-1 opacity-70">
+                    ({f === 'todas' ? promociones.length : f === 'activas' ? promociones.filter(p => p.activo).length : promociones.filter(p => !p.activo).length})
+                  </span>
+                </button>
+              ))}
+            </div>
+
+            {loadingPromos && promociones.length === 0 ? (
+              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+                {[1, 2, 3].map(n => (
+                  <div key={n} className="animate-pulse bg-[#232427] border border-[#35373b] rounded-2xl h-44 p-4" />
+                ))}
+              </div>
+            ) : promociones.filter(p => promoFilter === 'todas' ? true : promoFilter === 'activas' ? p.activo : !p.activo).length === 0 ? (
+              <div className="flex flex-col items-center justify-center py-16 text-center">
+                <span className="text-5xl mb-3">🏷️</span>
+                <p className="text-white font-semibold">Sin promociones {promoFilter !== 'todas' ? promoFilter : ''}</p>
+                <p className="text-[#9a9da3] text-sm mt-1">
+                  {promoFilter === 'todas' ? 'Crea tu primera promoción para atraer más clientes.' : 'Cambia el filtro para ver otras promociones.'}
+                </p>
+              </div>
+            ) : (
+              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+                {promociones
+                  .filter(p => promoFilter === 'todas' ? true : promoFilter === 'activas' ? p.activo : !p.activo)
+                  .map(promo => (
+                    <div
+                      key={promo.id}
+                      className={`bg-[#232427] border rounded-2xl p-4 flex flex-col justify-between transition-all ${
+                        promo.activo ? 'border-[#35373b] hover:border-[#5bc827]/40' : 'border-red-900/50 opacity-70'
+                      }`}
+                    >
+                      <div>
+                        <div className="flex items-start justify-between gap-2 mb-2">
+                          <div className="flex items-center gap-1.5 flex-wrap">
+                            {promo.descuentoPorcentaje != null && promo.descuentoPorcentaje > 0 && (
+                              <span className="bg-[#5bc827] text-[#1a1b1e] text-[10px] font-bold px-2 py-0.5 rounded-full uppercase tracking-wide">
+                                -{promo.descuentoPorcentaje}%
+                              </span>
+                            )}
+                            {promo.codigo && (
+                              <span className="bg-[#1a1b1e] text-[#5bc827] border border-[#5bc827]/40 text-[10px] font-mono font-bold px-2 py-0.5 rounded-full">
+                                🏷️ {promo.codigo}
+                              </span>
+                            )}
+                          </div>
+                          <span
+                            className={`text-[10px] font-bold px-2 py-0.5 rounded-full shrink-0 ${
+                              promo.activo
+                                ? 'bg-[#5bc827]/20 text-[#5bc827] border border-[#5bc827]/30'
+                                : 'bg-red-900/30 text-red-400 border border-red-800/40'
+                            }`}
+                          >
+                            {promo.activo ? '● Activa' : '● Inactiva'}
+                          </span>
+                        </div>
+
+                        <h3 className="font-bold text-base text-white leading-snug">{promo.titulo}</h3>
+                        {promo.descripcion && (
+                          <p className="text-[#9a9da3] text-xs mt-1 line-clamp-2">{promo.descripcion}</p>
+                        )}
+
+                        {(promo.vigenciaInicio || promo.vigenciaFin) && (
+                          <div className="mt-3 pt-2 border-t border-[#35373b]/60 text-[11px] text-[#9a9da3] space-y-0.5">
+                            {promo.vigenciaInicio && (
+                              <p>📅 Inicio: {new Date(promo.vigenciaInicio).toLocaleDateString('es-MX')}</p>
+                            )}
+                            {promo.vigenciaFin && (
+                              <p>⏰ Vence: {new Date(promo.vigenciaFin).toLocaleDateString('es-MX')}</p>
+                            )}
+                          </div>
+                        )}
+                      </div>
+
+                      <div className="flex items-center gap-2 mt-4 pt-3 border-t border-[#35373b]">
+                        <button
+                          type="button"
+                          disabled={togglingPromoId === promo.id}
+                          onClick={() => handleTogglePromo(promo.id, promo.activo)}
+                          className={`flex-1 py-1.5 rounded-lg text-xs font-bold transition-colors cursor-pointer disabled:opacity-50 ${
+                            promo.activo
+                              ? 'bg-red-900/30 border border-red-800/50 text-red-400 hover:bg-red-900/50'
+                              : 'bg-[#5bc827]/20 border border-[#5bc827]/40 text-[#5bc827] hover:bg-[#5bc827]/30'
+                          }`}
+                        >
+                          {promo.activo ? 'Desactivar' : '✅ Activar'}
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() => setConfirmDeletePromoId(promo.id)}
+                          title="Eliminar promoción"
+                          className="px-2.5 py-1.5 rounded-lg border border-red-900/40 text-red-400 hover:bg-red-900/30 transition-colors cursor-pointer text-xs"
+                        >
+                          🗑️
+                        </button>
+                      </div>
+                    </div>
+                  ))}
+              </div>
+            )}
+          </div>
+        )}
+
         {/* PERFIL */}
         {view === 'perfil' && (
           <div className="pt-5">
@@ -1545,6 +1806,152 @@ export default function LocalPanel({ onLogout }: Props) {
                   {savingProfile ? 'Guardando...' : 'Guardar cambios'}
                 </button>
               </div>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Modal Nueva Promoción */}
+      {showPromoModal && (
+        <div className="fixed inset-0 bg-black/70 z-50 flex items-end sm:items-center justify-center p-0 sm:p-4">
+          <div className="bg-[#1a1b1e] border border-[#35373b] rounded-t-3xl sm:rounded-2xl w-full sm:max-w-md max-h-[90vh] overflow-y-auto">
+            <div className="px-5 pt-5 pb-2 flex items-center justify-between border-b border-[#35373b]">
+              <h2 className="text-xl font-bold text-white uppercase" style={{ fontFamily: 'Barlow Condensed, sans-serif' }}>
+                Nueva Promoción
+              </h2>
+              <button
+                onClick={() => setShowPromoModal(false)}
+                className="text-[#9a9da3] hover:text-white transition-colors text-xl cursor-pointer"
+              >
+                ✕
+              </button>
+            </div>
+
+            <form onSubmit={handleSavePromo} className="px-5 py-4 space-y-3">
+              {promoError && (
+                <div className="p-3 rounded-xl bg-red-900/30 border border-red-800 text-red-300 text-xs">
+                  {promoError}
+                </div>
+              )}
+
+              <div>
+                <label className="text-[#c4c6ca] text-xs font-semibold block mb-1">
+                  Título de la promoción <span className="text-red-400">*</span>
+                </label>
+                <input
+                  type="text"
+                  required
+                  value={promoForm.titulo}
+                  onChange={e => setPromoForm(f => ({ ...f, titulo: e.target.value }))}
+                  placeholder="Ej. 2x1 en tacos, 20% de descuento en bebidas"
+                  className="w-full bg-[#232427] border border-[#35373b] focus:border-[#5bc827] rounded-xl px-4 py-2.5 text-sm text-white placeholder-[#9a9da3] outline-none transition-colors"
+                />
+              </div>
+
+              <div>
+                <label className="text-[#c4c6ca] text-xs font-semibold block mb-1">Descripción (opcional)</label>
+                <textarea
+                  value={promoForm.descripcion}
+                  onChange={e => setPromoForm(f => ({ ...f, descripcion: e.target.value }))}
+                  placeholder="Detalles de la promoción, términos o restricciones..."
+                  rows={2}
+                  className="w-full bg-[#232427] border border-[#35373b] focus:border-[#5bc827] rounded-xl px-4 py-2.5 text-sm text-white placeholder-[#9a9da3] outline-none transition-colors resize-none"
+                />
+              </div>
+
+              <div className="grid grid-cols-2 gap-3">
+                <div>
+                  <label className="text-[#c4c6ca] text-xs font-semibold block mb-1">% de descuento</label>
+                  <input
+                    type="number"
+                    min="0"
+                    max="100"
+                    step="1"
+                    value={promoForm.descuentoPorcentaje}
+                    onChange={e => setPromoForm(f => ({ ...f, descuentoPorcentaje: e.target.value }))}
+                    placeholder="20"
+                    className="w-full bg-[#232427] border border-[#35373b] focus:border-[#5bc827] rounded-xl px-4 py-2.5 text-sm text-white placeholder-[#9a9da3] outline-none transition-colors"
+                  />
+                </div>
+
+                <div>
+                  <label className="text-[#c4c6ca] text-xs font-semibold block mb-1">Código (opcional)</label>
+                  <input
+                    type="text"
+                    value={promoForm.codigo}
+                    onChange={e => setPromoForm(f => ({ ...f, codigo: e.target.value.toUpperCase() }))}
+                    placeholder="VERANO20"
+                    className="w-full bg-[#232427] border border-[#35373b] focus:border-[#5bc827] rounded-xl px-4 py-2.5 text-sm text-white placeholder-[#9a9da3] outline-none transition-colors uppercase"
+                  />
+                </div>
+              </div>
+
+              <div className="grid grid-cols-2 gap-3">
+                <div>
+                  <label className="text-[#c4c6ca] text-xs font-semibold block mb-1">Vigencia inicio (opcional)</label>
+                  <input
+                    type="date"
+                    value={promoForm.vigenciaInicio}
+                    onChange={e => setPromoForm(f => ({ ...f, vigenciaInicio: e.target.value }))}
+                    className="w-full bg-[#232427] border border-[#35373b] focus:border-[#5bc827] rounded-xl px-3 py-2 text-xs text-white outline-none transition-colors cursor-pointer"
+                  />
+                </div>
+
+                <div>
+                  <label className="text-[#c4c6ca] text-xs font-semibold block mb-1">Vigencia fin (opcional)</label>
+                  <input
+                    type="date"
+                    value={promoForm.vigenciaFin}
+                    onChange={e => setPromoForm(f => ({ ...f, vigenciaFin: e.target.value }))}
+                    className="w-full bg-[#232427] border border-[#35373b] focus:border-[#5bc827] rounded-xl px-3 py-2 text-xs text-white outline-none transition-colors cursor-pointer"
+                  />
+                </div>
+              </div>
+
+              <div className="flex gap-3 pt-3">
+                <button
+                  type="button"
+                  disabled={savingPromo}
+                  onClick={() => setShowPromoModal(false)}
+                  className="flex-1 py-3 rounded-xl border border-[#35373b] text-[#9a9da3] text-sm font-semibold hover:border-[#5bc827]/50 hover:text-white transition-colors cursor-pointer disabled:opacity-50"
+                >
+                  Cancelar
+                </button>
+                <button
+                  type="submit"
+                  disabled={savingPromo}
+                  className="flex-1 py-3 rounded-xl bg-[#5bc827] hover:bg-[#7ed944] text-[#1a1b1e] font-bold text-sm transition-all hover:scale-[1.02] active:scale-[0.98] cursor-pointer disabled:opacity-50 disabled:scale-100"
+                >
+                  {savingPromo ? 'Guardando...' : 'Crear promoción'}
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
+
+      {/* Delete promo confirmation */}
+      {confirmDeletePromoId !== null && (
+        <div className="fixed inset-0 bg-black/70 z-50 flex items-center justify-center p-4">
+          <div className="bg-[#1a1b1e] border border-[#35373b] rounded-2xl w-full max-w-sm p-6 text-center">
+            <span className="text-4xl block mb-3">🗑️</span>
+            <h3 className="text-white font-bold text-lg mb-1">¿Eliminar esta promoción?</h3>
+            <p className="text-[#9a9da3] text-sm mb-5">Esta acción no se puede deshacer. Se eliminará de la plataforma permanentemente.</p>
+            <div className="flex gap-3">
+              <button
+                disabled={deletingPromo}
+                onClick={() => setConfirmDeletePromoId(null)}
+                className="flex-1 py-2.5 rounded-xl border border-[#35373b] text-[#9a9da3] text-sm font-semibold hover:text-white transition-colors cursor-pointer disabled:opacity-50"
+              >
+                Cancelar
+              </button>
+              <button
+                disabled={deletingPromo}
+                onClick={() => handleDeletePromo(confirmDeletePromoId)}
+                className="flex-1 py-2.5 rounded-xl bg-red-600 hover:bg-red-500 text-white text-sm font-bold transition-colors cursor-pointer disabled:opacity-50"
+              >
+                {deletingPromo ? 'Eliminando...' : 'Sí, eliminar'}
+              </button>
             </div>
           </div>
         </div>

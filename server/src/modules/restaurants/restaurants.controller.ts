@@ -10,6 +10,8 @@ import {
   updateDishSchema,
   listRestaurantsQuerySchema,
   idParamSchema,
+  createPromotionSchema,
+  updatePromotionSchema,
 } from './restaurants.validation'
 
 function respondError(res: Response, err: unknown) {
@@ -146,6 +148,43 @@ export async function reactivate(req: Request, res: Response) {
     const { id } = idParamSchema.parse(req.params)
     const restaurant = await restaurantsService.reactivateRestaurant(id)
     res.json(restaurant)
+  } catch (err) {
+    respondError(res, err)
+  }
+}
+
+export async function listMyPromotions(req: Request, res: Response) {
+  try {
+    res.json(await restaurantsService.listMyPromotions(req.user!.userId))
+  } catch (err) {
+    respondError(res, err)
+  }
+}
+
+export async function createPromotion(req: Request, res: Response) {
+  try {
+    const data = createPromotionSchema.parse(req.body)
+    res.status(201).json(await restaurantsService.createPromotion(req.user!.userId, data))
+  } catch (err) {
+    respondError(res, err)
+  }
+}
+
+export async function updatePromotion(req: Request, res: Response) {
+  try {
+    const { id } = idParamSchema.parse(req.params)
+    const data = updatePromotionSchema.parse(req.body)
+    res.json(await restaurantsService.updatePromotion(req.user!.userId, id, data))
+  } catch (err) {
+    respondError(res, err)
+  }
+}
+
+export async function deletePromotion(req: Request, res: Response) {
+  try {
+    const { id } = idParamSchema.parse(req.params)
+    await restaurantsService.deletePromotion(req.user!.userId, id)
+    res.status(204).send()
   } catch (err) {
     respondError(res, err)
   }
