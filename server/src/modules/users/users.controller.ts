@@ -1,7 +1,7 @@
 import type { Request, Response } from 'express'
 import * as usersService from './users.service'
 import { handleServiceError } from '../../utils/errors'
-import { createAddressSchema, updateAddressSchema, idParamSchema } from './users.validation'
+import { createAddressSchema, updateAddressSchema, idParamSchema, restaurantIdParamSchema } from './users.validation'
 
 function respondError(res: Response, err: unknown) {
   const { status, message } = handleServiceError(err)
@@ -53,6 +53,23 @@ export async function deleteAddress(req: Request, res: Response) {
     const { id } = idParamSchema.parse(req.params)
     await usersService.deleteAddress(req.user!.userId, id)
     res.status(204).send()
+  } catch (err) {
+    respondError(res, err)
+  }
+}
+
+export async function listFavorites(req: Request, res: Response) {
+  try {
+    res.json(await usersService.listFavorites(req.user!.userId))
+  } catch (err) {
+    respondError(res, err)
+  }
+}
+
+export async function toggleFavorite(req: Request, res: Response) {
+  try {
+    const { restaurantId } = restaurantIdParamSchema.parse(req.params)
+    res.json(await usersService.toggleFavorite(req.user!.userId, restaurantId))
   } catch (err) {
     respondError(res, err)
   }

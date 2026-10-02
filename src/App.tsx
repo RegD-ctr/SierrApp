@@ -479,6 +479,8 @@ function HomeView({
   const [restaurants, setRestaurants] = useState<Restaurant[]>([])
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
+  const [favoriteIds, setFavoriteIds] = useState<Set<string>>(new Set())
+  const [togglingId, setTogglingId] = useState<string | null>(null)
 
   const loadRestaurants = async () => {
     try {
@@ -493,9 +495,46 @@ function HomeView({
     }
   }
 
+  const loadFavorites = async () => {
+    const token = localStorage.getItem('sierra_token')
+    if (!token) return
+    try {
+      const favs = await api.get<Array<{ id: string }>>('/api/users/me/favorites')
+      setFavoriteIds(new Set(favs.map(f => f.id)))
+    } catch {
+      // Silencioso si falla
+    }
+  }
+
   useEffect(() => {
     loadRestaurants()
+    loadFavorites()
   }, [])
+
+  const handleToggleFavorite = async (restaurantId: string) => {
+    const token = localStorage.getItem('sierra_token')
+    if (!token) return
+    if (togglingId) return
+    setTogglingId(restaurantId)
+    try {
+      const res = await api.patch<{ restaurantId: string; isFavorite: boolean }>(
+        `/api/users/me/favorites/${restaurantId}/toggle`
+      )
+      setFavoriteIds(prev => {
+        const next = new Set(prev)
+        if (res.isFavorite) {
+          next.add(restaurantId)
+        } else {
+          next.delete(restaurantId)
+        }
+        return next
+      })
+    } catch (err) {
+      console.error('Error al cambiar favorito:', err)
+    } finally {
+      setTogglingId(null)
+    }
+  }
 
   const filteredRestaurants = restaurants.filter(r => {
     if (activeCategory === 'Comida') return true
@@ -605,7 +644,14 @@ function HomeView({
         ) : (
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
             {filteredRestaurants.map(r => (
-              <RestaurantCard key={r.id} r={r} onClick={() => onSelectRestaurant(r)} />
+              <RestaurantCard
+                key={r.id}
+                r={r}
+                onClick={() => onSelectRestaurant(r)}
+                isFavorite={favoriteIds.has(String(r.id))}
+                isToggling={togglingId === String(r.id)}
+                onToggleFavorite={() => handleToggleFavorite(String(r.id))}
+              />
             ))}
           </div>
         )}
@@ -618,10 +664,22 @@ function HomeView({
  * Componente que representa la tarjeta de un restaurante.
  * Muestra la imagen, información básica (tiempo, costo de envío) y permite marcar como favorito.
  * 
- * @param {Object} props - Propiedades: r (información del restaurante) y onClick (acción al presionar la tarjeta).
+ * @param {Object} props - Propiedades: r (información del restaurante), onClick (acción al presionar la tarjeta),
+ * isFavorite (si está en favoritos), isToggling (si está en proceso de actualización), onToggleFavorite.
  */
-function RestaurantCard({ r, onClick }: { r: Restaurant; onClick: () => void }) {
-  const [liked, setLiked] = useState(false)
+function RestaurantCard({
+  r,
+  onClick,
+  isFavorite = false,
+  isToggling = false,
+  onToggleFavorite,
+}: {
+  r: Restaurant
+  onClick: () => void
+  isFavorite?: boolean
+  isToggling?: boolean
+  onToggleFavorite?: () => void
+}) {
   const nombre = r.nombre || r.name || 'Restaurante'
   const categoria = r.categoria || r.category || ''
   const tiempoEntrega = r.tiempoEntrega || r.time || '—'
@@ -655,9 +713,22 @@ function RestaurantCard({ r, onClick }: { r: Restaurant; onClick: () => void }) 
             <span className="bg-[#1a1b1e]/90 text-red-400 text-xs font-bold px-3 py-1 rounded-full border border-red-900">Cerrado</span>
           </div>
         )}
-        <button onClick={e => { e.stopPropagation(); setLiked(l => !l) }}
-          className="absolute top-2 right-2 bg-[#1a1b1e]/60 rounded-full p-1.5 hover:bg-[#1a1b1e]/80 transition-colors cursor-pointer">
-          <svg className={`w-3.5 h-3.5 ${liked ? 'text-[#5bc827] fill-[#5bc827]' : 'text-white'}`} fill="none" stroke="currentColor" viewBox="0 0 24 24">
+        <button
+          type="button"
+          onClick={e => {
+            e.stopPropagation()
+            onToggleFavorite?.()
+          }}
+          disabled={isToggling}
+          aria-label={isFavorite ? 'Quitar de favoritos' : 'Agregar a favoritos'}
+          className="absolute top-2 right-2 bg-[#1a1b1e]/60 rounded-full p-1.5 hover:bg-[#1a1b1e]/80 transition-colors cursor-pointer disabled:opacity-50"
+        >
+          <svg
+            className={`w-3.5 h-3.5 ${isFavorite ? 'text-[#5bc827] fill-[#5bc827]' : 'text-white'}`}
+            fill="none"
+            stroke="currentColor"
+            viewBox="0 0 24 24"
+          >
             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4.318 6.318a4.5 4.5 0 000 6.364L12 20.364l7.682-7.682a4.5 4.5 0 00-6.364-6.364L12 7.636l-1.318-1.318a4.5 4.5 0 00-6.364 0z" />
           </svg>
         </button>

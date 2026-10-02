@@ -21,6 +21,8 @@ export default function RestaurantPage({ restaurant, onBack, onAddToCart }: Prop
   const [fullRestaurant, setFullRestaurant] = useState<Restaurant>(restaurant)
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
+  const [isFavorite, setIsFavorite] = useState(false)
+  const [togglingFav, setTogglingFav] = useState(false)
 
   const fetchDetail = async () => {
     try {
@@ -37,7 +39,32 @@ export default function RestaurantPage({ restaurant, onBack, onAddToCart }: Prop
 
   useEffect(() => {
     fetchDetail()
+    const token = localStorage.getItem('sierra_token')
+    if (token) {
+      api.get<Array<{ id: string }>>('/api/users/me/favorites')
+        .then(favs => {
+          setIsFavorite(favs.some(f => f.id === restaurant.id))
+        })
+        .catch(() => {})
+    }
   }, [restaurant.id])
+
+  const handleToggleFav = async () => {
+    const token = localStorage.getItem('sierra_token')
+    if (!token) return
+    if (togglingFav) return
+    setTogglingFav(true)
+    try {
+      const res = await api.patch<{ restaurantId: string; isFavorite: boolean }>(
+        `/api/users/me/favorites/${restaurant.id}/toggle`
+      )
+      setIsFavorite(res.isFavorite)
+    } catch (err) {
+      console.error('Error al cambiar favorito:', err)
+    } finally {
+      setTogglingFav(false)
+    }
+  }
 
   const currentRest = fullRestaurant || restaurant
   const nombre = currentRest.nombre || currentRest.name || 'Restaurante'
@@ -96,6 +123,20 @@ export default function RestaurantPage({ restaurant, onBack, onAddToCart }: Prop
         >
           <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" />
+          </svg>
+        </button>
+
+        {/* Favorite button */}
+        <button
+          onClick={handleToggleFav}
+          disabled={togglingFav}
+          aria-label={isFavorite ? 'Quitar de favoritos' : 'Agregar a favoritos'}
+          className={`absolute top-4 right-4 bg-[#1a1b1e]/70 hover:bg-[#1a1b1e] backdrop-blur-sm border border-[#35373b] rounded-full p-2 transition-colors cursor-pointer ${
+            isFavorite ? 'text-[#5bc827]' : 'text-[#9a9da3] hover:text-white'
+          }`}
+        >
+          <svg className={`w-5 h-5 ${isFavorite ? 'text-[#5bc827] fill-[#5bc827]' : 'text-white'}`} fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4.318 6.318a4.5 4.5 0 000 6.364L12 20.364l7.682-7.682a4.5 4.5 0 00-6.364-6.364L12 7.636l-1.318-1.318a4.5 4.5 0 00-6.364 0z" />
           </svg>
         </button>
       </div>

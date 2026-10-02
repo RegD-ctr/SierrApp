@@ -21,3 +21,7 @@ export const updateAddressSchema = createAddressSchema.omit({ predeterminada: tr
 export const idParamSchema = z.object({
   id: z.string().uuid('ID inválido'),
 })
+
+export const restaurantIdParamSchema = z.object({
+  restaurantId: z.string().uuid('ID de restaurante inválido'),
+})

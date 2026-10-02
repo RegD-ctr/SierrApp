@@ -103,3 +103,35 @@ export async function deleteAddress(userId: string, addressId: string) {
     }
   })
 }
+
+// ------------------------------------------------------------
+// FAVORITOS
+// ------------------------------------------------------------
+
+export async function listFavorites(userId: string) {
+  const favorites = await prisma.favorite.findMany({
+    where: { userId },
+    orderBy: { createdAt: 'desc' },
+    include: { restaurant: true },
+  })
+  return favorites.map(f => f.restaurant)
+}
+
+export async function toggleFavorite(userId: string, restaurantId: string) {
+  const restaurant = await prisma.restaurant.findUnique({ where: { id: restaurantId } })
+  if (!restaurant) {
+    throw new AppError('Restaurante no encontrado.', 404)
+  }
+
+  const existing = await prisma.favorite.findUnique({
+    where: { userId_restaurantId: { userId, restaurantId } },
+  })
+
+  if (existing) {
+    await prisma.favorite.delete({ where: { id: existing.id } })
+    return { restaurantId, isFavorite: false }
+  }
+
+  await prisma.favorite.create({ data: { userId, restaurantId } })
+  return { restaurantId, isFavorite: true }
+}
