@@ -1,7 +1,8 @@
-import { useState, useEffect, useMemo } from 'react'
+import { useState, useEffect, useMemo, useRef } from 'react'
 import { api, getImageUrl } from '@/lib/api'
+import { getSocket } from '@/lib/socket'
 
-type Tab = 'dashboard' | 'usuarios' | 'locales' | 'repartidores' | 'pedidos' | 'config'
+type Tab = 'dashboard' | 'usuarios' | 'locales' | 'repartidores' | 'pedidos' | 'soporte' | 'config'
 type Timeframe = 'hoy' | 'semana' | 'mes' | 'anio' | 'personalizado'
 type LocalTimeframe = 'hoy' | 'semana' | 'mes' | 'anio' | 'personalizado'
 
@@ -219,6 +220,44 @@ interface RepartidorAdmin {
   gananciasTotales: number
   fotoUrl?: string | null
 }
+
+interface SupportUser {
+  id: string
+  nombre: string
+  email: string
+  rol: string
+}
+
+interface SupportConversation {
+  user: SupportUser
+  lastMessage: {
+    id: string
+    mensaje: string
+    autor: 'USUARIO' | 'SOPORTE'
+    createdAt: string
+    orderId?: string | null
+  } | null
+}
+
+interface SupportDetailMessage {
+  id: string
+  userId: string
+  orderId?: string | null
+  autor: 'USUARIO' | 'SOPORTE'
+  mensaje: string
+  createdAt: string
+}
+
+  // Estados para soporte
+  const [conversations, setConversations] = useState<SupportConversation[]>([])
+  const [loadingConversations, setLoadingConversations] = useState<boolean>(false)
+  const [selectedConversationUser, setSelectedConversationUser] = useState<SupportUser | null>(null)
+  const [conversationMessages, setConversationMessages] = useState<SupportDetailMessage[]>([])
+  const [loadingConversation, setLoadingConversation] = useState<boolean>(false)
+  const [replyText, setReplyText] = useState<string>('')
+  const [sendingReply, setSendingReply] = useState<boolean>(false)
+  const [replyError, setReplyError] = useState<string | null>(null)
+  const chatBottomRef = useRef<HTMLDivElement | null>(null)
 
   // Estados para usuarios
   const [usuarios, setUsuarios] = useState<UsuarioAdmin[]>([])
@@ -578,6 +617,89 @@ interface RepartidorAdmin {
     loadPedidosList(nuevoEstado)
   }
 
+  // Carga de conversaciones de soporte
+  const loadConversations = async () => {
+    try {
+      setLoadingConversations(true)
+      const data = await api.get<SupportConversation[]>('/api/support/admin/conversations')
+      setConversations(data || [])
+    } catch (err) {
+      console.error('Error al cargar conversaciones de soporte:', err)
+    } finally {
+      setLoadingConversations(false)
+    }
+  }
+
+  const openConversation = async (user: SupportUser) => {
+    setSelectedConversationUser(user)
+    setReplyError(null)
+    setReplyText('')
+    try {
+      setLoadingConversation(true)
+      const data = await api.get<{ user: SupportUser; messages: SupportDetailMessage[] }>(
+        `/api/support/admin/conversations/${user.id}`
+      )
+      setConversationMessages(data.messages || [])
+    } catch (err) {
+      console.error('Error al abrir conversación:', err)
+    } finally {
+      setLoadingConversation(false)
+    }
+  }
+
+  const handleSendReply = async () => {
+    if (!selectedConversationUser || !replyText.trim() || sendingReply) return
+    const textToSend = replyText.trim()
+    setSendingReply(true)
+    setReplyError(null)
+    try {
+      const newMsg = await api.post<SupportDetailMessage>(
+        `/api/support/admin/conversations/${selectedConversationUser.id}/reply`,
+        { mensaje: textToSend }
+      )
+      setConversationMessages(prev => {
+        if (prev.some(m => m.id === newMsg.id)) return prev
+        return [...prev, newMsg]
+      })
+      setReplyText('')
+      loadConversations()
+    } catch (err: any) {
+      console.error('Error al responder soporte:', err)
+      setReplyError(err.message || 'Error al enviar respuesta')
+    } finally {
+      setSendingReply(false)
+    }
+  }
+
+  // Socket listener para mensajes de soporte en tiempo real
+  useEffect(() => {
+    const socket = getSocket()
+    if (!socket) return
+
+    const handleSupportMessage = (msg: any) => {
+      loadConversations()
+      if (selectedConversationUser && msg.userId === selectedConversationUser.id) {
+        setConversationMessages(prev => {
+          if (prev.some(m => m.id === msg.id)) return prev
+          return [...prev, msg]
+        })
+      }
+    }
+
+    socket.on('support:message', handleSupportMessage)
+
+    return () => {
+      socket.off('support:message', handleSupportMessage)
+    }
+  }, [selectedConversationUser])
+
+  // Auto scroll al final de la conversación al recibir nuevos mensajes
+  useEffect(() => {
+    if (selectedConversationUser && chatBottomRef.current) {
+      chatBottomRef.current.scrollIntoView({ behavior: 'smooth' })
+    }
+  }, [conversationMessages, selectedConversationUser])
+
   // Carga inicial al montar el componente
   useEffect(() => {
     loadUsuarios()
@@ -586,6 +708,7 @@ interface RepartidorAdmin {
     loadLocales()
     loadRepartidores()
     loadPedidosList()
+    loadConversations()
   }, [])
 
   /**
@@ -645,6 +768,7 @@ interface RepartidorAdmin {
     { id: 'locales', label: 'Locales', icon: '🏪' },
     { id: 'repartidores', label: 'Repartidores', icon: '🏍️' },
     { id: 'pedidos', label: 'Pedidos', icon: '📦' },
+    { id: 'soporte', label: 'Soporte', icon: '💬' },
     { id: 'config', label: 'Ajustes', icon: '⚙️' },
   ]
   /**
@@ -1879,6 +2003,200 @@ interface RepartidorAdmin {
                 {savingConfig ? 'Guardando cambios...' : showToast ? 'Cambios guardados ✓' : 'Guardar cambios'}
               </button>
             </div>
+          </div>
+        )}
+
+        {activeTab === 'soporte' && (
+          <div>
+            {!selectedConversationUser ? (
+              <div>
+                <div className="flex items-center justify-between mb-6">
+                  <div>
+                    <h2 className="text-xl font-bold text-white">Soporte y Mensajes</h2>
+                    <p className="text-xs text-[#9a9da3] mt-0.5">Conversaciones en tiempo real con usuarios, locales y repartidores</p>
+                  </div>
+                  <button
+                    onClick={loadConversations}
+                    disabled={loadingConversations}
+                    className="p-2.5 rounded-xl bg-[#232427] border border-[#35373b] text-[#c4c6ca] hover:text-white transition-colors cursor-pointer disabled:opacity-50"
+                    title="Recargar conversaciones"
+                  >
+                    🔄
+                  </button>
+                </div>
+
+                {loadingConversations ? (
+                  <div className="space-y-3">
+                    {[1, 2, 3].map(i => (
+                      <div key={i} className="bg-[#232427] border border-[#35373b] p-4 rounded-xl animate-pulse flex items-center justify-between">
+                        <div className="space-y-2">
+                          <div className="h-4 bg-[#35373b] rounded w-32" />
+                          <div className="h-3 bg-[#35373b] rounded w-48" />
+                        </div>
+                        <div className="h-8 bg-[#35373b] rounded-lg w-20" />
+                      </div>
+                    ))}
+                  </div>
+                ) : conversations.length === 0 ? (
+                  <div className="bg-[#232427] border border-[#35373b] rounded-2xl p-8 text-center">
+                    <span className="text-4xl block mb-2">💬</span>
+                    <p className="text-white font-medium">No hay mensajes de soporte</p>
+                    <p className="text-[#9a9da3] text-xs mt-1">Los mensajes que envíen los usuarios, locales o repartidores aparecerán aquí.</p>
+                  </div>
+                ) : (
+                  <div className="space-y-3">
+                    {conversations.map(conv => {
+                      const rolBadge = 
+                        conv.user.rol === 'LOCAL' ? { text: 'Local', bg: 'bg-blue-500/10 text-blue-400 border-blue-500/30' } :
+                        conv.user.rol === 'REPARTIDOR' ? { text: 'Repartidor', bg: 'bg-purple-500/10 text-purple-400 border-purple-500/30' } :
+                        { text: 'Usuario', bg: 'bg-[#5bc827]/10 text-[#5bc827] border-[#5bc827]/30' }
+
+                      return (
+                        <div
+                          key={conv.user.id}
+                          className="bg-[#232427] border border-[#35373b] hover:border-[#d9a05b]/40 rounded-xl p-4 transition-all flex flex-col sm:flex-row sm:items-center justify-between gap-3"
+                        >
+                          <div className="flex items-start gap-3 min-w-0">
+                            <div className="w-10 h-10 rounded-full bg-[#1a1b1e] border border-[#35373b] flex items-center justify-center text-sm font-bold text-[#d9a05b] shrink-0">
+                              {conv.user.nombre?.charAt(0).toUpperCase() || 'U'}
+                            </div>
+                            <div className="min-w-0">
+                              <div className="flex items-center gap-2 flex-wrap">
+                                <h3 className="font-semibold text-white text-sm truncate">{conv.user.nombre}</h3>
+                                <span className={`text-[10px] font-bold px-2 py-0.5 rounded-full border ${rolBadge.bg}`}>
+                                  {rolBadge.text}
+                                </span>
+                              </div>
+                              <p className="text-xs text-[#9a9da3] truncate">{conv.user.email}</p>
+                              {conv.lastMessage && (
+                                <p className="text-xs text-[#c4c6ca] mt-1.5 truncate max-w-md">
+                                  <span className="font-medium text-[#9a9da3]">
+                                    {conv.lastMessage.autor === 'SOPORTE' ? 'Tú: ' : ''}
+                                  </span>
+                                  {conv.lastMessage.mensaje}
+                                </p>
+                              )}
+                            </div>
+                          </div>
+
+                          <div className="flex items-center justify-between sm:justify-end gap-3 shrink-0 pt-2 sm:pt-0 border-t sm:border-t-0 border-[#35373b]/50">
+                            {conv.lastMessage && (
+                              <span className="text-[11px] text-[#9a9da3]">
+                                {new Date(conv.lastMessage.createdAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+                              </span>
+                            )}
+                            <button
+                              onClick={() => openConversation(conv.user)}
+                              className="px-3.5 py-1.5 bg-[#d9a05b] hover:bg-[#b38346] text-[#1a1b1e] text-xs font-bold rounded-lg transition-colors cursor-pointer"
+                            >
+                              Abrir chat →
+                            </button>
+                          </div>
+                        </div>
+                      )
+                    })}
+                  </div>
+                )}
+              </div>
+            ) : (
+              <div>
+                {/* Chat detail header */}
+                <div className="flex items-center gap-3 mb-4 pb-4 border-b border-[#35373b]">
+                  <button
+                    onClick={() => setSelectedConversationUser(null)}
+                    className="p-2 rounded-xl bg-[#232427] border border-[#35373b] text-[#c4c6ca] hover:text-white transition-colors cursor-pointer text-sm font-semibold"
+                  >
+                    ← Volver
+                  </button>
+                  <div className="w-10 h-10 rounded-full bg-[#1a1b1e] border border-[#35373b] flex items-center justify-center text-sm font-bold text-[#d9a05b] shrink-0">
+                    {selectedConversationUser.nombre?.charAt(0).toUpperCase() || 'U'}
+                  </div>
+                  <div>
+                    <div className="flex items-center gap-2">
+                      <h2 className="text-base font-bold text-white">{selectedConversationUser.nombre}</h2>
+                      <span className="text-[10px] font-bold px-2 py-0.5 rounded-full border bg-[#d9a05b]/10 text-[#d9a05b] border-[#d9a05b]/30">
+                        {selectedConversationUser.rol}
+                      </span>
+                    </div>
+                    <p className="text-xs text-[#9a9da3]">{selectedConversationUser.email}</p>
+                  </div>
+                </div>
+
+                {/* Chat message history container */}
+                <div className="bg-[#1a1b1e] border border-[#35373b] rounded-2xl p-4 h-[440px] overflow-y-auto flex flex-col space-y-3 mb-4">
+                  {loadingConversation ? (
+                    <div className="flex-1 flex items-center justify-center text-xs text-[#9a9da3]">
+                      Cargando mensajes...
+                    </div>
+                  ) : conversationMessages.length === 0 ? (
+                    <div className="flex-1 flex items-center justify-center text-xs text-[#9a9da3]">
+                      No hay mensajes en esta conversación aún.
+                    </div>
+                  ) : (
+                    conversationMessages.map(msg => {
+                      const isSupport = msg.autor === 'SOPORTE'
+                      return (
+                        <div
+                          key={msg.id}
+                          className={`flex flex-col ${isSupport ? 'items-end' : 'items-start'}`}
+                        >
+                          <div
+                            className={`max-w-[80%] rounded-2xl px-4 py-2.5 text-sm ${
+                              isSupport
+                                ? 'bg-gradient-to-r from-[#d9a05b] to-[#b38346] text-[#1a1b1e] font-medium rounded-br-none shadow-md shadow-[#d9a05b]/10'
+                                : 'bg-[#232427] text-white border border-[#35373b] rounded-bl-none'
+                            }`}
+                          >
+                            {msg.orderId && (
+                              <div className={`text-[10px] font-bold mb-1 px-1.5 py-0.5 rounded inline-block ${
+                                isSupport ? 'bg-[#1a1b1e]/20 text-[#1a1b1e]' : 'bg-[#35373b] text-[#d9a05b]'
+                              }`}>
+                                Pedido #{msg.orderId.slice(-6)}
+                              </div>
+                            )}
+                            <p className="whitespace-pre-wrap break-words">{msg.mensaje}</p>
+                          </div>
+                          <span className="text-[10px] text-[#9a9da3] mt-1 px-1">
+                            {isSupport ? 'Soporte (Admin)' : selectedConversationUser.nombre} • {new Date(msg.createdAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+                          </span>
+                        </div>
+                      )
+                    })
+                  )}
+                  <div ref={chatBottomRef} />
+                </div>
+
+                {/* Reply form */}
+                {replyError && (
+                  <div className="mb-2 text-xs text-red-400 bg-red-400/10 border border-red-400/30 px-3 py-2 rounded-xl">
+                    {replyError}
+                  </div>
+                )}
+                <form
+                  onSubmit={e => {
+                    e.preventDefault()
+                    handleSendReply()
+                  }}
+                  className="flex gap-2"
+                >
+                  <input
+                    type="text"
+                    value={replyText}
+                    onChange={e => setReplyText(e.target.value)}
+                    placeholder="Escribe una respuesta como Soporte..."
+                    disabled={sendingReply}
+                    className="flex-1 bg-[#232427] border border-[#35373b] focus:border-[#d9a05b] rounded-xl px-4 py-3 text-sm text-white outline-none transition-colors disabled:opacity-50"
+                  />
+                  <button
+                    type="submit"
+                    disabled={sendingReply || !replyText.trim()}
+                    className="px-5 py-3 rounded-xl bg-gradient-to-r from-[#d9a05b] to-[#b38346] text-[#1a1b1e] font-bold text-sm transition-all hover:scale-[1.02] active:scale-[0.98] disabled:opacity-50 cursor-pointer shrink-0"
+                  >
+                    {sendingReply ? 'Enviando...' : 'Responder'}
+                  </button>
+                </form>
+              </div>
+            )}
           </div>
         )}
       </main>

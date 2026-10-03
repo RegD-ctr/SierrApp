@@ -1,4 +1,16 @@
-const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:4000'
+export function getApiBaseUrl(): string {
+  if (import.meta.env.VITE_API_URL) {
+    return import.meta.env.VITE_API_URL
+  }
+  // En el navegador, usar ruta relativa para que las llamadas pasen por el proxy de Vite
+  // (evitando bloqueos de CORS, puertos cerrados en previews o discrepancias HTTP/HTTPS).
+  if (typeof window !== 'undefined') {
+    return ''
+  }
+  return 'http://localhost:4000'
+}
+
+const API_URL = getApiBaseUrl()
 
 export function getImageUrl(path?: string | null): string {
   if (!path) return ''
@@ -53,15 +65,29 @@ async function tryRefresh(): Promise<boolean> {
 
 async function request<T>(path: string, options: RequestInit = {}, isRetry = false): Promise<T> {
   const isFormData = typeof FormData !== 'undefined' && options.body instanceof FormData
-  const res = await fetch(`${API_URL}${path}`, {
-    ...options,
-    credentials: 'include',
-    headers: {
-      ...(options.body && !isFormData ? { 'Content-Type': 'application/json' } : {}),
-      ...(accessToken ? { Authorization: `Bearer ${accessToken}` } : {}),
-      ...options.headers,
-    },
-  })
+  let res: Response
+  try {
+    res = await fetch(`${API_URL}${path}`, {
+      ...options,
+      credentials: 'include',
+      headers: {
+        ...(options.body && !isFormData ? { 'Content-Type': 'application/json' } : {}),
+        ...(accessToken ? { Authorization: `Bearer ${accessToken}` } : {}),
+        ...options.headers,
+      },
+    })
+  } catch (err: any) {
+    const rawMsg = err?.message || ''
+    if (
+      rawMsg.includes('Load failed') ||
+      rawMsg.includes('Failed to fetch') ||
+      rawMsg.includes('NetworkError') ||
+      rawMsg.includes('fetch')
+    ) {
+      throw new ApiError('No se pudo conectar con el servidor. Verifica tu conexión o que el backend esté activo.', 0)
+    }
+    throw new ApiError(rawMsg || 'Error de conexión con el servidor.', 0)
+  }
 
   if (res.status === 401 && !isRetry && path !== '/api/auth/refresh' && path !== '/api/auth/login') {
     const refreshed = await tryRefresh()

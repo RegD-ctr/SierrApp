@@ -308,7 +308,7 @@ export default function App() {
   )
   if (view === 'promotions') return <Promotions onBack={goBack} onSelectRestaurant={(r) => { setSelectedRestaurant(r); navigateTo('inicio') }} />
   if (view === 'notifications') return <Notifications onBack={goBack} />
-  if (view === 'support') return <Support onBack={goBack} />
+  if (view === 'support') return <Support onBack={goBack} orderId={activeOrderId || undefined} />
 
   if (view === 'order-tracking') {
     return (

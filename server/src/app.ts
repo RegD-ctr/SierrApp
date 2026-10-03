@@ -16,6 +16,7 @@ import { uploadsRouter } from './modules/uploads/uploads.routes'
 import { adminRouter } from './modules/admin/admin.routes'
 import { notificationsRouter } from './modules/notifications/notifications.routes'
 import { promotionsRouter } from './modules/promotions/promotions.routes'
+import { supportRouter } from './modules/support/support.routes'
 import { UPLOAD_DIR } from './modules/uploads/uploads.service'
 import { generalLimiter } from './middleware/rateLimiter'
 
@@ -25,11 +26,21 @@ export const app = express()
 // sniffing de MIME, clickjacking, etc.)
 app.use(helmet())
 
-// Solo el frontend de Sierra App puede hacer requests con credenciales
-// (cookies) — cualquier otro origen es rechazado por el navegador.
+// Configuración de CORS dinámica: en desarrollo permite localhost (cualquier puerto),
+// 127.0.0.1, IPs de red local y el origen configurado; en producción restringe a CORS_ORIGIN.
 app.use(
   cors({
-    origin: process.env.CORS_ORIGIN,
+    origin: (origin, callback) => {
+      if (!origin) return callback(null, true)
+      if (process.env.NODE_ENV !== 'production') {
+        return callback(null, true)
+      }
+      const allowed = [process.env.CORS_ORIGIN, 'http://localhost:8443'].filter(Boolean)
+      if (allowed.includes(origin)) {
+        return callback(null, true)
+      }
+      callback(new Error('Bloqueado por CORS'))
+    },
     credentials: true,
   })
 )
@@ -68,6 +79,7 @@ app.use('/api/users', usersRouter)
 app.use('/api/admin', adminRouter)
 app.use('/api/notifications', notificationsRouter)
 app.use('/api/promotions', promotionsRouter)
+app.use('/api/support', supportRouter)
 app.use('/api/uploads', uploadsRouter)
 
 // Manejador de errores de último recurso — nunca dejes que un error

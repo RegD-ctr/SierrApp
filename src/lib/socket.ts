@@ -1,6 +1,7 @@
 import { io, type Socket } from 'socket.io-client'
+import { getApiBaseUrl } from './api'
 
-const SOCKET_URL = import.meta.env.VITE_API_URL || 'http://localhost:4000'
+const SOCKET_URL = getApiBaseUrl()
 
 let socket: Socket | null = null
 
@@ -9,7 +10,7 @@ let socket: Socket | null = null
 export function connectSocket(accessToken: string) {
   if (socket?.connected) return socket
 
-  socket = io(SOCKET_URL, {
+  socket = io(SOCKET_URL || undefined, {
     auth: { token: accessToken },
     autoConnect: true,
   })

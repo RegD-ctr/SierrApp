@@ -5,6 +5,27 @@ import path from 'node:path'
 
 import siteConfiguration from './.figma/make/site.json' with { type: 'json' }
 
+function backendDevRunnerPlugin(): Plugin {
+  return {
+    name: 'backend-dev-runner',
+    configureServer() {
+      import('node:http').then(({ default: http }) => {
+        const req = http.get('http://127.0.0.1:4000/api/admin/config', () => {})
+        req.on('error', () => {
+          import('node:child_process').then(({ spawn }) => {
+            console.log('[backend-runner] Servidor backend no detectado en puerto 4000. Iniciando automáticamente...')
+            const proc = spawn('pnpm', ['--prefix', 'server', 'run', 'dev'], {
+              shell: true,
+              stdio: 'inherit',
+            })
+            process.on('exit', () => proc.kill())
+          })
+        })
+      })
+    },
+  }
+}
+
 // Vite config — https://vitejs.dev/config/
 export default defineConfig(({ mode }) => {
   // .figma/make/deploy-preview passes `--mode development` for cached-preview builds.
@@ -23,6 +44,7 @@ export default defineConfig(({ mode }) => {
       figmaErrorOverlayReplay(),
       figmaReactRefreshBoundaryFallback(),
       figmaMakeKitPlugin({ storiesGlob: '/src/**/*.stories.{ts,tsx,js,jsx}' }),
+      backendDevRunnerPlugin(),
     ],
     resolve: {
       alias: {
@@ -36,8 +58,20 @@ export default defineConfig(({ mode }) => {
       watch: { ignored: ['**/.figma/**'] },
       proxy: {
         '/api': {
-          target: 'http://localhost:5000',
+          target: 'http://localhost:4000',
           changeOrigin: true,
+          secure: false,
+        },
+        '/socket.io': {
+          target: 'http://localhost:4000',
+          ws: true,
+          changeOrigin: true,
+          secure: false,
+        },
+        '/uploads': {
+          target: 'http://localhost:4000',
+          changeOrigin: true,
+          secure: false,
         },
       },
     },

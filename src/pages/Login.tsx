@@ -46,6 +46,8 @@ interface Props {
 export default function Login({ onLogin }: Props) {
   const [screen, setScreen] = useState<Screen>('roleSelect')
   const [selectedRole, setSelectedRole] = useState<Role | null>(null)
+  const [prefilledRole, setPrefilledRole] = useState<Role | null>(null)
+  const [prefilledEmail, setPrefilledEmail] = useState('')
   const [email, setEmail] = useState('')
   const [password, setPassword] = useState('')
   const [showPass, setShowPass] = useState(false)
@@ -99,6 +101,19 @@ export default function Login({ onLogin }: Props) {
     setError(null)
     setSuccess(null)
     setScreen(to)
+  }
+
+  const handleSelectRole = (role: Role) => {
+    setError(null)
+    if (role === prefilledRole) {
+      setEmail(prefilledEmail)
+    } else {
+      setEmail('')
+      setSuccess(null)
+    }
+    setPassword('')
+    setSelectedRole(role)
+    setScreen('login')
   }
 
   /**
@@ -162,7 +177,10 @@ export default function Login({ onLogin }: Props) {
           referencias: uReferencias.trim() || undefined,
         },
       })
+      setPrefilledRole('usuario')
+      setPrefilledEmail(uEmail.trim())
       setEmail(uEmail.trim())
+      setPassword('')
       setSelectedRole('usuario')
       setSuccess('¡Cuenta creada con éxito! Revisa tu correo para verificarla e inicia sesión.')
       setScreen('login')
@@ -283,7 +301,7 @@ export default function Login({ onLogin }: Props) {
   if (screen === 'roleSelect') return (
     <div className="min-h-screen bg-[#1a1b1e] flex flex-col items-center justify-center px-4 relative overflow-hidden">
       {BG}
-      <button onClick={() => { setSelectedRole('admin'); changeScreen('login') }} className="absolute bottom-4 right-4 text-[#7aaa70] text-[10px] hover:underline opacity-60 hover:opacity-100 transition-opacity z-10 cursor-pointer">
+      <button onClick={() => handleSelectRole('admin')} className="absolute bottom-4 right-4 text-[#7aaa70] text-[10px] hover:underline opacity-60 hover:opacity-100 transition-opacity z-10 cursor-pointer">
         Acceso administrador
       </button>
       <div className="relative w-full max-w-sm">
@@ -291,7 +309,7 @@ export default function Login({ onLogin }: Props) {
         <p className="text-center text-[#c4c6ca] text-sm mb-5">¿Cómo quieres ingresar?</p>
         <div className="space-y-3 mb-5">
           {roles.map(role => (
-            <button key={role.id} onClick={() => { setSelectedRole(role.id); changeScreen('login') }}
+            <button key={role.id} onClick={() => handleSelectRole(role.id)}
               className="w-full flex items-center gap-4 p-4 rounded-2xl border border-[#2a4830] bg-[#142a17] hover:bg-[#1a3320] hover:border-[#5bc827]/50 transition-all hover:scale-[1.02] active:scale-[0.98] text-left cursor-pointer">
               <span className="text-3xl">{role.icon}</span>
               <div className="flex-1">
@@ -311,7 +329,7 @@ export default function Login({ onLogin }: Props) {
         <div className="w-full h-px bg-[#35373b] my-5"></div>
         <p className="text-center text-[#9a9da3] text-sm">
           ¿Eres o quieres ser repartidor?{' '}
-          <button onClick={() => { setSelectedRole('repartidor'); changeScreen('login') }} className="text-[#7ed944] font-semibold hover:underline cursor-pointer">
+          <button onClick={() => handleSelectRole('repartidor')} className="text-[#7ed944] font-semibold hover:underline cursor-pointer">
             Ingresa aquí
           </button>
         </p>
@@ -353,16 +371,40 @@ export default function Login({ onLogin }: Props) {
           </div>
         )}
 
-        <form onSubmit={handleLogin} className="space-y-3">
+        <form key={selectedRole || 'login'} onSubmit={handleLogin} className="space-y-3" autoComplete="off">
           <div>
-            <label className="text-[#c4c6ca] text-xs font-semibold block mb-1">Correo electrónico</label>
-            <input type="email" placeholder="ejemplo@correo.com" value={email} onChange={e => setEmail(e.target.value)} required
-              className="w-full bg-[#232427] border border-[#35373b] focus:border-[#5bc827] rounded-xl px-4 py-3 text-sm text-white placeholder-[#9a9da3] outline-none transition-colors" />
+            <label htmlFor={`login-email-${selectedRole}`} className="text-[#c4c6ca] text-xs font-semibold block mb-1">Correo electrónico</label>
+            <input
+              id={`login-email-${selectedRole}`}
+              name={`login_email_${selectedRole}`}
+              type="email"
+              autoComplete="email"
+              placeholder="ejemplo@correo.com"
+              value={email}
+              onChange={e => {
+                setEmail(e.target.value)
+                if (error) setError(null)
+              }}
+              required
+              className="w-full bg-[#232427] border border-[#35373b] focus:border-[#5bc827] rounded-xl px-4 py-3 text-sm text-white placeholder-[#9a9da3] outline-none transition-colors"
+            />
           </div>
           <div className="relative">
-            <label className="text-[#c4c6ca] text-xs font-semibold block mb-1">Contraseña</label>
-            <input type={showPass ? 'text' : 'password'} placeholder="••••••••" value={password} onChange={e => setPassword(e.target.value)} required
-              className="w-full bg-[#232427] border border-[#35373b] focus:border-[#5bc827] rounded-xl px-4 py-3 text-sm text-white placeholder-[#9a9da3] outline-none transition-colors pr-10" />
+            <label htmlFor={`login-password-${selectedRole}`} className="text-[#c4c6ca] text-xs font-semibold block mb-1">Contraseña</label>
+            <input
+              id={`login-password-${selectedRole}`}
+              name={`login_password_${selectedRole}`}
+              type={showPass ? 'text' : 'password'}
+              autoComplete="current-password"
+              placeholder="••••••••"
+              value={password}
+              onChange={e => {
+                setPassword(e.target.value)
+                if (error) setError(null)
+              }}
+              required
+              className="w-full bg-[#232427] border border-[#35373b] focus:border-[#5bc827] rounded-xl px-4 py-3 text-sm text-white placeholder-[#9a9da3] outline-none transition-colors pr-10"
+            />
             <button type="button" onClick={() => setShowPass(s => !s)} className="absolute right-3 bottom-3 text-[#9a9da3] cursor-pointer">{showPass ? '🙈' : '👁️'}</button>
           </div>
           <button type="button" className={`text-xs ${activeRole.text} hover:underline w-full text-right cursor-pointer`}>¿Olvidaste tu contraseña?</button>
@@ -646,7 +688,14 @@ export default function Login({ onLogin }: Props) {
         <p className="text-[#9a9da3] text-xs mb-6 leading-relaxed">
           Tu cuenta está en revisión. Un administrador validará tu información y te avisaremos por correo cuando tu panel esté activo para que puedas agregar tus primeros platillos.
         </p>
-        <button onClick={() => { setSelectedRole('local'); setEmail(lEmail); changeScreen('login') }}
+        <button onClick={() => {
+          setPrefilledRole('local')
+          setPrefilledEmail(lEmail.trim())
+          setSelectedRole('local')
+          setEmail(lEmail.trim())
+          setPassword('')
+          changeScreen('login')
+        }}
           className="w-full py-3.5 rounded-xl bg-gradient-to-r from-[#1a5c27] to-[#0d3318] border border-[#2a8c3a] text-white font-bold text-sm transition-all hover:scale-[1.02] shadow-lg cursor-pointer">
           Ir a iniciar sesión 🏪
         </button>
@@ -841,7 +890,14 @@ export default function Login({ onLogin }: Props) {
           )}
         </div>
 
-        <button onClick={() => { setSelectedRole('repartidor'); setEmail(rEmail); changeScreen('login') }}
+        <button onClick={() => {
+          setPrefilledRole('repartidor')
+          setPrefilledEmail(rEmail.trim())
+          setSelectedRole('repartidor')
+          setEmail(rEmail.trim())
+          setPassword('')
+          changeScreen('login')
+        }}
           className="w-full py-3.5 rounded-xl bg-gradient-to-r from-[#35373b] to-[#232427] border border-[#7ed944] text-[#7ed944] font-bold text-sm transition-all hover:scale-[1.02] shadow-lg cursor-pointer">
           Ir a iniciar sesión 🏍️
         </button>
