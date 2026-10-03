@@ -1,4 +1,5 @@
 import logoImg from '@/imports/logo.jpeg'
+import type { CurrentUser } from '@/lib/api'
 
 type Role = 'usuario' | 'local' | 'repartidor'
 
@@ -8,27 +9,30 @@ const roleLabels: Record<Role, { label: string; icon: string; color: string }> =
   repartidor: { label: 'Repartidor', icon: '🏍️', color: 'text-[#7ed944]' },
 }
 
+// TODO: los subtítulos de cada item (dirección predeterminada, método de pago default, etc.) se calcularán dinámicamente cuando el backend esté conectado (GET /api/users/profile)
 const menuItems = [
-  { icon: '📍', label: 'Mis direcciones', sub: 'Calle Pino #24, Sierra Norte', view: 'addresses' },
-  { icon: '💳', label: 'Métodos de pago', sub: '•••• 4821 · Efectivo', view: 'payment-methods' },
-  { icon: '🎁', label: 'Promociones y cupones', sub: 'SIERRA1 disponible', view: 'promotions' },
-  { icon: '⭐', label: 'Favoritos', sub: '3 restaurantes guardados', view: 'favorites' },
+  { icon: '📍', label: 'Mis direcciones', sub: null, view: 'addresses' },
+  { icon: '💳', label: 'Métodos de pago', sub: null, view: 'payment-methods' },
+  { icon: '🎁', label: 'Promociones y cupones', sub: null, view: 'promotions' },
+  { icon: '⭐', label: 'Favoritos', sub: null, view: 'favorites' },
   { icon: '🔔', label: 'Notificaciones', sub: 'Activadas', view: 'notifications' },
   { icon: '🔒', label: 'Privacidad y seguridad', sub: null, view: null },
   { icon: '❓', label: 'Ayuda y soporte', sub: null, view: 'support' },
   { icon: '📋', label: 'Términos y condiciones', sub: null, view: null },
 ]
 
+// TODO: reemplazar con datos reales del backend (GET /api/users/stats)
 const stats = [
-  { n: '12', l: 'Pedidos' },
-  { n: '$1,840', l: 'Gastado' },
-  { n: '4.9', l: 'Mi rating' },
+  { n: '0', l: 'Pedidos' },
+  { n: '$0', l: 'Gastado' },
+  { n: '—', l: 'Mi rating' },
 ]
 
 interface PerfilProps {
   role: Role
   onLogout: () => void
   onNavigate: (view: string) => void
+  user?: CurrentUser | null
 }
 
 /**
@@ -37,7 +41,7 @@ interface PerfilProps {
  * 
  * @param {PerfilProps} props - Propiedades que incluyen rol actual, y callbacks para cerrar sesión y navegar.
  */
-export default function Perfil({ role, onLogout, onNavigate }: PerfilProps) {
+export default function Perfil({ role, onLogout, onNavigate, user }: PerfilProps) {
   const roleInfo = roleLabels[role]
 
   return (
@@ -53,17 +57,18 @@ export default function Perfil({ role, onLogout, onNavigate }: PerfilProps) {
 
         <div className="flex items-center gap-4">
           {/* Avatar */}
+          {/* TODO: reemplazar con datos reales del backend (GET /api/users/profile) */}
           <div className="relative">
             <div className="w-16 h-16 rounded-full bg-[#5bc827]/20 border-2 border-[#5bc827] flex items-center justify-center text-2xl font-bold text-[#5bc827]">
-              JS
+              👤
             </div>
             <button className="absolute bottom-0 right-0 bg-[#5bc827] rounded-full w-5 h-5 flex items-center justify-center text-[8px] text-[#1a1b1e]">
               ✏️
             </button>
           </div>
           <div className="flex-1">
-            <h2 className="text-white font-bold text-lg leading-tight">Juan Sierra</h2>
-            <p className="text-[#9a9da3] text-xs">juan.sierra@email.com</p>
+            <h2 className="text-white font-bold text-lg leading-tight">{user?.nombre || 'Usuario'}</h2>
+            <p className="text-[#9a9da3] text-xs">{user?.email || '—'}</p>
             <div className={`inline-flex items-center gap-1.5 mt-1.5 px-2.5 py-1 rounded-full bg-[#1a1b1e] border border-[#35373b]`}>
               <span className="text-xs">{roleInfo.icon}</span>
               <span className={`text-[10px] font-bold ${roleInfo.color}`}>{roleInfo.label}</span>

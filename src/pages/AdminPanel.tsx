@@ -1,22 +1,19 @@
-import { useState } from 'react'
+import { useState, useEffect, useMemo, useRef } from 'react'
+import { api, getImageUrl } from '@/lib/api'
+import { getSocket } from '@/lib/socket'
 
-type Tab = 'dashboard' | 'usuarios' | 'locales' | 'repartidores' | 'pedidos' | 'config'
+type Tab = 'dashboard' | 'usuarios' | 'locales' | 'repartidores' | 'pedidos' | 'soporte' | 'config'
 type Timeframe = 'hoy' | 'semana' | 'mes' | 'anio' | 'personalizado'
 type LocalTimeframe = 'hoy' | 'semana' | 'mes' | 'anio' | 'personalizado'
 
-const DATA_GANANCIAS_LOCAL: Record<number, Record<Exclude<LocalTimeframe, 'personalizado'>, {
+// TODO: reemplazar con datos reales del backend (GET /api/admin/restaurants/earnings)
+const DATA_GANANCIAS_LOCAL: Record<string | number, Record<Exclude<LocalTimeframe, 'personalizado'>, {
   total: number
   efectivo: number
   tarjeta: number
   comisionPlataforma: number
 }>> = {
   1: {
-    hoy: { total: 1850.00, efectivo: 620.00, tarjeta: 1230.00, comisionPlataforma: 277.50 },
-    semana: { total: 11200.00, efectivo: 3800.00, tarjeta: 7400.00, comisionPlataforma: 1680.00 },
-    mes: { total: 42600.00, efectivo: 14200.00, tarjeta: 28400.00, comisionPlataforma: 6390.00 },
-    anio: { total: 398000.00, efectivo: 132000.00, tarjeta: 266000.00, comisionPlataforma: 59700.00 },
-  },
-  2: {
     hoy: { total: 0, efectivo: 0, tarjeta: 0, comisionPlataforma: 0 },
     semana: { total: 0, efectivo: 0, tarjeta: 0, comisionPlataforma: 0 },
     mes: { total: 0, efectivo: 0, tarjeta: 0, comisionPlataforma: 0 },
@@ -24,21 +21,8 @@ const DATA_GANANCIAS_LOCAL: Record<number, Record<Exclude<LocalTimeframe, 'perso
   },
 }
 
-function generarGananciasPorFecha(localId: number, dia: number | null, mes: number, anio: number) {
-  const isDiaPuntual = dia !== null
-  const seed = (localId * 1000) + (anio * 37) + ((mes + 1) * 101) + (dia !== null ? dia * 13 : 777)
-  const factor = 0.7 + (((seed * 9301 + 49297) % 233280) / 233280) * 0.6
-
-  const baseTotal = isDiaPuntual ? 1850 * factor : 42600 * factor
-  const total = Math.round(baseTotal * 100) / 100
-
-  const pctEfectivo = 0.3 + (((seed * 12345 + 6789) % 100) / 100) * 0.15
-  const efectivo = Math.round(total * pctEfectivo * 100) / 100
-  const tarjeta = Math.round((total - efectivo) * 100) / 100
-
-  const comisionPlataforma = Math.round(total * 0.15 * 100) / 100
-
-  return { total, efectivo, tarjeta, comisionPlataforma }
+function generarGananciasPorFecha(localId: string | number, dia: number | null, mes: number, anio: number) {
+  return { total: 0, efectivo: 0, tarjeta: 0, comisionPlataforma: 0 }
 }
 
 const MESES = [
@@ -51,7 +35,7 @@ interface Props {
   onLogout: () => void
 }
 
-// Datos de ejemplo simulados según el lapso de tiempo seleccionado
+// TODO: reemplazar con datos reales del backend (GET /api/admin/earnings)
 const DATA_INGRESOS: Record<Exclude<Timeframe, 'personalizado'>, {
   total: number
   efectivo: number
@@ -60,32 +44,32 @@ const DATA_INGRESOS: Record<Exclude<Timeframe, 'personalizado'>, {
   comisionLocales: number
 }> = {
   hoy: {
-    total: 3250.00,
-    efectivo: 1100.00,
-    tarjeta: 2150.00,
-    comisionUsuario: 1075.00,
-    comisionLocales: 2175.00,
+    total: 0,
+    efectivo: 0,
+    tarjeta: 0,
+    comisionUsuario: 0,
+    comisionLocales: 0,
   },
   semana: {
-    total: 18400.00,
-    efectivo: 5900.00,
-    tarjeta: 12500.00,
-    comisionUsuario: 6100.00,
-    comisionLocales: 12300.00,
+    total: 0,
+    efectivo: 0,
+    tarjeta: 0,
+    comisionUsuario: 0,
+    comisionLocales: 0,
   },
   mes: {
-    total: 45200.00,
-    efectivo: 14800.00,
-    tarjeta: 30400.00,
-    comisionUsuario: 15000.00,
-    comisionLocales: 30200.00,
+    total: 0,
+    efectivo: 0,
+    tarjeta: 0,
+    comisionUsuario: 0,
+    comisionLocales: 0,
   },
   anio: {
-    total: 520400.00,
-    efectivo: 165000.00,
-    tarjeta: 355400.00,
-    comisionUsuario: 173000.00,
-    comisionLocales: 347400.00,
+    total: 0,
+    efectivo: 0,
+    tarjeta: 0,
+    comisionUsuario: 0,
+    comisionLocales: 0,
   },
 }
 
@@ -97,21 +81,75 @@ const DATA_INGRESOS: Record<Exclude<Timeframe, 'personalizado'>, {
  * una llamada a GET /api/admin/ingresos?dia=X&mes=Y&anio=Z 
 */
 function generarIngresosPorFecha(dia: number | null, mes: number, anio: number) {
-  const isDiaPuntual = dia !== null
-  const seed = (anio * 37) + ((mes + 1) * 101) + (dia !== null ? dia * 13 : 777)
-  const factor = 0.7 + (((seed * 9301 + 49297) % 233280) / 233280) * 0.6
+  return { total: 0, efectivo: 0, tarjeta: 0, comisionUsuario: 0, comisionLocales: 0 }
+}
 
-  const baseTotal = isDiaPuntual ? 3150 * factor : 44800 * factor
-  const total = Math.round(baseTotal * 100) / 100
+interface AdminOrder {
+  id: string
+  estado: string
+  subtotal: number
+  envio: number
+  comisionUsuarioFija: number
+  comisionRepartidorFija: number
+  comisionLocalMonto: number
+  total: number
+  metodoPago: string
+  createdAt: string
+  restaurant?: { nombre: string }
+  user?: { nombre: string }
+}
 
-  const pctEfectivo = 0.3 + (((seed * 12345 + 6789) % 100) / 100) * 0.15
-  const efectivo = Math.round(total * pctEfectivo * 100) / 100
-  const tarjeta = Math.round((total - efectivo) * 100) / 100
+function isOrderInTimeframe(
+  createdAtStr: string,
+  timeframe: Timeframe,
+  fechaCustom: { dia: number | null; mes: number; anio: number }
+): boolean {
+  const d = new Date(createdAtStr)
+  const now = new Date()
 
-  const comisionUsuario = Math.round(total * 0.33 * 100) / 100
-  const comisionLocales = Math.round((total - comisionUsuario) * 100) / 100
+  if (timeframe === 'hoy') {
+    return (
+      d.getDate() === now.getDate() &&
+      d.getMonth() === now.getMonth() &&
+      d.getFullYear() === now.getFullYear()
+    )
+  }
 
-  return { total, efectivo, tarjeta, comisionUsuario, comisionLocales }
+  if (timeframe === 'semana') {
+    const startOfWeek = new Date(now)
+    const dayOfWeek = (now.getDay() + 6) % 7 // Lunes = 0
+    startOfWeek.setDate(now.getDate() - dayOfWeek)
+    startOfWeek.setHours(0, 0, 0, 0)
+    return d >= startOfWeek && d <= now
+  }
+
+  if (timeframe === 'mes') {
+    return (
+      d.getMonth() === now.getMonth() &&
+      d.getFullYear() === now.getFullYear()
+    )
+  }
+
+  if (timeframe === 'anio') {
+    return d.getFullYear() === now.getFullYear()
+  }
+
+  if (timeframe === 'personalizado') {
+    if (fechaCustom.dia !== null) {
+      return (
+        d.getDate() === fechaCustom.dia &&
+        d.getMonth() === fechaCustom.mes &&
+        d.getFullYear() === fechaCustom.anio
+      )
+    } else {
+      return (
+        d.getMonth() === fechaCustom.mes &&
+        d.getFullYear() === fechaCustom.anio
+      )
+    }
+  }
+
+  return true
 }
 
 /**
@@ -140,46 +178,220 @@ export default function AdminPanel({ onLogout }: Props) {
     mes: new Date().getMonth(),
     anio: new Date().getFullYear(),
   })
-  // Estados para el de usuario seleccionado
-  const [usuarios, setUsuarios] = useState([
-    { 
-      id: 1, name: 'Juan Pérez', email: 'juan@email.com', status: 'Activo',
-      telefono: '618 123 4567', fechaRegistro: '12 Ene 2026', 
-      pedidosTotales: 24, gastoTotal: 3120, rating: 4.8,
-      direccionPrincipal: 'Calle Pino #24, Sierra Norte'
-    },
-    { 
-      id: 2, name: 'María García', email: 'maria@email.com', status: 'Activo',
-      telefono: '618 234 5678', fechaRegistro: '3 Mar 2026', 
-      pedidosTotales: 11, gastoTotal: 1450, rating: 4.9,
-      direccionPrincipal: 'Av. Las Palmas #300, Centro'
-    },
-    { 
-      id: 3, name: 'Pedro Sánchez', email: 'pedro@email.com', status: 'Suspendido',
-      telefono: '618 345 6789', fechaRegistro: '20 Nov 2025', 
-      pedidosTotales: 6, gastoTotal: 540, rating: 3.9,
-      direccionPrincipal: 'Blvd. Montaña #120, Las Cumbres'
-    },
-  ])
+interface UsuarioAdmin {
+  id: string
+  name: string
+  email: string
+  status: string
+  telefono: string
+  fechaRegistro: string
+  pedidosTotales: number
+  gastoTotal: number
+  rating: number
+  direccionPrincipal: string
+}
 
-  const [selectedUsuario, setSelectedUsuario] = useState<typeof usuarios[number] | null>(null)
-  const [showConfirmSuspend, setShowConfirmSuspend] = useState(false)
+interface LocalAdmin {
+  id: string
+  name: string
+  status: string
+  statusColor: string
+  bg: string
+  categoria: string
+  propietario: string
+  telefono: string
+  direccion: string
+  fechaAlta: string
+  rating: number
+  pedidosTotales: number
+}
 
-  // Estados para el local seleccionado
-  const [locales, setLocales] = useState([
-    { 
-      id: 1, name: 'Taquería El Gordo', status: 'Activo', statusColor: 'text-[#5bc827]', bg: 'bg-[#5bc827]/10',
-      categoria: 'Tacos', propietario: 'Roberto Gómez', telefono: '618 456 7890',
-      direccion: 'Calle Hidalgo #45, Centro', fechaAlta: '4 Feb 2025', rating: 4.7, pedidosTotales: 342
-    },
-    { 
-      id: 2, name: 'Sushi Nuevo', status: 'Pendiente', statusColor: 'text-[#d9a05b]', bg: 'bg-[#d9a05b]/10',
-      categoria: 'Sushi', propietario: 'Ana Kimura', telefono: '618 567 8901',
-      direccion: 'Blvd. Guadiana #200, Fracc. Real', fechaAlta: '10 Ago 2026', rating: 0, pedidosTotales: 0
-    },
-  ])
+interface RepartidorAdmin {
+  id: string
+  name: string
+  mat: string
+  rating: string
+  status: string
+  telefono: string
+  vehiculo: string
+  fechaAlta: string
+  direccion: string
+  entregasTotales: number
+  gananciasTotales: number
+  fotoUrl?: string | null
+}
 
-  const [selectedLocal, setSelectedLocal] = useState<typeof locales[number] | null>(null)
+interface SupportUser {
+  id: string
+  nombre: string
+  email: string
+  rol: string
+}
+
+interface SupportConversation {
+  user: SupportUser
+  lastMessage: {
+    id: string
+    mensaje: string
+    autor: 'USUARIO' | 'SOPORTE'
+    createdAt: string
+    orderId?: string | null
+  } | null
+}
+
+interface SupportDetailMessage {
+  id: string
+  userId: string
+  orderId?: string | null
+  autor: 'USUARIO' | 'SOPORTE'
+  mensaje: string
+  createdAt: string
+}
+
+  // Estados para soporte
+  const [conversations, setConversations] = useState<SupportConversation[]>([])
+  const [loadingConversations, setLoadingConversations] = useState<boolean>(false)
+  const [selectedConversationUser, setSelectedConversationUser] = useState<SupportUser | null>(null)
+  const [conversationMessages, setConversationMessages] = useState<SupportDetailMessage[]>([])
+  const [loadingConversation, setLoadingConversation] = useState<boolean>(false)
+  const [replyText, setReplyText] = useState<string>('')
+  const [sendingReply, setSendingReply] = useState<boolean>(false)
+  const [replyError, setReplyError] = useState<string | null>(null)
+  const chatBottomRef = useRef<HTMLDivElement | null>(null)
+
+  // Estados para usuarios
+  const [usuarios, setUsuarios] = useState<UsuarioAdmin[]>([])
+  const [loadingUsuarios, setLoadingUsuarios] = useState<boolean>(false)
+  const [selectedUsuario, setSelectedUsuario] = useState<UsuarioAdmin | null>(null)
+  const [showConfirmSuspend, setShowConfirmSuspend] = useState<boolean>(false)
+  const [updatingUser, setUpdatingUser] = useState<boolean>(false)
+
+  // Estados para configuración de comisiones
+  const [loadingConfig, setLoadingConfig] = useState<boolean>(false)
+  const [savingConfig, setSavingConfig] = useState<boolean>(false)
+
+  // Estados para pedidos del dashboard
+  const [adminOrders, setAdminOrders] = useState<AdminOrder[]>([])
+  const [loadingOrders, setLoadingOrders] = useState<boolean>(false)
+
+  // Carga de usuarios desde el backend
+  const loadUsuarios = async () => {
+    try {
+      setLoadingUsuarios(true)
+      const data = await api.get<any[]>('/api/admin/usuarios')
+      const mapped: UsuarioAdmin[] = (data || []).map(u => ({
+        id: u.id,
+        name: u.nombre || u.name || 'Usuario',
+        email: u.email,
+        status: (u.status === 'ACTIVO' || u.status === 'Activo') ? 'Activo' : 'Suspendido',
+        telefono: u.telefono || 'Sin teléfono',
+        fechaRegistro: u.createdAt
+          ? new Date(u.createdAt).toLocaleDateString('es-MX', {
+              year: 'numeric',
+              month: 'short',
+              day: 'numeric',
+            })
+          : 'Reciente',
+        pedidosTotales: u.pedidosTotales ?? 0,
+        gastoTotal: u.gastoTotal ?? 0,
+        rating: u.rating ?? 5,
+        direccionPrincipal: u.direccionPrincipal || 'No especificada',
+      }))
+      setUsuarios(mapped)
+    } catch (err) {
+      console.error('Error al cargar usuarios:', err)
+    } finally {
+      setLoadingUsuarios(false)
+    }
+  }
+
+  // Acción de suspender/reactivar usuario
+  const handleToggleSuspendUsuario = async () => {
+    if (!selectedUsuario || updatingUser) return
+    setUpdatingUser(true)
+    try {
+      const isActivo = selectedUsuario.status === 'Activo'
+      const endpoint = isActivo
+        ? `/api/admin/usuarios/${selectedUsuario.id}/suspend`
+        : `/api/admin/usuarios/${selectedUsuario.id}/reactivate`
+      const updated = await api.patch<any>(endpoint)
+      const nuevoStatus = (updated.status === 'ACTIVO' || updated.status === 'Activo') ? 'Activo' : 'Suspendido'
+      setSelectedUsuario(prev => (prev ? { ...prev, status: nuevoStatus } : null))
+      setShowConfirmSuspend(false)
+      await loadUsuarios()
+    } catch (err) {
+      console.error('Error al suspender/reactivar usuario:', err)
+    } finally {
+      setUpdatingUser(false)
+    }
+  }
+
+  // Carga de comisiones desde el backend
+  const loadConfig = async () => {
+    try {
+      setLoadingConfig(true)
+      const config = await api.get<{
+        id: string
+        comisionLocalPorcentaje: number
+        comisionRepartidorFija: number
+        comisionUsuarioFija: number
+      }>('/api/admin/config')
+      setComisionLocal(config.comisionLocalPorcentaje)
+      setComisionRepartidor(config.comisionRepartidorFija)
+      setComisionUsuario(config.comisionUsuarioFija)
+    } catch (err) {
+      console.error('Error al cargar configuración:', err)
+    } finally {
+      setLoadingConfig(false)
+    }
+  }
+
+  // Guardado de comisiones hacia el backend
+  const handleSaveConfig = async () => {
+    if (savingConfig) return
+    setSavingConfig(true)
+    try {
+      const updated = await api.patch<{
+        id: string
+        comisionLocalPorcentaje: number
+        comisionRepartidorFija: number
+        comisionUsuarioFija: number
+      }>('/api/admin/config', {
+        comisionLocalPorcentaje: Number(comisionLocal),
+        comisionRepartidorFija: Number(comisionRepartidor),
+        comisionUsuarioFija: Number(comisionUsuario),
+      })
+      setComisionLocal(updated.comisionLocalPorcentaje)
+      setComisionRepartidor(updated.comisionRepartidorFija)
+      setComisionUsuario(updated.comisionUsuarioFija)
+      setShowToast(true)
+      setTimeout(() => setShowToast(false), 3000)
+    } catch (err) {
+      console.error('Error al guardar configuración:', err)
+    } finally {
+      setSavingConfig(false)
+    }
+  }
+
+  // Carga de pedidos para el dashboard
+  const loadAdminOrders = async () => {
+    try {
+      setLoadingOrders(true)
+      const data = await api.get<AdminOrder[]>('/api/orders/admin/all')
+      setAdminOrders(data || [])
+    } catch (err) {
+      console.error('Error al cargar pedidos para dashboard:', err)
+      setAdminOrders([])
+    } finally {
+      setLoadingOrders(false)
+    }
+  }
+
+  // Estados para locales
+  const [locales, setLocales] = useState<LocalAdmin[]>([])
+  const [loadingLocales, setLoadingLocales] = useState<boolean>(false)
+  const [updatingLocal, setUpdatingLocal] = useState<boolean>(false)
+  const [selectedLocal, setSelectedLocal] = useState<LocalAdmin | null>(null)
   const [localTimeframe, setLocalTimeframe] = useState<LocalTimeframe>('mes')
   const [fechaLocalSeleccionada, setFechaLocalSeleccionada] = useState<{
     dia: number | null
@@ -193,44 +405,362 @@ export default function AdminPanel({ onLogout }: Props) {
   const [showLocalGanancias, setShowLocalGanancias] = useState(false)
   const [showConfirmSuspendLocal, setShowConfirmSuspendLocal] = useState(false)
 
-  // Estados para el repartidor seleccionado
-  const [repartidores, setRepartidores] = useState([
-    { 
-      id: 1, name: 'Carlos R.', mat: 'REP-451234', rating: '4.9', status: 'Activo',
-      telefono: '618 678 9012', vehiculo: 'Motocicleta Italika 150', 
-      fechaAlta: '15 Jun 2025', direccion: 'Calle Roble #12, Sierra Norte',
-      entregasTotales: 512, gananciasTotales: 24800
-    },
-    { 
-      id: 2, name: 'Ana López', mat: 'REP-883192', rating: '4.7', status: 'Activo',
-      telefono: '618 789 0123', vehiculo: 'Bicicleta eléctrica',
-      fechaAlta: '2 Sep 2025', direccion: 'Av. Universidad #88, Centro',
-      entregasTotales: 340, gananciasTotales: 16200
-    },
-    { 
-      id: 3, name: 'Miguel Torres', mat: 'REP-902341', rating: '0', status: 'Pendiente',
-      telefono: '618 890 1234', vehiculo: 'Motocicleta Vento 200',
-      fechaAlta: '18 Ago 2026', direccion: 'Blvd. Durango #55, Guadalupe',
-      entregasTotales: 0, gananciasTotales: 0
-    },
-  ])
-
-  const [selectedRepartidor, setSelectedRepartidor] = useState<typeof repartidores[number] | null>(null)
+  // Estados para repartidores
+  const [repartidores, setRepartidores] = useState<RepartidorAdmin[]>([])
+  const [loadingRepartidores, setLoadingRepartidores] = useState<boolean>(false)
+  const [updatingRepartidor, setUpdatingRepartidor] = useState<boolean>(false)
+  const [selectedRepartidor, setSelectedRepartidor] = useState<RepartidorAdmin | null>(null)
   const [showConfirmSuspendRepartidor, setShowConfirmSuspendRepartidor] = useState(false)
-  const [showConfirmRechazarRepartidor, setShowConfirmRechazarRepartidor] = useState<typeof repartidores[number] | null>(null)
+  const [showConfirmRechazarRepartidor, setShowConfirmRechazarRepartidor] = useState<RepartidorAdmin | null>(null)
 
-    /**
-   * Maneja el evento de guardar la configuración de comisiones.
-   * Muestra una notificación temporal (toast) de éxito durante 3 segundos.
-   */
-  const handleSaveConfig = () => {
-    setShowToast(true)
-    setTimeout(() => setShowToast(false), 3000)
+  // Estados para el listado global de pedidos
+  const [pedidosList, setPedidosList] = useState<AdminOrder[]>([])
+  const [loadingPedidosList, setLoadingPedidosList] = useState<boolean>(false)
+  const [pedidosEstadoFilter, setPedidosEstadoFilter] = useState<string>('TODOS')
+
+  // Carga de locales desde el backend
+  const loadLocales = async () => {
+    try {
+      setLoadingLocales(true)
+      const data = await api.get<any[]>('/api/restaurants/admin/all')
+      const mapped: LocalAdmin[] = (data || []).map(r => {
+        let statusLabel = 'Pendiente'
+        let statusColor = 'text-amber-400'
+        let bg = 'bg-amber-400/10'
+
+        if (r.status === 'ACTIVO' || r.status === 'Activo') {
+          statusLabel = 'Activo'
+          statusColor = 'text-[#5bc827]'
+          bg = 'bg-[#5bc827]/10'
+        } else if (r.status === 'SUSPENDIDO' || r.status === 'Suspendido') {
+          statusLabel = 'Suspendido'
+          statusColor = 'text-red-400'
+          bg = 'bg-red-400/10'
+        }
+
+        return {
+          id: r.id,
+          name: r.nombre || 'Restaurante',
+          status: statusLabel,
+          statusColor,
+          bg,
+          categoria: r.categoria || 'Restaurante',
+          propietario: r.owner?.nombre || 'Sin propietario',
+          telefono: r.owner?.telefono || r.telefono || 'Sin teléfono',
+          direccion: r.direccion || 'Sin dirección',
+          fechaAlta: r.createdAt
+            ? new Date(r.createdAt).toLocaleDateString('es-MX', {
+                year: 'numeric',
+                month: 'short',
+                day: 'numeric',
+              })
+            : 'Reciente',
+          rating: r.ratingPromedio ?? r.rating ?? 5,
+          pedidosTotales: r.totalPedidos ?? 0,
+        }
+      })
+      setLocales(mapped)
+    } catch (err) {
+      console.error('Error al cargar locales:', err)
+    } finally {
+      setLoadingLocales(false)
+    }
   }
 
-  const currentIngresos = selectedTimeframe === 'personalizado'
-    ? generarIngresosPorFecha(fechaSeleccionada.dia, fechaSeleccionada.mes, fechaSeleccionada.anio)
-    : DATA_INGRESOS[selectedTimeframe]
+  // Acción de aprobar local
+  const handleApproveLocal = async (id: string) => {
+    if (updatingLocal) return
+    setUpdatingLocal(true)
+    try {
+      await api.patch(`/api/restaurants/admin/${id}/approve`)
+      await loadLocales()
+    } catch (err) {
+      console.error('Error al aprobar local:', err)
+    } finally {
+      setUpdatingLocal(false)
+    }
+  }
+
+  // Acción de suspender/reactivar local
+  const handleToggleSuspendLocal = async () => {
+    if (!selectedLocal || updatingLocal) return
+    setUpdatingLocal(true)
+    try {
+      const isSuspendido = selectedLocal.status === 'Suspendido'
+      const endpoint = isSuspendido
+        ? `/api/restaurants/admin/${selectedLocal.id}/reactivate`
+        : `/api/restaurants/admin/${selectedLocal.id}/suspend`
+      const updated = await api.patch<any>(endpoint)
+      const nuevoStatus = (updated.status === 'ACTIVO' || updated.status === 'Activo') ? 'Activo' : 'Suspendido'
+      const nuevoColor = nuevoStatus === 'Activo' ? 'text-[#5bc827]' : 'text-red-400'
+      const nuevoBg = nuevoStatus === 'Activo' ? 'bg-[#5bc827]/10' : 'bg-red-400/10'
+      setSelectedLocal(prev => prev ? { ...prev, status: nuevoStatus, statusColor: nuevoColor, bg: nuevoBg } : null)
+      setShowConfirmSuspendLocal(false)
+      await loadLocales()
+    } catch (err) {
+      console.error('Error al suspender/reactivar local:', err)
+    } finally {
+      setUpdatingLocal(false)
+    }
+  }
+
+  // Carga de repartidores desde el backend
+  const loadRepartidores = async () => {
+    try {
+      setLoadingRepartidores(true)
+      const data = await api.get<any[]>('/api/admin/repartidores')
+      const mapped: RepartidorAdmin[] = (data || []).map(r => {
+        let statusLabel = 'Pendiente'
+        if (r.status === 'ACTIVO') statusLabel = 'Activo'
+        else if (r.status === 'SUSPENDIDO') statusLabel = 'Suspendido'
+        else if (r.status === 'RECHAZADO') statusLabel = 'Rechazado'
+
+        const vehiculo = r.driverProfile?.vehiculo || 'Moto'
+        const matricula = r.driverProfile?.matricula ? `Placas: ${r.driverProfile.matricula}` : vehiculo
+
+        return {
+          id: r.id,
+          name: r.nombre || 'Repartidor',
+          mat: matricula,
+          rating: r.driverProfile?.ratingPromedio != null ? String(r.driverProfile.ratingPromedio) : '5.0',
+          status: statusLabel,
+          telefono: r.telefono || 'Sin teléfono',
+          vehiculo,
+          fechaAlta: r.createdAt
+            ? new Date(r.createdAt).toLocaleDateString('es-MX', {
+                year: 'numeric',
+                month: 'short',
+                day: 'numeric',
+              })
+            : 'Reciente',
+          direccion: 'Huatusco, Ver.',
+          entregasTotales: r.driverProfile?.totalEntregas ?? 0,
+          gananciasTotales: 0,
+          fotoUrl: r.driverProfile?.fotoUrl || null,
+        }
+      })
+      setRepartidores(mapped)
+    } catch (err) {
+      console.error('Error al cargar repartidores:', err)
+    } finally {
+      setLoadingRepartidores(false)
+    }
+  }
+
+  // Acción de aprobar repartidor
+  const handleApproveRepartidor = async (id: string) => {
+    if (updatingRepartidor) return
+    setUpdatingRepartidor(true)
+    try {
+      await api.patch(`/api/admin/repartidores/${id}/approve`)
+      await loadRepartidores()
+    } catch (err) {
+      console.error('Error al aprobar repartidor:', err)
+    } finally {
+      setUpdatingRepartidor(false)
+    }
+  }
+
+  // Acción de rechazar repartidor
+  const handleRejectRepartidor = async (id: string) => {
+    if (updatingRepartidor) return
+    setUpdatingRepartidor(true)
+    try {
+      await api.patch(`/api/admin/repartidores/${id}/reject`)
+      setShowConfirmRechazarRepartidor(null)
+      await loadRepartidores()
+    } catch (err) {
+      console.error('Error al rechazar repartidor:', err)
+    } finally {
+      setUpdatingRepartidor(false)
+    }
+  }
+
+  // Acción de suspender/reactivar repartidor
+  const handleToggleSuspendRepartidor = async () => {
+    if (!selectedRepartidor || updatingRepartidor) return
+    setUpdatingRepartidor(true)
+    try {
+      const isActivo = selectedRepartidor.status === 'Activo'
+      const endpoint = isActivo
+        ? `/api/admin/repartidores/${selectedRepartidor.id}/suspend`
+        : `/api/admin/repartidores/${selectedRepartidor.id}/reactivate`
+      const updated = await api.patch<any>(endpoint)
+      const nuevoStatus = updated.status === 'ACTIVO' ? 'Activo' : 'Suspendido'
+      setSelectedRepartidor(prev => prev ? { ...prev, status: nuevoStatus } : null)
+      setShowConfirmSuspendRepartidor(false)
+      await loadRepartidores()
+    } catch (err) {
+      console.error('Error al suspender/reactivar repartidor:', err)
+    } finally {
+      setUpdatingRepartidor(false)
+    }
+  }
+
+  // Carga de pedidos para la pestaña Pedidos
+  const loadPedidosList = async (estado?: string) => {
+    try {
+      setLoadingPedidosList(true)
+      const query = estado && estado !== 'TODOS' ? `?estado=${estado}` : ''
+      const data = await api.get<AdminOrder[]>(`/api/orders/admin/all${query}`)
+      setPedidosList(data || [])
+    } catch (err) {
+      console.error('Error al cargar lista de pedidos:', err)
+      setPedidosList([])
+    } finally {
+      setLoadingPedidosList(false)
+    }
+  }
+
+  const handleFilterPedidos = (nuevoEstado: string) => {
+    setPedidosEstadoFilter(nuevoEstado)
+    loadPedidosList(nuevoEstado)
+  }
+
+  // Carga de conversaciones de soporte
+  const loadConversations = async () => {
+    try {
+      setLoadingConversations(true)
+      const data = await api.get<SupportConversation[]>('/api/support/admin/conversations')
+      setConversations(data || [])
+    } catch (err) {
+      console.error('Error al cargar conversaciones de soporte:', err)
+    } finally {
+      setLoadingConversations(false)
+    }
+  }
+
+  const openConversation = async (user: SupportUser) => {
+    setSelectedConversationUser(user)
+    setReplyError(null)
+    setReplyText('')
+    try {
+      setLoadingConversation(true)
+      const data = await api.get<{ user: SupportUser; messages: SupportDetailMessage[] }>(
+        `/api/support/admin/conversations/${user.id}`
+      )
+      setConversationMessages(data.messages || [])
+    } catch (err) {
+      console.error('Error al abrir conversación:', err)
+    } finally {
+      setLoadingConversation(false)
+    }
+  }
+
+  const handleSendReply = async () => {
+    if (!selectedConversationUser || !replyText.trim() || sendingReply) return
+    const textToSend = replyText.trim()
+    setSendingReply(true)
+    setReplyError(null)
+    try {
+      const newMsg = await api.post<SupportDetailMessage>(
+        `/api/support/admin/conversations/${selectedConversationUser.id}/reply`,
+        { mensaje: textToSend }
+      )
+      setConversationMessages(prev => {
+        if (prev.some(m => m.id === newMsg.id)) return prev
+        return [...prev, newMsg]
+      })
+      setReplyText('')
+      loadConversations()
+    } catch (err: any) {
+      console.error('Error al responder soporte:', err)
+      setReplyError(err.message || 'Error al enviar respuesta')
+    } finally {
+      setSendingReply(false)
+    }
+  }
+
+  // Socket listener para mensajes de soporte en tiempo real
+  useEffect(() => {
+    const socket = getSocket()
+    if (!socket) return
+
+    const handleSupportMessage = (msg: any) => {
+      loadConversations()
+      if (selectedConversationUser && msg.userId === selectedConversationUser.id) {
+        setConversationMessages(prev => {
+          if (prev.some(m => m.id === msg.id)) return prev
+          return [...prev, msg]
+        })
+      }
+    }
+
+    socket.on('support:message', handleSupportMessage)
+
+    return () => {
+      socket.off('support:message', handleSupportMessage)
+    }
+  }, [selectedConversationUser])
+
+  // Auto scroll al final de la conversación al recibir nuevos mensajes
+  useEffect(() => {
+    if (selectedConversationUser && chatBottomRef.current) {
+      chatBottomRef.current.scrollIntoView({ behavior: 'smooth' })
+    }
+  }, [conversationMessages, selectedConversationUser])
+
+  // Carga inicial al montar el componente
+  useEffect(() => {
+    loadUsuarios()
+    loadConfig()
+    loadAdminOrders()
+    loadLocales()
+    loadRepartidores()
+    loadPedidosList()
+    loadConversations()
+  }, [])
+
+  /**
+   * NOTA DE ARQUITECTURA / INTEGRACIÓN:
+   * Este cálculo se realiza temporalmente en el cliente a partir de GET /api/orders/admin/all.
+   * A futuro, con más volumen de pedidos, convendrá un endpoint de agregación dedicado en el
+   * backend (ej. GET /api/orders/admin/summary?desde=&hasta=).
+   * 
+   * DEFINICIÓN DE COMISIÓN TOTAL DE LA PLATAFORMA:
+   * - Solo se consideran pedidos con estado ENTREGADO (ingreso real liquidado).
+   * - comisionUsuarioFija: Cargo por servicio pagado por el usuario (INGRESO).
+   * - comisionLocalMonto: Comisión cobrada al local por venta (INGRESO).
+   * - comisionRepartidorFija: Es un EGRESO pagado al repartidor, NO un ingreso de la plataforma,
+   *   por lo que NO debe sumarse aquí.
+   */
+  const currentIngresos = useMemo(() => {
+    const filtered = adminOrders.filter(o =>
+      isOrderInTimeframe(o.createdAt, selectedTimeframe, fechaSeleccionada)
+    )
+
+    const delivered = filtered.filter(o => o.estado === 'ENTREGADO')
+
+    let total = 0
+    let efectivo = 0
+    let tarjeta = 0
+    let comisionUsuario = 0
+    let comisionLocales = 0
+
+    for (const o of delivered) {
+      const orderTotal = Number(o.total) || 0
+      total += orderTotal
+
+      const metodo = (o.metodoPago || '').toUpperCase()
+      if (metodo === 'EFECTIVO') {
+        efectivo += orderTotal
+      } else {
+        tarjeta += orderTotal
+      }
+
+      comisionUsuario += Number(o.comisionUsuarioFija) || 0
+      comisionLocales += Number(o.comisionLocalMonto) || 0
+    }
+
+    return {
+      total,
+      efectivo,
+      tarjeta,
+      comisionUsuario,
+      comisionLocales,
+      comisionPlataforma: comisionUsuario + comisionLocales,
+    }
+  }, [adminOrders, selectedTimeframe, fechaSeleccionada])
 
   const navItems: { id: Tab, label: string, icon: string }[] = [
     { id: 'dashboard', label: 'Dashboard', icon: '📊' },
@@ -238,6 +768,7 @@ export default function AdminPanel({ onLogout }: Props) {
     { id: 'locales', label: 'Locales', icon: '🏪' },
     { id: 'repartidores', label: 'Repartidores', icon: '🏍️' },
     { id: 'pedidos', label: 'Pedidos', icon: '📦' },
+    { id: 'soporte', label: 'Soporte', icon: '💬' },
     { id: 'config', label: 'Ajustes', icon: '⚙️' },
   ]
   /**
@@ -339,15 +870,11 @@ export default function AdminPanel({ onLogout }: Props) {
                   Cancelar
                 </button>
                 <button
-                  onClick={() => {
-                    const nuevoStatus = selectedUsuario.status === 'Activo' ? 'Suspendido' : 'Activo'
-                    setUsuarios(prev => prev.map(u => u.id === selectedUsuario.id ? { ...u, status: nuevoStatus } : u))
-                    setSelectedUsuario(prev => prev ? { ...prev, status: nuevoStatus } : null)
-                    setShowConfirmSuspend(false)
-                  }}
-                  className={`flex-1 py-3 rounded-xl font-bold transition-colors cursor-pointer ${selectedUsuario.status === 'Activo' ? 'bg-red-600 hover:bg-red-500 text-white' : 'bg-[#5bc827] hover:bg-[#7ed944] text-[#1a1b1e]'}`}
+                  disabled={updatingUser}
+                  onClick={handleToggleSuspendUsuario}
+                  className={`flex-1 py-3 rounded-xl font-bold transition-colors cursor-pointer disabled:opacity-50 ${selectedUsuario.status === 'Activo' ? 'bg-red-600 hover:bg-red-500 text-white' : 'bg-[#5bc827] hover:bg-[#7ed944] text-[#1a1b1e]'}`}
                 >
-                  Confirmar
+                  {updatingUser ? 'Procesando...' : 'Confirmar'}
                 </button>
               </div>
             </div>
@@ -669,17 +1196,11 @@ export default function AdminPanel({ onLogout }: Props) {
                   Cancelar
                 </button>
                 <button
-                  onClick={() => {
-                    const nuevoStatus = selectedLocal.status !== 'Suspendido' ? 'Suspendido' : 'Activo'
-                    const nuevoColor = nuevoStatus === 'Activo' ? 'text-[#5bc827]' : 'text-red-400'
-                    const nuevoBg = nuevoStatus === 'Activo' ? 'bg-[#5bc827]/10' : 'bg-red-400/10'
-                    setLocales(prev => prev.map(l => l.id === selectedLocal.id ? { ...l, status: nuevoStatus, statusColor: nuevoColor, bg: nuevoBg } : l))
-                    setSelectedLocal(prev => prev ? { ...prev, status: nuevoStatus, statusColor: nuevoColor, bg: nuevoBg } : null)
-                    setShowConfirmSuspendLocal(false)
-                  }}
-                  className={`flex-1 py-3 rounded-xl font-bold transition-colors cursor-pointer ${selectedLocal.status !== 'Suspendido' ? 'bg-red-600 hover:bg-red-500 text-white' : 'bg-[#5bc827] hover:bg-[#7ed944] text-[#1a1b1e]'}`}
+                  disabled={updatingLocal}
+                  onClick={handleToggleSuspendLocal}
+                  className={`flex-1 py-3 rounded-xl font-bold transition-colors cursor-pointer disabled:opacity-50 ${selectedLocal.status !== 'Suspendido' ? 'bg-red-600 hover:bg-red-500 text-white' : 'bg-[#5bc827] hover:bg-[#7ed944] text-[#1a1b1e]'}`}
                 >
-                  Confirmar
+                  {updatingLocal ? 'Procesando...' : 'Confirmar'}
                 </button>
               </div>
             </div>
@@ -701,13 +1222,29 @@ export default function AdminPanel({ onLogout }: Props) {
 
         <div className="p-4 max-w-lg mx-auto w-full space-y-5">
           <div className="bg-[#232427] border border-[#35373b] rounded-2xl p-5 flex items-center gap-4">
-            <div className="w-14 h-14 rounded-full bg-[#d9a05b]/20 border-2 border-[#d9a05b] flex items-center justify-center text-xl font-bold text-[#d9a05b]">
-              {selectedRepartidor.name.split(' ').map(n => n[0]).join('')}
-            </div>
+            {selectedRepartidor.fotoUrl ? (
+              <img
+                src={getImageUrl(selectedRepartidor.fotoUrl)}
+                alt={selectedRepartidor.name}
+                className="w-14 h-14 rounded-full object-cover border-2 border-[#d9a05b]"
+              />
+            ) : (
+              <div className="w-14 h-14 rounded-full bg-[#d9a05b]/20 border-2 border-[#d9a05b] flex items-center justify-center text-xl font-bold text-[#d9a05b]">
+                {selectedRepartidor.name.split(' ').map(n => n[0]).join('')}
+              </div>
+            )}
             <div className="flex-1">
               <h2 className="font-bold text-lg text-white">{selectedRepartidor.name} <span className="text-[#d9a05b] text-sm">★ {selectedRepartidor.rating}</span></h2>
               <p className="text-[#9a9da3] text-xs font-mono">{selectedRepartidor.mat}</p>
-              <span className={`inline-block mt-1 text-[10px] uppercase font-bold px-2 py-0.5 rounded ${selectedRepartidor.status === 'Activo' ? 'text-[#5bc827] bg-[#5bc827]/10' : 'text-red-400 bg-red-400/10'}`}>
+              <span className={`inline-block mt-1 text-[10px] uppercase font-bold px-2 py-0.5 rounded ${
+                selectedRepartidor.status === 'Activo'
+                  ? 'text-[#5bc827] bg-[#5bc827]/10'
+                  : selectedRepartidor.status === 'Pendiente'
+                  ? 'text-amber-400 bg-amber-400/10'
+                  : selectedRepartidor.status === 'Rechazado'
+                  ? 'text-red-400 bg-red-400/10'
+                  : 'text-orange-400 bg-orange-400/10'
+              }`}>
                 {selectedRepartidor.status}
               </span>
             </div>
@@ -726,16 +1263,18 @@ export default function AdminPanel({ onLogout }: Props) {
             <StatCard label="Ganancias totales" value={`$${selectedRepartidor.gananciasTotales.toLocaleString('es-MX')}`} icon="💰" />
           </div>
 
-          <button
-            onClick={() => setShowConfirmSuspendRepartidor(true)}
-            className={`w-full py-3.5 rounded-xl font-bold text-sm transition-colors cursor-pointer ${
-              selectedRepartidor.status === 'Activo'
-                ? 'border border-red-800/50 text-red-400 hover:bg-red-900/20'
-                : 'bg-[#5bc827] hover:bg-[#7ed944] text-[#1a1b1e]'
-            }`}
-          >
-            {selectedRepartidor.status === 'Activo' ? 'Suspender repartidor' : 'Reactivar repartidor'}
-          </button>
+          {selectedRepartidor.status !== 'Rechazado' && selectedRepartidor.status !== 'Pendiente' && (
+            <button
+              onClick={() => setShowConfirmSuspendRepartidor(true)}
+              className={`w-full py-3.5 rounded-xl font-bold text-sm transition-colors cursor-pointer ${
+                selectedRepartidor.status === 'Activo'
+                  ? 'border border-red-800/50 text-red-400 hover:bg-red-900/20'
+                  : 'bg-[#5bc827] hover:bg-[#7ed944] text-[#1a1b1e]'
+              }`}
+            >
+              {selectedRepartidor.status === 'Activo' ? 'Suspender repartidor' : 'Reactivar repartidor'}
+            </button>
+          )}
         </div>
 
         {showConfirmSuspendRepartidor && (
@@ -754,15 +1293,11 @@ export default function AdminPanel({ onLogout }: Props) {
                   Cancelar
                 </button>
                 <button
-                  onClick={() => {
-                    const nuevoStatus = selectedRepartidor.status === 'Activo' ? 'Suspendido' : 'Activo'
-                    setRepartidores(prev => prev.map(r => r.id === selectedRepartidor.id ? { ...r, status: nuevoStatus } : r))
-                    setSelectedRepartidor(prev => prev ? { ...prev, status: nuevoStatus } : null)
-                    setShowConfirmSuspendRepartidor(false)
-                  }}
-                  className={`flex-1 py-3 rounded-xl font-bold transition-colors cursor-pointer ${selectedRepartidor.status === 'Activo' ? 'bg-red-600 hover:bg-red-500 text-white' : 'bg-[#5bc827] hover:bg-[#7ed944] text-[#1a1b1e]'}`}
+                  disabled={updatingRepartidor}
+                  onClick={handleToggleSuspendRepartidor}
+                  className={`flex-1 py-3 rounded-xl font-bold transition-colors cursor-pointer disabled:opacity-50 ${selectedRepartidor.status === 'Activo' ? 'bg-red-600 hover:bg-red-500 text-white' : 'bg-[#5bc827] hover:bg-[#7ed944] text-[#1a1b1e]'}`}
                 >
-                  Confirmar
+                  {updatingRepartidor ? 'Procesando...' : 'Confirmar'}
                 </button>
               </div>
             </div>
@@ -779,28 +1314,29 @@ export default function AdminPanel({ onLogout }: Props) {
         {activeTab === 'dashboard' && (
           <div>
             <Title text="Dashboard" />
+            {/* TODO: reemplazar con datos reales del backend (GET /api/admin/stats) */}
             <div className="grid grid-cols-2 gap-3 mb-6">
               <StatCard 
                 label="Usuarios Totales" 
-                value="1,245" 
+                value={String(usuarios.length)} 
                 icon="👥" 
                 onClick={() => setActiveTab('usuarios')} 
               />
               <StatCard 
                 label="Locales Activos" 
-                value="34" 
+                value={String(locales.filter(l => l.status === 'Activo').length)} 
                 icon="🏪" 
                 onClick={() => setActiveTab('locales')} 
               />
               <StatCard 
                 label="Repartidores" 
-                value="89" 
+                value={String(repartidores.length)} 
                 icon="🏍️" 
                 onClick={() => setActiveTab('repartidores')} 
               />
               <StatCard 
                 label="Pedidos de Hoy" 
-                value="215" 
+                value={String(adminOrders.filter(o => isOrderInTimeframe(o.createdAt, 'hoy', fechaSeleccionada)).length)} 
                 icon="📦" 
                 onClick={() => setActiveTab('pedidos')} 
               />
@@ -1091,117 +1627,290 @@ export default function AdminPanel({ onLogout }: Props) {
         {activeTab === 'usuarios' && (
           <div>
             <Title text="Usuarios" />
-            <div className="space-y-3">
-              {usuarios.map((u) => (
-                <div key={u.id} className="bg-[#232427] border border-[#35373b] hover:border-[#d9a05b]/50 p-4 rounded-xl flex items-center justify-between transition-colors">
-                  <div>
-                    <p className="font-bold text-sm text-white">{u.name}</p>
-                    <p className="text-[#9a9da3] text-xs">{u.email}</p>
+            {loadingUsuarios ? (
+              <div className="flex flex-col items-center justify-center py-12 text-center bg-[#232427] border border-[#35373b] rounded-xl">
+                <div className="w-8 h-8 border-2 border-[#d9a05b] border-t-transparent rounded-full animate-spin mb-3" />
+                <p className="text-[#9a9da3] text-sm">Cargando usuarios...</p>
+              </div>
+            ) : usuarios.length === 0 ? (
+              <div className="flex flex-col items-center justify-center py-12 text-center bg-[#232427] border border-[#35373b] rounded-xl">
+                <span className="text-4xl mb-2">👥</span>
+                <p className="text-white font-semibold text-sm">No hay usuarios registrados</p>
+                <p className="text-[#9a9da3] text-xs mt-1">Los clientes de la plataforma aparecerán aquí</p>
+              </div>
+            ) : (
+              <div className="space-y-3">
+                {usuarios.map((u) => (
+                  <div key={u.id} className="bg-[#232427] border border-[#35373b] hover:border-[#d9a05b]/50 p-4 rounded-xl flex items-center justify-between transition-colors">
+                    <div>
+                      <p className="font-bold text-sm text-white">{u.name}</p>
+                      <p className="text-[#9a9da3] text-xs">{u.email}</p>
+                    </div>
+                    <div className="flex items-center gap-3">
+                      <span className={`${u.status === 'Activo' ? 'text-[#5bc827] bg-[#5bc827]/10' : 'text-red-400 bg-red-400/10'} text-[10px] uppercase font-bold px-2 py-1 rounded`}>{u.status}</span>
+                      <button 
+                        onClick={() => setSelectedUsuario(u)}
+                        className="text-xs font-semibold bg-[#35373b] hover:bg-[#d9a05b] hover:text-[#1a1b1e] text-white px-3 py-1.5 rounded-lg transition-colors cursor-pointer"
+                      >
+                        Ver
+                      </button>
+                    </div>
                   </div>
-                  <div className="flex items-center gap-3">
-                    <span className={`${u.status === 'Activo' ? 'text-[#5bc827] bg-[#5bc827]/10' : 'text-red-400 bg-red-400/10'} text-[10px] uppercase font-bold px-2 py-1 rounded`}>{u.status}</span>
-                    <button 
-                      onClick={() => setSelectedUsuario(u)}
-                      className="text-xs font-semibold bg-[#35373b] hover:bg-[#d9a05b] hover:text-[#1a1b1e] text-white px-3 py-1.5 rounded-lg transition-colors cursor-pointer"
-                    >
-                      Ver
-                    </button>
-                  </div>
-                </div>
-              ))}
-            </div>
+                ))}
+              </div>
+            )}
           </div>
         )}
 
         {activeTab === 'locales' && (
           <div>
             <Title text="Locales y Restaurantes" />
-            <div className="space-y-3">
-              {locales.map((l) => (
-                <div key={l.id} className="bg-[#232427] border border-[#35373b] hover:border-[#d9a05b]/50 p-4 rounded-xl flex items-center justify-between transition-colors">
-                  <div>
-                    <p className="font-bold text-sm text-white">{l.name}</p>
-                    <p className="text-[#9a9da3] text-xs">{l.categoria}</p>
+            {loadingLocales ? (
+              <div className="flex flex-col items-center justify-center py-12 text-center bg-[#232427] border border-[#35373b] rounded-xl">
+                <div className="w-8 h-8 border-2 border-[#d9a05b] border-t-transparent rounded-full animate-spin mb-3" />
+                <p className="text-[#9a9da3] text-sm">Cargando locales...</p>
+              </div>
+            ) : locales.length === 0 ? (
+              <div className="flex flex-col items-center justify-center py-12 text-center bg-[#232427] border border-[#35373b] rounded-xl">
+                <span className="text-4xl mb-2">🏪</span>
+                <p className="text-white font-semibold text-sm">No hay locales registrados</p>
+                <p className="text-[#9a9da3] text-xs mt-1">Los restaurantes de la plataforma aparecerán aquí</p>
+              </div>
+            ) : (
+              <div className="space-y-3">
+                {locales.map((l) => (
+                  <div key={l.id} className="bg-[#232427] border border-[#35373b] hover:border-[#d9a05b]/50 p-4 rounded-xl flex items-center justify-between transition-colors">
+                    <div>
+                      <p className="font-bold text-sm text-white">{l.name}</p>
+                      <p className="text-[#9a9da3] text-xs">{l.categoria}</p>
+                    </div>
+                    <div className="flex items-center gap-3">
+                      <span className={`${l.statusColor} ${l.bg} text-[10px] uppercase font-bold px-2 py-1 rounded`}>{l.status}</span>
+                      {l.status === 'Pendiente' ? (
+                        <button 
+                          disabled={updatingLocal}
+                          onClick={() => handleApproveLocal(l.id)} 
+                          className="text-xs font-semibold bg-[#d9a05b] hover:bg-[#e0b07a] text-[#1a1b1e] px-3 py-1.5 rounded-lg transition-colors cursor-pointer disabled:opacity-50"
+                        >
+                          Aprobar
+                        </button>
+                      ) : (
+                        <button 
+                          onClick={() => setSelectedLocal(l)}
+                          className="text-xs font-semibold bg-[#35373b] hover:bg-[#5bc827] hover:text-[#1a1b1e] text-white px-3 py-1.5 rounded-lg transition-colors cursor-pointer"
+                        >
+                          Ver
+                        </button>
+                      )}
+                    </div>
                   </div>
-                  <div className="flex items-center gap-3">
-                    <span className={`${l.statusColor} ${l.bg} text-[10px] uppercase font-bold px-2 py-1 rounded`}>{l.status}</span>
-                    {l.status === 'Pendiente' ? (
-                      <button className="text-xs font-semibold bg-[#d9a05b] hover:bg-[#e0b07a] text-[#1a1b1e] px-3 py-1.5 rounded-lg transition-colors cursor-pointer">Aprobar</button>
-                    ) : (
-                      <button 
-                        onClick={() => setSelectedLocal(l)}
-                        className="text-xs font-semibold bg-[#35373b] hover:bg-[#5bc827] hover:text-[#1a1b1e] text-white px-3 py-1.5 rounded-lg transition-colors cursor-pointer"
-                      >
-                        Ver
-                      </button>
-                    )}
-                  </div>
-                </div>
-              ))}
-            </div>
+                ))}
+              </div>
+            )}
           </div>
         )}
 
         {activeTab === 'repartidores' && (
           <div>
             <Title text="Repartidores" />
-            <div className="space-y-3">
-              {repartidores.map((r) => (
-                <div key={r.id} className="bg-[#232427] border border-[#35373b] hover:border-[#d9a05b]/50 p-4 rounded-xl flex items-center justify-between transition-colors">
-                  <div>
-                    <p className="font-bold text-sm text-white">
-                      {r.name} {r.status !== 'Pendiente' && <span className="text-[#d9a05b] ml-1">★ {r.rating}</span>}
-                    </p>
-                    <p className="text-[#9a9da3] text-xs font-mono mt-0.5">{r.mat}</p>
-                  </div>
-                  <div className="flex items-center gap-2">
-                    {r.status === 'Pendiente' ? (
-                      <>
+            {loadingRepartidores ? (
+              <div className="flex flex-col items-center justify-center py-12 text-center bg-[#232427] border border-[#35373b] rounded-xl">
+                <div className="w-8 h-8 border-2 border-[#d9a05b] border-t-transparent rounded-full animate-spin mb-3" />
+                <p className="text-[#9a9da3] text-sm">Cargando repartidores...</p>
+              </div>
+            ) : repartidores.length === 0 ? (
+              <div className="flex flex-col items-center justify-center py-12 text-center bg-[#232427] border border-[#35373b] rounded-xl">
+                <span className="text-4xl mb-2">🏍️</span>
+                <p className="text-white font-semibold text-sm">No hay repartidores registrados</p>
+                <p className="text-[#9a9da3] text-xs mt-1">Los repartidores de la plataforma aparecerán aquí</p>
+              </div>
+            ) : (
+              <div className="space-y-3">
+                {repartidores.map((r) => (
+                  <div key={r.id} className="bg-[#232427] border border-[#35373b] hover:border-[#d9a05b]/50 p-4 rounded-xl flex items-center justify-between transition-colors">
+                    <div className="flex items-center gap-3">
+                      {r.fotoUrl ? (
+                        <img 
+                          src={getImageUrl(r.fotoUrl)} 
+                          alt={r.name} 
+                          className="w-10 h-10 rounded-full object-cover border border-[#d9a05b]/40 flex-shrink-0" 
+                        />
+                      ) : (
+                        <div className="w-10 h-10 rounded-full bg-[#d9a05b]/20 border border-[#d9a05b]/40 flex items-center justify-center text-xs font-bold text-[#d9a05b] flex-shrink-0">
+                          {r.name.split(' ').map(n => n[0]).join('')}
+                        </div>
+                      )}
+                      <div>
+                        <p className="font-bold text-sm text-white">
+                          {r.name} {r.status !== 'Pendiente' && <span className="text-[#d9a05b] ml-1">★ {r.rating}</span>}
+                        </p>
+                        <p className="text-[#9a9da3] text-xs font-mono mt-0.5">{r.mat}</p>
+                      </div>
+                    </div>
+                    <div className="flex items-center gap-2">
+                      <span className={`text-[10px] uppercase font-bold px-2 py-1 rounded ${
+                        r.status === 'Activo'
+                          ? 'text-[#5bc827] bg-[#5bc827]/10'
+                          : r.status === 'Pendiente'
+                          ? 'text-amber-400 bg-amber-400/10'
+                          : r.status === 'Rechazado'
+                          ? 'text-red-400 bg-red-400/10'
+                          : 'text-orange-400 bg-orange-400/10'
+                      }`}>
+                        {r.status}
+                      </span>
+                      {r.status === 'Pendiente' ? (
+                        <>
+                          <button 
+                            disabled={updatingRepartidor}
+                            onClick={() => handleApproveRepartidor(r.id)}
+                            className="text-xs font-semibold bg-[#5bc827] hover:bg-[#7ed944] text-[#1a1b1e] px-3 py-1.5 rounded-lg transition-colors cursor-pointer disabled:opacity-50"
+                          >
+                            Aprobar
+                          </button>
+                          <button 
+                            disabled={updatingRepartidor}
+                            onClick={() => setShowConfirmRechazarRepartidor(r)}
+                            className="text-xs font-semibold border border-red-800/50 text-red-400 hover:bg-red-900/20 px-3 py-1.5 rounded-lg transition-colors cursor-pointer disabled:opacity-50"
+                          >
+                            Rechazar
+                          </button>
+                        </>
+                      ) : (
                         <button 
-                          onClick={() => setRepartidores(prev => prev.map(x => x.id === r.id ? { ...x, status: 'Activo' } : x))}
-                          className="text-xs font-semibold bg-[#5bc827] hover:bg-[#7ed944] text-[#1a1b1e] px-3 py-1.5 rounded-lg transition-colors cursor-pointer"
+                          onClick={() => setSelectedRepartidor(r)}
+                          className="text-xs bg-[#35373b] hover:bg-[#5bc827] hover:text-[#1a1b1e] text-white px-3 py-1.5 rounded-lg transition-colors cursor-pointer"
                         >
-                          Aprobar
+                          Ver
                         </button>
-                        <button 
-                          onClick={() => setShowConfirmRechazarRepartidor(r)}
-                          className="text-xs font-semibold border border-red-800/50 text-red-400 hover:bg-red-900/20 px-3 py-1.5 rounded-lg transition-colors cursor-pointer"
-                        >
-                          Rechazar
-                        </button>
-                      </>
-                    ) : (
-                      <button 
-                        onClick={() => setSelectedRepartidor(r)}
-                        className="text-xs bg-[#35373b] hover:bg-[#5bc827] hover:text-[#1a1b1e] text-white px-3 py-1.5 rounded-lg transition-colors cursor-pointer"
-                      >
-                        Ver
-                      </button>
-                    )}
+                      )}
+                    </div>
                   </div>
-                </div>
-              ))}
-            </div>
+                ))}
+              </div>
+            )}
           </div>
         )}
 
         {activeTab === 'pedidos' && (
           <div>
             <Title text="Visión global de pedidos" />
-            <div className="space-y-3">
-              <div className="bg-[#232427] border border-[#35373b] hover:border-[#d9a05b]/50 transition-colors p-4 rounded-xl relative overflow-hidden">
-                <div className="absolute left-0 top-0 bottom-0 w-1 bg-[#5bc827]"></div>
-                <div className="flex justify-between items-center mb-3 pl-2">
-                  <p className="font-bold text-lg text-[#d9a05b]" style={{ fontFamily: 'Barlow Condensed, sans-serif' }}>#ORD-9921</p>
-                  <span className="text-[#5bc827] text-[10px] uppercase font-bold bg-[#5bc827]/10 px-2 py-1 rounded">En camino</span>
-                </div>
-                <div className="pl-2 space-y-1">
-                  <p className="text-[#c4c6ca] text-xs"><span className="text-[#9a9da3] mr-1">Local:</span> Burger King</p>
-                  <p className="text-[#c4c6ca] text-xs"><span className="text-[#9a9da3] mr-1">Repartidor:</span> Carlos R.</p>
-                  <p className="text-[#c4c6ca] text-xs"><span className="text-[#9a9da3] mr-1">Cliente:</span> Juan Sierra</p>
-                </div>
-              </div>
+
+            {/* Filtros por estado */}
+            <div className="flex items-center gap-2 overflow-x-auto pb-3 mb-4 hide-scrollbar">
+              {[
+                { id: 'TODOS', label: 'Todos' },
+                { id: 'PENDIENTE', label: 'Pendientes' },
+                { id: 'EN_PREPARACION', label: 'En Preparación' },
+                { id: 'EN_CAMINO', label: 'En Camino' },
+                { id: 'ENTREGADO', label: 'Entregados' },
+                { id: 'CANCELADO', label: 'Cancelados' },
+              ].map(f => (
+                <button
+                  key={f.id}
+                  onClick={() => handleFilterPedidos(f.id)}
+                  className={`px-3 py-1.5 rounded-lg text-xs font-bold whitespace-nowrap transition-colors cursor-pointer ${
+                    pedidosEstadoFilter === f.id
+                      ? 'bg-[#d9a05b] text-[#1a1b1e]'
+                      : 'bg-[#232427] border border-[#35373b] text-[#9a9da3] hover:text-white hover:border-[#d9a05b]/40'
+                  }`}
+                >
+                  {f.label}
+                </button>
+              ))}
             </div>
+
+            {loadingPedidosList ? (
+              <div className="flex flex-col items-center justify-center py-12 text-center bg-[#232427] border border-[#35373b] rounded-xl">
+                <div className="w-8 h-8 border-2 border-[#d9a05b] border-t-transparent rounded-full animate-spin mb-3" />
+                <p className="text-[#9a9da3] text-sm">Cargando pedidos...</p>
+              </div>
+            ) : pedidosList.length === 0 ? (
+              <div className="flex flex-col items-center justify-center py-12 text-center bg-[#232427] border border-[#35373b] rounded-xl">
+                <span className="text-4xl mb-2">📦</span>
+                <p className="text-white font-semibold text-sm">
+                  {pedidosEstadoFilter === 'TODOS'
+                    ? 'No hay pedidos registrados'
+                    : `No hay pedidos con estado ${pedidosEstadoFilter}`}
+                </p>
+                <p className="text-[#9a9da3] text-xs mt-1">Los pedidos de la plataforma aparecerán aquí</p>
+              </div>
+            ) : (
+              <div className="space-y-3">
+                {pedidosList.map((order) => {
+                  let badgeColor = 'text-amber-400 bg-amber-400/10 border-amber-400/30'
+                  let estadoLabel = order.estado
+                  if (order.estado === 'PENDIENTE') {
+                    badgeColor = 'text-amber-400 bg-amber-400/10 border-amber-400/30'
+                    estadoLabel = 'Pendiente'
+                  } else if (order.estado === 'EN_PREPARACION') {
+                    badgeColor = 'text-blue-400 bg-blue-400/10 border-blue-400/30'
+                    estadoLabel = 'En Preparación'
+                  } else if (order.estado === 'EN_CAMINO') {
+                    badgeColor = 'text-purple-400 bg-purple-400/10 border-purple-400/30'
+                    estadoLabel = 'En Camino'
+                  } else if (order.estado === 'ENTREGADO') {
+                    badgeColor = 'text-[#5bc827] bg-[#5bc827]/10 border-[#5bc827]/30'
+                    estadoLabel = 'Entregado'
+                  } else if (order.estado === 'CANCELADO') {
+                    badgeColor = 'text-red-400 bg-red-400/10 border-red-400/30'
+                    estadoLabel = 'Cancelado'
+                  }
+
+                  const fechaFormateada = order.createdAt
+                    ? new Date(order.createdAt).toLocaleString('es-MX', {
+                        dateStyle: 'short',
+                        timeStyle: 'short',
+                      })
+                    : 'Reciente'
+
+                  const esEfectivo = (order.metodoPago || '').toUpperCase() === 'EFECTIVO'
+
+                  return (
+                    <div
+                      key={order.id}
+                      className="bg-[#232427] border border-[#35373b] hover:border-[#d9a05b]/50 p-4 rounded-xl transition-colors space-y-3"
+                    >
+                      <div className="flex items-center justify-between gap-2">
+                        <div className="flex items-center gap-2">
+                          <span className="font-mono text-xs text-[#d9a05b] font-bold bg-[#d9a05b]/10 border border-[#d9a05b]/30 px-2 py-0.5 rounded">
+                            #{order.id.slice(0, 8)}
+                          </span>
+                          <span className="text-[#9a9da3] text-xs">{fechaFormateada}</span>
+                        </div>
+                        <span className={`text-[10px] uppercase font-bold px-2 py-0.5 rounded border ${badgeColor}`}>
+                          {estadoLabel}
+                        </span>
+                      </div>
+
+                      <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 text-xs">
+                        <div>
+                          <p className="text-[#9a9da3]">Restaurante</p>
+                          <p className="font-semibold text-white truncate">{order.restaurant?.nombre || 'Restaurante'}</p>
+                        </div>
+                        <div>
+                          <p className="text-[#9a9da3]">Cliente</p>
+                          <p className="font-semibold text-white truncate">{order.user?.nombre || 'Cliente'}</p>
+                        </div>
+                      </div>
+
+                      <div className="flex items-center justify-between pt-2 border-t border-[#35373b]/60">
+                        <div className="flex items-center gap-1.5 text-xs text-[#c4c6ca]">
+                          <span>{esEfectivo ? '💵' : '💳'}</span>
+                          <span>{esEfectivo ? 'Efectivo' : 'Tarjeta'}</span>
+                        </div>
+                        <div className="text-right">
+                          <span className="text-[#9a9da3] text-xs mr-1">Total:</span>
+                          <span className="text-sm font-bold text-white">
+                            ${Number(order.total).toFixed(2)}
+                          </span>
+                        </div>
+                      </div>
+                    </div>
+                  )
+                })}
+              </div>
+            )}
           </div>
         )}
 
@@ -1288,11 +1997,206 @@ export default function AdminPanel({ onLogout }: Props) {
 
               <button 
                 onClick={handleSaveConfig} 
-                className="w-full py-4 rounded-xl bg-gradient-to-r from-[#d9a05b] to-[#b38346] shadow-lg shadow-[#d9a05b]/20 text-[#1a1b1e] font-bold text-sm mt-5 transition-all hover:scale-[1.02] active:scale-[0.98]"
+                disabled={savingConfig || loadingConfig}
+                className="w-full py-4 rounded-xl bg-gradient-to-r from-[#d9a05b] to-[#b38346] shadow-lg shadow-[#d9a05b]/20 text-[#1a1b1e] font-bold text-sm mt-5 transition-all hover:scale-[1.02] active:scale-[0.98] disabled:opacity-50 cursor-pointer"
               >
-                {showToast ? 'Cambios guardados ✓' : 'Guardar cambios'}
+                {savingConfig ? 'Guardando cambios...' : showToast ? 'Cambios guardados ✓' : 'Guardar cambios'}
               </button>
             </div>
+          </div>
+        )}
+
+        {activeTab === 'soporte' && (
+          <div>
+            {!selectedConversationUser ? (
+              <div>
+                <div className="flex items-center justify-between mb-6">
+                  <div>
+                    <h2 className="text-xl font-bold text-white">Soporte y Mensajes</h2>
+                    <p className="text-xs text-[#9a9da3] mt-0.5">Conversaciones en tiempo real con usuarios, locales y repartidores</p>
+                  </div>
+                  <button
+                    onClick={loadConversations}
+                    disabled={loadingConversations}
+                    className="p-2.5 rounded-xl bg-[#232427] border border-[#35373b] text-[#c4c6ca] hover:text-white transition-colors cursor-pointer disabled:opacity-50"
+                    title="Recargar conversaciones"
+                  >
+                    🔄
+                  </button>
+                </div>
+
+                {loadingConversations ? (
+                  <div className="space-y-3">
+                    {[1, 2, 3].map(i => (
+                      <div key={i} className="bg-[#232427] border border-[#35373b] p-4 rounded-xl animate-pulse flex items-center justify-between">
+                        <div className="space-y-2">
+                          <div className="h-4 bg-[#35373b] rounded w-32" />
+                          <div className="h-3 bg-[#35373b] rounded w-48" />
+                        </div>
+                        <div className="h-8 bg-[#35373b] rounded-lg w-20" />
+                      </div>
+                    ))}
+                  </div>
+                ) : conversations.length === 0 ? (
+                  <div className="bg-[#232427] border border-[#35373b] rounded-2xl p-8 text-center">
+                    <span className="text-4xl block mb-2">💬</span>
+                    <p className="text-white font-medium">No hay mensajes de soporte</p>
+                    <p className="text-[#9a9da3] text-xs mt-1">Los mensajes que envíen los usuarios, locales o repartidores aparecerán aquí.</p>
+                  </div>
+                ) : (
+                  <div className="space-y-3">
+                    {conversations.map(conv => {
+                      const rolBadge = 
+                        conv.user.rol === 'LOCAL' ? { text: 'Local', bg: 'bg-blue-500/10 text-blue-400 border-blue-500/30' } :
+                        conv.user.rol === 'REPARTIDOR' ? { text: 'Repartidor', bg: 'bg-purple-500/10 text-purple-400 border-purple-500/30' } :
+                        { text: 'Usuario', bg: 'bg-[#5bc827]/10 text-[#5bc827] border-[#5bc827]/30' }
+
+                      return (
+                        <div
+                          key={conv.user.id}
+                          className="bg-[#232427] border border-[#35373b] hover:border-[#d9a05b]/40 rounded-xl p-4 transition-all flex flex-col sm:flex-row sm:items-center justify-between gap-3"
+                        >
+                          <div className="flex items-start gap-3 min-w-0">
+                            <div className="w-10 h-10 rounded-full bg-[#1a1b1e] border border-[#35373b] flex items-center justify-center text-sm font-bold text-[#d9a05b] shrink-0">
+                              {conv.user.nombre?.charAt(0).toUpperCase() || 'U'}
+                            </div>
+                            <div className="min-w-0">
+                              <div className="flex items-center gap-2 flex-wrap">
+                                <h3 className="font-semibold text-white text-sm truncate">{conv.user.nombre}</h3>
+                                <span className={`text-[10px] font-bold px-2 py-0.5 rounded-full border ${rolBadge.bg}`}>
+                                  {rolBadge.text}
+                                </span>
+                              </div>
+                              <p className="text-xs text-[#9a9da3] truncate">{conv.user.email}</p>
+                              {conv.lastMessage && (
+                                <p className="text-xs text-[#c4c6ca] mt-1.5 truncate max-w-md">
+                                  <span className="font-medium text-[#9a9da3]">
+                                    {conv.lastMessage.autor === 'SOPORTE' ? 'Tú: ' : ''}
+                                  </span>
+                                  {conv.lastMessage.mensaje}
+                                </p>
+                              )}
+                            </div>
+                          </div>
+
+                          <div className="flex items-center justify-between sm:justify-end gap-3 shrink-0 pt-2 sm:pt-0 border-t sm:border-t-0 border-[#35373b]/50">
+                            {conv.lastMessage && (
+                              <span className="text-[11px] text-[#9a9da3]">
+                                {new Date(conv.lastMessage.createdAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+                              </span>
+                            )}
+                            <button
+                              onClick={() => openConversation(conv.user)}
+                              className="px-3.5 py-1.5 bg-[#d9a05b] hover:bg-[#b38346] text-[#1a1b1e] text-xs font-bold rounded-lg transition-colors cursor-pointer"
+                            >
+                              Abrir chat →
+                            </button>
+                          </div>
+                        </div>
+                      )
+                    })}
+                  </div>
+                )}
+              </div>
+            ) : (
+              <div>
+                {/* Chat detail header */}
+                <div className="flex items-center gap-3 mb-4 pb-4 border-b border-[#35373b]">
+                  <button
+                    onClick={() => setSelectedConversationUser(null)}
+                    className="p-2 rounded-xl bg-[#232427] border border-[#35373b] text-[#c4c6ca] hover:text-white transition-colors cursor-pointer text-sm font-semibold"
+                  >
+                    ← Volver
+                  </button>
+                  <div className="w-10 h-10 rounded-full bg-[#1a1b1e] border border-[#35373b] flex items-center justify-center text-sm font-bold text-[#d9a05b] shrink-0">
+                    {selectedConversationUser.nombre?.charAt(0).toUpperCase() || 'U'}
+                  </div>
+                  <div>
+                    <div className="flex items-center gap-2">
+                      <h2 className="text-base font-bold text-white">{selectedConversationUser.nombre}</h2>
+                      <span className="text-[10px] font-bold px-2 py-0.5 rounded-full border bg-[#d9a05b]/10 text-[#d9a05b] border-[#d9a05b]/30">
+                        {selectedConversationUser.rol}
+                      </span>
+                    </div>
+                    <p className="text-xs text-[#9a9da3]">{selectedConversationUser.email}</p>
+                  </div>
+                </div>
+
+                {/* Chat message history container */}
+                <div className="bg-[#1a1b1e] border border-[#35373b] rounded-2xl p-4 h-[440px] overflow-y-auto flex flex-col space-y-3 mb-4">
+                  {loadingConversation ? (
+                    <div className="flex-1 flex items-center justify-center text-xs text-[#9a9da3]">
+                      Cargando mensajes...
+                    </div>
+                  ) : conversationMessages.length === 0 ? (
+                    <div className="flex-1 flex items-center justify-center text-xs text-[#9a9da3]">
+                      No hay mensajes en esta conversación aún.
+                    </div>
+                  ) : (
+                    conversationMessages.map(msg => {
+                      const isSupport = msg.autor === 'SOPORTE'
+                      return (
+                        <div
+                          key={msg.id}
+                          className={`flex flex-col ${isSupport ? 'items-end' : 'items-start'}`}
+                        >
+                          <div
+                            className={`max-w-[80%] rounded-2xl px-4 py-2.5 text-sm ${
+                              isSupport
+                                ? 'bg-gradient-to-r from-[#d9a05b] to-[#b38346] text-[#1a1b1e] font-medium rounded-br-none shadow-md shadow-[#d9a05b]/10'
+                                : 'bg-[#232427] text-white border border-[#35373b] rounded-bl-none'
+                            }`}
+                          >
+                            {msg.orderId && (
+                              <div className={`text-[10px] font-bold mb-1 px-1.5 py-0.5 rounded inline-block ${
+                                isSupport ? 'bg-[#1a1b1e]/20 text-[#1a1b1e]' : 'bg-[#35373b] text-[#d9a05b]'
+                              }`}>
+                                Pedido #{msg.orderId.slice(-6)}
+                              </div>
+                            )}
+                            <p className="whitespace-pre-wrap break-words">{msg.mensaje}</p>
+                          </div>
+                          <span className="text-[10px] text-[#9a9da3] mt-1 px-1">
+                            {isSupport ? 'Soporte (Admin)' : selectedConversationUser.nombre} • {new Date(msg.createdAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+                          </span>
+                        </div>
+                      )
+                    })
+                  )}
+                  <div ref={chatBottomRef} />
+                </div>
+
+                {/* Reply form */}
+                {replyError && (
+                  <div className="mb-2 text-xs text-red-400 bg-red-400/10 border border-red-400/30 px-3 py-2 rounded-xl">
+                    {replyError}
+                  </div>
+                )}
+                <form
+                  onSubmit={e => {
+                    e.preventDefault()
+                    handleSendReply()
+                  }}
+                  className="flex gap-2"
+                >
+                  <input
+                    type="text"
+                    value={replyText}
+                    onChange={e => setReplyText(e.target.value)}
+                    placeholder="Escribe una respuesta como Soporte..."
+                    disabled={sendingReply}
+                    className="flex-1 bg-[#232427] border border-[#35373b] focus:border-[#d9a05b] rounded-xl px-4 py-3 text-sm text-white outline-none transition-colors disabled:opacity-50"
+                  />
+                  <button
+                    type="submit"
+                    disabled={sendingReply || !replyText.trim()}
+                    className="px-5 py-3 rounded-xl bg-gradient-to-r from-[#d9a05b] to-[#b38346] text-[#1a1b1e] font-bold text-sm transition-all hover:scale-[1.02] active:scale-[0.98] disabled:opacity-50 cursor-pointer shrink-0"
+                  >
+                    {sendingReply ? 'Enviando...' : 'Responder'}
+                  </button>
+                </form>
+              </div>
+            )}
           </div>
         )}
       </main>
@@ -1309,13 +2213,11 @@ export default function AdminPanel({ onLogout }: Props) {
                 Cancelar
               </button>
               <button
-                onClick={() => {
-                  setRepartidores(prev => prev.filter(r => r.id !== showConfirmRechazarRepartidor.id))
-                  setShowConfirmRechazarRepartidor(null)
-                }}
-                className="flex-1 py-3 rounded-xl font-bold bg-red-600 hover:bg-red-500 text-white transition-colors cursor-pointer"
+                disabled={updatingRepartidor}
+                onClick={() => handleRejectRepartidor(showConfirmRechazarRepartidor.id)}
+                className="flex-1 py-3 rounded-xl font-bold bg-red-600 hover:bg-red-500 text-white transition-colors cursor-pointer disabled:opacity-50"
               >
-                Sí, rechazar
+                {updatingRepartidor ? 'Rechazando...' : 'Sí, rechazar'}
               </button>
             </div>
           </div>

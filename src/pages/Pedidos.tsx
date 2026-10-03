@@ -1,81 +1,162 @@
-import { useState } from 'react'
-import type { Order } from './OrderTracking'
+import { useState, useEffect, useCallback } from 'react'
+import { api, getImageUrl } from '@/lib/api'
 
 type Tab = 'activo' | 'historial'
 
-const defaultActiveOrder: Order = {
-  id: '#SRR-4821',
-  restaurant: 'Sierra Burger Co.',
-  items: ['Burger Clásica x1', 'Papas grandes x1', 'Refresco x1'],
-  total: '$185',
-  status: 3,
-  statuses: [
-    { label: 'Pedido recibido', icon: '✅', time: '8:42 pm' },
-    { label: 'Preparando', icon: '👨‍🍳', time: '8:45 pm' },
-    { label: 'En camino', icon: '🛵', time: '8:58 pm' },
-    { label: 'Entregado', icon: '🏠', time: null },
-  ],
-  driver: { name: 'Carlos M.', rating: 4.9, eta: '8 min' },
+export interface RealOrder {
+  id: string
+  estado: string
+  subtotal: number
+  envio: number
+  total: number
+  metodoPago: string
+  createdAt: string
+  restaurant: {
+    id?: string
+    nombre: string
+    coverImg?: string
+  }
+  repartidor?: {
+    id: string
+    nombre: string
+    driverProfile?: { ratingPromedio?: number }
+  } | null
+  items: Array<{
+    id: string
+    nombreSnapshot: string
+    precioUnitarioSnapshot: number
+    cantidad: number
+    extrasTotal: number
+  }>
+  ratingRestaurant?: number | null
+  ratingRepartidor?: number | null
+  comentario?: string | null
 }
-
-const history = [
-  {
-    id: '#SRR-4810',
-    restaurant: 'El Rincón del Sabor',
-    items: ['Orden de tacos x3', 'Agua de jamaica x1'],
-    total: '$120',
-    date: 'Hoy, 2:15 pm',
-    status: 'Entregado',
-    rating: null,
-    img: 'https://images.unsplash.com/photo-1551504734-5ee1c4a1479b?crop=entropy&cs=tinysrgb&fit=crop&fm=jpg&w=80&h=80',
-  },
-  {
-    id: '#SRR-4798',
-    restaurant: 'Sakura Sushi',
-    items: ['Roll Spicy Tuna x2', 'Miso soup x1'],
-    total: '$340',
-    date: 'Ayer, 8:30 pm',
-    status: 'Entregado',
-    rating: 5,
-    img: 'https://images.unsplash.com/photo-1579584425555-c3ce17fd4351?crop=entropy&cs=tinysrgb&fit=crop&fm=jpg&w=80&h=80',
-  },
-  {
-    id: '#SRR-4775',
-    restaurant: 'Pizzería Napoli',
-    items: ['Pizza Margherita x1'],
-    total: '$210',
-    date: '3 ago, 7:00 pm',
-    status: 'Cancelado',
-    rating: null,
-    img: 'https://images.unsplash.com/photo-1566843972142-a7fcb70de55a?crop=entropy&cs=tinysrgb&fit=crop&fm=jpg&w=80&h=80',
-  },
-  {
-    id: '#SRR-4760',
-    restaurant: 'Sierra Burger Co.',
-    items: ['Combo Doble x2'],
-    total: '$290',
-    date: '1 ago, 1:20 pm',
-    status: 'Entregado',
-    rating: 4,
-    img: 'https://images.unsplash.com/photo-1512152272829-e3139592d56f?crop=entropy&cs=tinysrgb&fit=crop&fm=jpg&w=80&h=80',
-  },
-]
 
 interface Props {
   initialTab?: 'activo' | 'historial'
-  activeOrder?: Order | null
-  onOpenTracking?: (order: Order) => void
+  activeOrder?: any
+  onOpenTracking?: (orderOrId: any) => void
+  onRateOrder?: (orderId: string) => void
+}
+
+const TRACKER_STEPS = [
+  { label: 'Confirmado', icon: '✓' },
+  { label: 'En preparación', icon: '🍳' },
+  { label: 'En camino', icon: '🛵' },
+  { label: 'Entregado', icon: '🏠' },
+]
+
+function getStepNumber(estado: string): number {
+  switch (estado) {
+    case 'PENDIENTE':
+      return 1
+    case 'ACEPTADO':
+    case 'LISTO':
+      return 2
+    case 'REPARTIDOR_ASIGNADO':
+    case 'RECOGIDO':
+    case 'EN_CAMINO':
+      return 3
+    case 'ENTREGADO':
+      return 4
+    default:
+      return 1
+  }
+}
+
+function formatStatusBadge(estado: string): { label: string; className: string } {
+  switch (estado) {
+    case 'ENTREGADO':
+      return { label: 'Entregado', className: 'bg-[#5bc827]/20 text-[#5bc827]' }
+    case 'CANCELADO':
+      return { label: 'Cancelado', className: 'bg-red-900/30 text-red-400' }
+    case 'RECHAZADO':
+      return { label: 'Rechazado', className: 'bg-orange-900/30 text-orange-400' }
+    case 'PENDIENTE':
+      return { label: 'Pendiente', className: 'bg-yellow-500/20 text-yellow-400' }
+    case 'ACEPTADO':
+    case 'LISTO':
+      return { label: 'En preparación', className: 'bg-blue-500/20 text-blue-400' }
+    case 'REPARTIDOR_ASIGNADO':
+    case 'RECOGIDO':
+    case 'EN_CAMINO':
+      return { label: 'En camino', className: 'bg-purple-500/20 text-purple-400' }
+    default:
+      return { label: estado, className: 'bg-[#35373b] text-[#c4c6ca]' }
+  }
 }
 
 /**
- * Componente que muestra los pedidos del usuario.
- * Permite visualizar el pedido activo actualmente y el historial de pedidos pasados.
+ * Componente que muestra los pedidos reales del usuario desde el backend.
+ * Permite visualizar pedidos activos (En curso) con tracker en vivo y cancelación,
+ * y el historial de pedidos pasados con calificación real.
  */
-export default function Pedidos({ initialTab = 'activo', activeOrder: propActiveOrder, onOpenTracking }: Props) {
+export default function Pedidos({ initialTab = 'activo', onOpenTracking, onRateOrder }: Props) {
   const [tab, setTab] = useState<Tab>(initialTab)
+  const [activeOrders, setActiveOrders] = useState<RealOrder[]>([])
+  const [historyOrders, setHistoryOrders] = useState<RealOrder[]>([])
+  const [loadingActive, setLoadingActive] = useState(true)
+  const [loadingHistory, setLoadingHistory] = useState(true)
+  const [cancellingId, setCancellingId] = useState<string | null>(null)
   const [ratings, setRatings] = useState<Record<string, number>>({})
 
-  const activeOrder = propActiveOrder !== undefined ? propActiveOrder : defaultActiveOrder
+  const fetchActive = useCallback(async () => {
+    try {
+      setLoadingActive(true)
+      const data = await api.get<RealOrder[]>('/api/orders/me/active')
+      setActiveOrders(Array.isArray(data) ? data : [])
+    } catch (err) {
+      console.error('Error al cargar pedidos activos:', err)
+      setActiveOrders([])
+    } finally {
+      setLoadingActive(false)
+    }
+  }, [])
+
+  const fetchHistory = useCallback(async () => {
+    try {
+      setLoadingHistory(true)
+      const data = await api.get<RealOrder[]>('/api/orders/me')
+      setHistoryOrders(Array.isArray(data) ? data : [])
+    } catch (err) {
+      console.error('Error al cargar historial de pedidos:', err)
+      setHistoryOrders([])
+    } finally {
+      setLoadingHistory(false)
+    }
+  }, [])
+
+  useEffect(() => {
+    if (tab === 'activo') {
+      fetchActive()
+    } else {
+      fetchHistory()
+    }
+  }, [tab, fetchActive, fetchHistory])
+
+  const handleCancelOrder = async (orderId: string) => {
+    if (!window.confirm('¿Estás seguro de que deseas cancelar este pedido?')) return
+    setCancellingId(orderId)
+    try {
+      await api.patch(`/api/orders/${orderId}/cancel`)
+      await fetchActive()
+    } catch (err: any) {
+      alert(err?.message || 'No se pudo cancelar el pedido.')
+    } finally {
+      setCancellingId(null)
+    }
+  }
+
+  const handleQuickRate = async (orderId: string, rating: number) => {
+    setRatings(r => ({ ...r, [orderId]: rating }))
+    try {
+      await api.patch(`/api/orders/${orderId}/rate`, { ratingRestaurant: rating })
+      await fetchHistory()
+    } catch (err: any) {
+      alert(err?.message || 'Error al calificar')
+    }
+  }
 
   return (
     <div className="min-h-screen bg-[#1a1b1e] pb-24">
@@ -105,157 +186,246 @@ export default function Pedidos({ initialTab = 'activo', activeOrder: propActive
       </div>
 
       <div className="px-4 pt-5">
-        {/* Active Order */}
+        {/* Active Tab */}
         {tab === 'activo' && (
           <div>
-            {activeOrder ? (
-              <>
-                {/* Live pulse banner */}
-                <div className="flex items-center gap-2 mb-4">
+            {loadingActive ? (
+              <div className="flex flex-col items-center justify-center py-20 text-[#9a9da3]">
+                <div className="w-8 h-8 border-2 border-[#5bc827] border-t-transparent rounded-full animate-spin mb-3" />
+                <p className="text-xs uppercase tracking-wider">Cargando pedidos activos...</p>
+              </div>
+            ) : activeOrders.length === 0 ? (
+              <div className="flex flex-col items-center justify-center py-16 text-center">
+                <span className="text-5xl mb-3">🛵</span>
+                <p className="text-white font-semibold">No tienes pedidos activos</p>
+                <p className="text-[#9a9da3] text-sm mt-1">Tus nuevos pedidos aparecerán aquí</p>
+              </div>
+            ) : (
+              <div className="space-y-5">
+                <div className="flex items-center gap-2">
                   <span className="relative flex h-2.5 w-2.5">
                     <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-[#5bc827] opacity-75"></span>
                     <span className="relative inline-flex rounded-full h-2.5 w-2.5 bg-[#5bc827]"></span>
                   </span>
-                  <span className="text-[#5bc827] text-xs font-semibold">1 pedido activo</span>
+                  <span className="text-[#5bc827] text-xs font-semibold">
+                    {activeOrders.length} pedido{activeOrders.length !== 1 ? 's' : ''} activo{activeOrders.length !== 1 ? 's' : ''}
+                  </span>
                 </div>
 
-                <div 
-                  onClick={() => onOpenTracking && activeOrder && onOpenTracking(activeOrder)}
-                  className="bg-[#232427] border border-[#5bc827]/40 hover:border-[#5bc827] rounded-2xl overflow-hidden cursor-pointer transition-all hover:scale-[1.01] group shadow-lg"
-                >
-                  {/* Order header */}
-                  <div className="px-4 pt-4 pb-3 border-b border-[#35373b]">
-                    <div className="flex items-center justify-between mb-1">
-                      <span className="font-bold text-white text-sm">{activeOrder.restaurant}</span>
-                      <div className="flex items-center gap-2">
-                        <span className="text-[#9a9da3] text-xs">{activeOrder.id}</span>
-                        <span className="text-[#5bc827] text-xs font-bold bg-[#5bc827]/10 border border-[#5bc827]/30 px-2 py-0.5 rounded-md group-hover:bg-[#5bc827] group-hover:text-[#1a1b1e] transition-all flex items-center gap-1">
-                          Ver seguimiento <span className="text-sm font-extrabold">›</span>
-                        </span>
-                      </div>
-                    </div>
-                    <p className="text-[#9a9da3] text-xs">{activeOrder.items.join(' · ')}</p>
-                    <p className="text-[#5bc827] font-bold text-sm mt-1">{activeOrder.total}</p>
-                  </div>
+                {activeOrders.map(activeOrder => {
+                  const step = getStepNumber(activeOrder.estado)
+                  const itemsSummary = (activeOrder.items || [])
+                    .map(i => `${i.cantidad}x ${i.nombreSnapshot}`)
+                    .join(' · ')
+                  const isCancelable = activeOrder.estado === 'PENDIENTE'
 
-              {/* Status tracker */}
-              <div className="px-4 py-4">
-                <div className="relative">
-                  {/* Line */}
-                  <div className="absolute left-4 top-5 bottom-5 w-0.5 bg-[#35373b]" />
-                  <div
-                    className="absolute left-4 top-5 w-0.5 bg-[#5bc827] transition-all duration-700"
-                    style={{ height: `${((activeOrder.status - 1) / (activeOrder.statuses.length - 1)) * 100}%` }}
-                  />
-                  <div className="space-y-5">
-                    {activeOrder.statuses.map((s, i) => {
-                      const done = i < activeOrder.status
-                      const current = i === activeOrder.status - 1
-                      return (
-                        <div key={i} className="flex items-center gap-3 relative">
-                          <div className={`relative z-10 w-8 h-8 rounded-full flex items-center justify-center text-sm border-2 transition-all ${
-                            done
-                              ? 'bg-[#5bc827] border-[#5bc827]'
-                              : current
-                              ? 'bg-[#232427] border-[#5bc827] animate-pulse'
-                              : 'bg-[#232427] border-[#35373b]'
-                          }`}>
-                            {s.icon}
-                          </div>
-                          <div className="flex-1">
-                            <p className={`text-sm font-semibold ${done ? 'text-white' : 'text-[#9a9da3]'}`}>{s.label}</p>
-                            {s.time && <p className="text-[#9a9da3] text-xs">{s.time}</p>}
+                  return (
+                    <div
+                      key={activeOrder.id}
+                      onClick={() => onOpenTracking && onOpenTracking(activeOrder.id)}
+                      className="bg-[#232427] border border-[#5bc827]/40 hover:border-[#5bc827] rounded-2xl overflow-hidden cursor-pointer transition-all hover:scale-[1.005] group shadow-lg"
+                    >
+                      {/* Order header */}
+                      <div className="px-4 pt-4 pb-3 border-b border-[#35373b]">
+                        <div className="flex items-center justify-between mb-1">
+                          <span className="font-bold text-white text-base">
+                            {activeOrder.restaurant?.nombre || 'Restaurante'}
+                          </span>
+                          <div className="flex items-center gap-2">
+                            <span className="text-[#9a9da3] text-xs font-mono">
+                              #{activeOrder.id.slice(0, 8).toUpperCase()}
+                            </span>
+                            <span className="text-[#5bc827] text-xs font-bold bg-[#5bc827]/10 border border-[#5bc827]/30 px-2 py-0.5 rounded-md group-hover:bg-[#5bc827] group-hover:text-[#1a1b1e] transition-all flex items-center gap-1">
+                              Ver seguimiento <span className="text-sm font-extrabold">›</span>
+                            </span>
                           </div>
                         </div>
-                      )
-                    })}
-                  </div>
-                </div>
-              </div>
+                        <p className="text-[#9a9da3] text-xs truncate">{itemsSummary}</p>
+                        <div className="flex items-center justify-between mt-2">
+                          <p className="text-[#5bc827] font-bold text-sm">${activeOrder.total?.toFixed(0)}</p>
+                          <span className={`text-[10px] font-bold px-2 py-0.5 rounded-full ${formatStatusBadge(activeOrder.estado).className}`}>
+                            {formatStatusBadge(activeOrder.estado).label}
+                          </span>
+                        </div>
+                      </div>
 
-              {/* Driver */}
-              <div className="mx-4 mb-4 p-3 bg-[#1a1b1e] rounded-xl flex items-center justify-between border border-[#35373b]">
-                <div className="flex items-center gap-2">
-                  <div className="w-9 h-9 bg-[#5bc827] rounded-full flex items-center justify-center text-[#1a1b1e] font-bold text-sm">
-                    {activeOrder.driver.name[0]}
-                  </div>
-                  <div>
-                    <p className="text-white text-xs font-semibold">{activeOrder.driver.name}</p>
-                    <p className="text-[#9a9da3] text-[10px]">★ {activeOrder.driver.rating} · Tu repartidor</p>
-                  </div>
-                </div>
-                <div className="flex gap-2">
-                  <button className="bg-[#232427] border border-[#35373b] rounded-full px-3 py-1.5 text-[10px] text-[#c4c6ca] hover:border-[#5bc827] transition-colors">
-                    📞 Llamar
-                  </button>
-                  <div className="bg-[#5bc827]/20 text-[#5bc827] border border-[#5bc827]/30 rounded-full px-3 py-1.5 text-[10px] font-bold">
-                    ETA {activeOrder.driver.eta}
-                  </div>
-                </div>
+                      {/* Status tracker */}
+                      <div className="px-4 py-4">
+                        <div className="relative">
+                          <div className="absolute left-4 top-5 bottom-5 w-0.5 bg-[#35373b]" />
+                          <div
+                            className="absolute left-4 top-5 w-0.5 bg-[#5bc827] transition-all duration-700"
+                            style={{ height: `${((step - 1) / (TRACKER_STEPS.length - 1)) * 100}%` }}
+                          />
+                          <div className="space-y-4">
+                            {TRACKER_STEPS.map((s, i) => {
+                              const done = i < step
+                              const current = i === step - 1
+                              return (
+                                <div key={i} className="flex items-center gap-3 relative">
+                                  <div
+                                    className={`relative z-10 w-8 h-8 rounded-full flex items-center justify-center text-sm border-2 transition-all ${
+                                      done
+                                        ? 'bg-[#5bc827] border-[#5bc827] text-[#1a1b1e] font-bold'
+                                        : current
+                                        ? 'bg-[#232427] border-[#5bc827] text-[#5bc827] animate-pulse'
+                                        : 'bg-[#232427] border-[#35373b] text-[#9a9da3]'
+                                    }`}
+                                  >
+                                    {s.icon}
+                                  </div>
+                                  <div className="flex-1">
+                                    <p className={`text-xs font-semibold ${done ? 'text-white' : current ? 'text-[#5bc827]' : 'text-[#9a9da3]'}`}>
+                                      {s.label}
+                                    </p>
+                                  </div>
+                                </div>
+                              )
+                            })}
+                          </div>
+                        </div>
+                      </div>
+
+                      {/* Repartidor info if assigned */}
+                      {activeOrder.repartidor && (
+                        <div className="mx-4 mb-3 p-3 bg-[#1a1b1e] rounded-xl flex items-center justify-between border border-[#35373b]">
+                          <div className="flex items-center gap-2">
+                            <div className="w-8 h-8 bg-[#5bc827] rounded-full flex items-center justify-center text-[#1a1b1e] font-bold text-xs">
+                              {activeOrder.repartidor.nombre?.[0] || 'R'}
+                            </div>
+                            <div>
+                              <p className="text-white text-xs font-semibold">{activeOrder.repartidor.nombre}</p>
+                              <p className="text-[#9a9da3] text-[10px]">
+                                ★ {activeOrder.repartidor.driverProfile?.ratingPromedio ?? '5.0'} · Repartidor
+                              </p>
+                            </div>
+                          </div>
+                        </div>
+                      )}
+
+                      {/* Cancel button if PENDIENTE */}
+                      {isCancelable && (
+                        <div className="px-4 pb-4 pt-1 flex justify-end">
+                          <button
+                            type="button"
+                            onClick={(e) => {
+                              e.stopPropagation()
+                              handleCancelOrder(activeOrder.id)
+                            }}
+                            disabled={cancellingId === activeOrder.id}
+                            className="text-xs text-red-400 hover:text-red-300 border border-red-500/30 hover:border-red-500/60 bg-red-500/10 px-3 py-1.5 rounded-lg transition-colors cursor-pointer disabled:opacity-50"
+                          >
+                            {cancellingId === activeOrder.id ? 'Cancelando...' : 'Cancelar pedido'}
+                          </button>
+                        </div>
+                      )}
+                    </div>
+                  )
+                })}
               </div>
-            </div>
-          </>
-        ) : (
-          <div className="flex flex-col items-center justify-center py-16 text-center">
-            <span className="text-5xl mb-3">🛵</span>
-            <p className="text-white font-semibold">No tienes pedidos activos</p>
-            <p className="text-[#9a9da3] text-sm mt-1">Tus nuevos pedidos aparecerán aquí</p>
+            )}
           </div>
         )}
-      </div>
-    )}
 
-        {/* History */}
+        {/* History Tab */}
         {tab === 'historial' && (
           <div className="space-y-3">
-            {history.map(order => (
-              <div key={order.id} className="bg-[#232427] border border-[#35373b] rounded-2xl overflow-hidden">
-                <div className="flex gap-3 p-3">
-                  <img src={order.img} alt={order.restaurant} className="w-14 h-14 rounded-xl object-cover shrink-0" />
-                  <div className="flex-1">
-                    <div className="flex items-center justify-between">
-                      <h3 className="font-semibold text-sm text-white">{order.restaurant}</h3>
-                      <span className={`text-[10px] font-bold px-2 py-0.5 rounded-full ${
-                        order.status === 'Entregado'
-                          ? 'bg-[#5bc827]/20 text-[#5bc827]'
-                          : 'bg-red-900/30 text-red-400'
-                      }`}>
-                        {order.status}
-                      </span>
-                    </div>
-                    <p className="text-[#9a9da3] text-xs mt-0.5 truncate">{order.items.join(', ')}</p>
-                    <div className="flex items-center justify-between mt-1">
-                      <span className="text-[10px] text-[#9a9da3]">{order.date}</span>
-                      <span className="text-[#5bc827] text-xs font-bold">{order.total}</span>
-                    </div>
-                  </div>
-                </div>
-
-                {order.status === 'Entregado' && (
-                  <div className="border-t border-[#35373b] px-3 py-2 flex items-center justify-between">
-                    <div className="flex items-center gap-1">
-                      {[1, 2, 3, 4, 5].map(n => (
-                        <button
-                          key={n}
-                          onClick={() => setRatings(r => ({ ...r, [order.id]: n }))}
-                          className={`text-base transition-transform hover:scale-125 ${
-                            n <= (ratings[order.id] ?? order.rating ?? 0) ? 'text-[#5bc827]' : 'text-[#35373b]'
-                          }`}
-                        >
-                          ★
-                        </button>
-                      ))}
-                      <span className="text-[#9a9da3] text-[10px] ml-1">
-                        {ratings[order.id] ? 'Gracias!' : 'Calificar'}
-                      </span>
-                    </div>
-                    <button className="text-[#5bc827] text-xs font-semibold hover:text-[#7ed944] transition-colors">
-                      Repetir pedido →
-                    </button>
-                  </div>
-                )}
+            {loadingHistory ? (
+              <div className="flex flex-col items-center justify-center py-20 text-[#9a9da3]">
+                <div className="w-8 h-8 border-2 border-[#5bc827] border-t-transparent rounded-full animate-spin mb-3" />
+                <p className="text-xs uppercase tracking-wider">Cargando historial...</p>
               </div>
-            ))}
+            ) : historyOrders.length === 0 ? (
+              <div className="flex flex-col items-center justify-center py-16 text-center">
+                <span className="text-5xl mb-3">📦</span>
+                <p className="text-white font-semibold">No tienes pedidos anteriores</p>
+                <p className="text-[#9a9da3] text-sm mt-1">Aquí verás tu historial de compras</p>
+              </div>
+            ) : (
+              historyOrders.map(order => {
+                const badge = formatStatusBadge(order.estado)
+                const itemsSummary = (order.items || [])
+                  .map(i => `${i.cantidad}x ${i.nombreSnapshot}`)
+                  .join(', ')
+                const dateFormatted = new Date(order.createdAt).toLocaleDateString('es-MX', {
+                  day: 'numeric',
+                  month: 'short',
+                  hour: '2-digit',
+                  minute: '2-digit',
+                })
+                const currentRating = ratings[order.id] ?? order.ratingRestaurant ?? 0
+
+                return (
+                  <div key={order.id} className="bg-[#232427] border border-[#35373b] rounded-2xl overflow-hidden">
+                    <div className="flex gap-3 p-3">
+                      {order.restaurant?.coverImg ? (
+                        <img
+                          src={getImageUrl(order.restaurant.coverImg)}
+                          alt={order.restaurant.nombre}
+                          className="w-14 h-14 rounded-xl object-cover shrink-0"
+                          onError={(e) => {
+                            (e.currentTarget as HTMLElement).style.display = 'none'
+                          }}
+                        />
+                      ) : (
+                        <div className="w-14 h-14 rounded-xl bg-[#1a3320] flex items-center justify-center text-xl shrink-0">
+                          🍽️
+                        </div>
+                      )}
+                      <div className="flex-1 min-w-0">
+                        <div className="flex items-center justify-between">
+                          <h3 className="font-semibold text-sm text-white truncate">
+                            {order.restaurant?.nombre || 'Restaurante'}
+                          </h3>
+                          <span className={`text-[10px] font-bold px-2 py-0.5 rounded-full ${badge.className}`}>
+                            {badge.label}
+                          </span>
+                        </div>
+                        <p className="text-[#9a9da3] text-xs mt-0.5 truncate">{itemsSummary || 'Sin detalles'}</p>
+                        <div className="flex items-center justify-between mt-1">
+                          <span className="text-[10px] text-[#9a9da3]">{dateFormatted}</span>
+                          <span className="text-[#5bc827] text-xs font-bold">${order.total?.toFixed(0)}</span>
+                        </div>
+                      </div>
+                    </div>
+
+                    {order.estado === 'ENTREGADO' && (
+                      <div className="border-t border-[#35373b] px-3 py-2 flex items-center justify-between">
+                        <div className="flex items-center gap-1">
+                          {[1, 2, 3, 4, 5].map(n => (
+                            <button
+                              key={n}
+                              type="button"
+                              onClick={() => {
+                                if (!order.ratingRestaurant) {
+                                  handleQuickRate(order.id, n)
+                                }
+                              }}
+                              className={`text-base transition-transform hover:scale-125 ${
+                                n <= currentRating ? 'text-[#5bc827]' : 'text-[#35373b]'
+                              } ${order.ratingRestaurant ? 'cursor-default' : 'cursor-pointer'}`}
+                            >
+                              ★
+                            </button>
+                          ))}
+                          <span className="text-[#9a9da3] text-[10px] ml-1">
+                            {order.ratingRestaurant || ratings[order.id] ? 'Calificado' : 'Calificar'}
+                          </span>
+                        </div>
+                        {!order.ratingRestaurant && !ratings[order.id] && onRateOrder && (
+                          <button
+                            onClick={() => onRateOrder(order.id)}
+                            className="text-[#5bc827] text-xs font-semibold hover:text-[#7ed944] transition-colors cursor-pointer"
+                          >
+                            Calificar pedido →
+                          </button>
+                        )}
+                      </div>
+                    )}
+                  </div>
+                )
+              })
+            )}
           </div>
         )}
       </div>

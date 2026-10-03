@@ -1,4 +1,16 @@
-export default function OrderConfirmation({ onTrack, onHome }: { onTrack: () => void, onHome: () => void }) {
+interface Props {
+  order?: {
+    id: string
+    total?: number
+    restaurant?: { nombre?: string; name?: string }
+  } | null
+  onTrack: () => void
+  onHome: () => void
+}
+
+export default function OrderConfirmation({ order, onTrack, onHome }: Props) {
+  const orderNum = order?.id ? `#${order.id.slice(0, 8).toUpperCase()}` : '#SR-4829'
+
   return (
     <div className="min-h-screen bg-[#1a1b1e] text-white flex flex-col items-center justify-center p-6 text-center">
       <div className="w-24 h-24 bg-[#5bc827]/20 rounded-full flex items-center justify-center mb-6">
@@ -12,8 +24,14 @@ export default function OrderConfirmation({ onTrack, onHome }: { onTrack: () => 
       <div className="bg-[#232427] border border-[#35373b] rounded-2xl p-5 w-full max-w-sm mb-8 space-y-3">
         <div className="flex justify-between text-sm">
           <span className="text-[#9a9da3]">Número de orden</span>
-          <span className="font-bold text-[#5bc827]">#SR-4829</span>
+          <span className="font-bold text-[#5bc827]">{orderNum}</span>
         </div>
+        {order?.total !== undefined && (
+          <div className="flex justify-between text-sm">
+            <span className="text-[#9a9da3]">Total pagado</span>
+            <span className="font-bold text-[#5bc827]">${order.total.toFixed(0)}</span>
+          </div>
+        )}
         <div className="flex justify-between text-sm">
           <span className="text-[#9a9da3]">Tiempo estimado</span>
           <span className="font-bold text-white">25 - 35 min</span>

@@ -1,0 +1,515 @@
+// ============================================================
+// Sierra App — Schema de base de datos (PostgreSQL + Prisma)
+// ============================================================
+// Diseñado a partir del frontend actual: 4 roles, sistema de
+// personalización de platillos, flujo de comisiones configurables,
+// aprobación de locales/repartidores, tracking de pedidos y
+// calificaciones dobles (restaurante + repartidor).
+// ============================================================
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+}
+
+// ------------------------------------------------------------
+// ENUMS
+// ------------------------------------------------------------
+
+enum Role {
+  USUARIO
+  LOCAL
+  REPARTIDOR
+  ADMIN
+}
+
+enum UserStatus {
+  PENDIENTE   // esperando aprobación del admin (local / repartidor)
+  ACTIVO
+  SUSPENDIDO
+  RECHAZADO
+}
+
+enum RestaurantStatus {
+  PENDIENTE
+  ACTIVO
+  SUSPENDIDO
+}
+
+// Unifica los 4 estados que ve el usuario y los 6 que ve el
+// repartidor en el frontend actual. Ver tabla de mapeo en el
+// documento de diseño (sierra-app-database-design.md, sección 4).
+enum OrderStatus {
+  PENDIENTE             // nueva orden, esperando que el local acepte
+  ACEPTADO              // el local aceptó y está preparando
+  LISTO                 // el local terminó, esperando que un repartidor recoja
+  REPARTIDOR_ASIGNADO   // un repartidor fue asignado, va en camino al local
+  RECOGIDO              // el repartidor ya tiene el pedido
+  EN_CAMINO             // en camino al cliente
+  ENTREGADO
+  CANCELADO
+  RECHAZADO             // el local rechazó el pedido
+}
+
+enum MetodoPago {
+  TARJETA
+  EFECTIVO
+  VENTANILLA
+}
+
+enum TipoOpcion {
+  RADIO
+  CHECKBOX
+}
+
+enum TipoPagoGuardado {
+  TARJETA
+  EFECTIVO
+}
+
+enum AutorMensaje {
+  USUARIO
+  SOPORTE
+}
+
+// ------------------------------------------------------------
+// USUARIOS Y PERFILES POR ROL
+// ------------------------------------------------------------
+
+model User {
+  id           String     @id @default(uuid())
+  email        String     @unique
+  passwordHash String
+  nombre       String
+  telefono     String?
+  rol          Role
+  status       UserStatus @default(ACTIVO)
+  emailVerified        Boolean   @default(false)
+  failedLoginAttempts  Int       @default(0)
+  lockedUntil          DateTime?
+  createdAt    DateTime   @default(now())
+  updatedAt    DateTime   @updatedAt
+
+  // Relaciones por rol
+  driverProfile DriverProfile?
+  restaurant    Restaurant?      @relation("RestaurantOwner")
+
+  // Relaciones comunes
+  addresses      Address[]
+  emailVerificationTokens EmailVerificationToken[]
+  passwordResetTokens     PasswordResetToken[]
+  refreshTokens           RefreshToken[]
+  paymentMethods PaymentMethodSaved[]
+  favorites      Favorite[]
+  notifications  Notification[]
+  supportMessages SupportMessage[]
+
+  // Como usuario que compra
+  ordersAsCustomer Order[] @relation("OrderCustomer")
+  // Como repartidor que entrega
+  ordersAsDriver   Order[] @relation("OrderDriver")
+
+  driverEarnings DriverEarning[]
+  withdrawals    Withdrawal[]
+
+  @@index([rol, status])
+}
+
+// Datos exclusivos del rol REPARTIDOR. Se mantiene separado de
+// User para no llenar esa tabla de columnas nulas en los otros
+// 3 roles.
+model DriverProfile {
+  userId         String  @id
+  user           User    @relation(fields: [userId], references: [id], onDelete: Cascade)
+  matricula      String  @unique // formato REP-XXXXXX, autogenerado en el registro
+  tieneVehiculo  Boolean
+  vehiculo       String? // descripción del vehículo si aplica (ej. "Motocicleta Italika 150")
+  fotoUrl        String?
+  ratingPromedio Float   @default(0)
+}
+
+// ------------------------------------------------------------
+// DIRECCIONES Y MÉTODOS DE PAGO GUARDADOS
+// ------------------------------------------------------------
+
+model Address {
+  id             String  @id @default(uuid())
+  userId         String
+  user           User    @relation(fields: [userId], references: [id], onDelete: Cascade)
+  etiqueta       String  // "Casa" | "Trabajo" | "Otro"
+  calle          String
+  numero         String
+  colonia        String
+  cp             String
+  ciudad         String
+  estado         String
+  referencias    String?
+  lat            Float?
+  lng            Float?
+  predeterminada Boolean @default(false)
+  createdAt      DateTime @default(now())
+
+  ordenes Order[]
+
+  @@index([userId])
+}
+
+// Solo tarjetas y "efectivo" se guardan como preferencia del
+// usuario. "Pago en ventanilla" NUNCA se guarda aquí — es una
+// opción del sistema que se elige directo en el checkout
+// (ver MetodoPago en el modelo Order).
+model PaymentMethodSaved {
+  id             String           @id @default(uuid())
+  userId         String
+  user           User             @relation(fields: [userId], references: [id], onDelete: Cascade)
+  tipo           TipoPagoGuardado
+  marca          String?          // "Visa" | "Mastercard" (solo si tipo = TARJETA)
+  ultimos4       String?
+  vencimiento    String?
+  predeterminado Boolean          @default(false)
+  createdAt      DateTime         @default(now())
+
+  @@index([userId])
+}
+
+// ------------------------------------------------------------
+// RESTAURANTES Y PLATILLOS
+// ------------------------------------------------------------
+
+model Restaurant {
+  id            String           @id @default(uuid())
+  ownerId       String           @unique
+  owner         User             @relation("RestaurantOwner", fields: [ownerId], references: [id])
+  nombre        String
+  categoria     String
+  rating        Float            @default(0)
+  reviews       Int              @default(0)
+  tiempoEntrega String           // ej. "25-35 min"
+  deliveryFeeTexto String        // ej. "Envío $20" — texto mostrado en Explorar
+  deliveryFee   Float            // monto numérico usado en cálculos
+  coverImg      String
+  badge         String?
+  direccion     String
+  isOpen        Boolean          @default(true) // toggle "Abrir/Cerrar local"
+  status        RestaurantStatus @default(PENDIENTE)
+  createdAt     DateTime         @default(now())
+
+  dishes      Dish[]
+  promotions  Promotion[]
+  orders      Order[]
+  favoritedBy Favorite[]
+
+  @@index([status])
+  @@index([categoria])
+}
+
+model Dish {
+  id           String   @id @default(uuid())
+  restaurantId String
+  restaurant   Restaurant @relation(fields: [restaurantId], references: [id], onDelete: Cascade)
+  nombre       String
+  descripcion  String
+  categoria    String
+  precio       Float
+  imagen       String?
+  disponible   Boolean  @default(true)
+  createdAt    DateTime @default(now())
+
+  optionGroups OptionGroup[]
+  orderItems   OrderItem[]
+
+  @@index([restaurantId])
+  @@index([restaurantId, disponible])
+}
+
+// Grupo de personalización de un platillo (ej. "Tipo de carne",
+// "Extras"). Corresponde 1:1 a OpcionGroup en data.ts.
+model OptionGroup {
+  id          String     @id @default(uuid())
+  dishId      String
+  dish        Dish       @relation(fields: [dishId], references: [id], onDelete: Cascade)
+  titulo      String
+  obligatoria Boolean
+  tipo        TipoOpcion
+  orden       Int        @default(0)
+
+  opciones OptionItem[]
+
+  @@index([dishId])
+}
+
+// Una opción dentro de un grupo (ej. "Carne asada", "Doble carne
+// +$25"). `extraPrecio` puede ser negativo (ej. "Sin pan: -$10").
+model OptionItem {
+  id          String      @id @default(uuid())
+  groupId     String
+  group       OptionGroup @relation(fields: [groupId], references: [id], onDelete: Cascade)
+  label       String
+  extraPrecio Float       @default(0)
+
+  seleccionadaEn OrderItemOption[]
+
+  @@index([groupId])
+}
+
+// ------------------------------------------------------------
+// PROMOCIONES
+// ------------------------------------------------------------
+
+model Promotion {
+  id             String     @id @default(uuid())
+  restaurantId   String
+  restaurant     Restaurant @relation(fields: [restaurantId], references: [id], onDelete: Cascade)
+  titulo         String     // ej. "2x1 en tacos"
+  descripcion    String?
+  descuentoPorcentaje Float?
+  codigo         String?
+  vigenciaInicio DateTime?
+  vigenciaFin    DateTime?
+  activo         Boolean    @default(true)
+  createdAt      DateTime   @default(now())
+
+  @@index([restaurantId, activo])
+}
+
+// ------------------------------------------------------------
+// FAVORITOS Y NOTIFICACIONES
+// ------------------------------------------------------------
+
+model Favorite {
+  id           String     @id @default(uuid())
+  userId       String
+  user         User       @relation(fields: [userId], references: [id], onDelete: Cascade)
+  restaurantId String
+  restaurant   Restaurant @relation(fields: [restaurantId], references: [id], onDelete: Cascade)
+  createdAt    DateTime   @default(now())
+
+  @@unique([userId, restaurantId])
+}
+
+model Notification {
+  id        String   @id @default(uuid())
+  userId    String
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  tipo      String   // ej. "pedido", "promocion", "sistema"
+  titulo    String
+  mensaje   String
+  leido     Boolean  @default(false)
+  createdAt DateTime @default(now())
+
+  @@index([userId, leido])
+}
+
+// ------------------------------------------------------------
+// PEDIDOS
+// ------------------------------------------------------------
+
+model Order {
+  id           String      @id @default(uuid())
+
+  userId       String
+  user         User        @relation("OrderCustomer", fields: [userId], references: [id])
+  restaurantId String
+  restaurant   Restaurant  @relation(fields: [restaurantId], references: [id])
+  repartidorId String?
+  repartidor   User?       @relation("OrderDriver", fields: [repartidorId], references: [id])
+
+  estado OrderStatus @default(PENDIENTE)
+
+  // --- Montos ---
+  subtotal              Float
+  envio                 Float
+  // Snapshots de comisión al momento del pedido — NO se recalculan
+  // si el admin cambia PlatformConfig después (ver sección 2 del
+  // documento de diseño).
+  comisionUsuarioFija       Float
+  comisionRepartidorFija    Float
+  comisionLocalPorcentaje   Float
+  comisionLocalMonto        Float
+  total                     Float
+
+  metodoPago MetodoPago
+
+  // --- Dirección de entrega (snapshot, con FK opcional de referencia) ---
+  addressId          String?
+  address            Address? @relation(fields: [addressId], references: [id], onDelete: SetNull)
+  direccionCalle      String
+  direccionNumero     String
+  direccionColonia    String
+  direccionCP         String
+  direccionCiudad     String
+  direccionReferencias String?
+
+  instrucciones String?
+
+  // --- Calificaciones (independientes, 0-5) ---
+  ratingRestaurant Int?
+  ratingRepartidor Int?
+  comentario       String?
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  items          OrderItem[]
+  statusHistory  OrderStatusHistory[]
+  driverEarning  DriverEarning?
+  supportMessages SupportMessage[]
+
+  @@index([userId, createdAt])
+  @@index([restaurantId, estado])
+  @@index([repartidorId, estado])
+  @@index([createdAt])
+}
+
+// Auditoría de cada cambio de estado del pedido.
+model OrderStatusHistory {
+  id        String      @id @default(uuid())
+  orderId   String
+  order     Order       @relation(fields: [orderId], references: [id], onDelete: Cascade)
+  estado    OrderStatus
+  timestamp DateTime    @default(now())
+
+  @@index([orderId])
+}
+
+model OrderItem {
+  id      String @id @default(uuid())
+  orderId String
+  order   Order  @relation(fields: [orderId], references: [id], onDelete: Cascade)
+  dishId  String
+  dish    Dish   @relation(fields: [dishId], references: [id])
+
+  // Snapshots — el precio/nombre del platillo puede cambiar después
+  // sin afectar pedidos ya realizados.
+  nombreSnapshot        String
+  precioUnitarioSnapshot Float
+
+  cantidad    Int
+  notas       String?
+  extrasTotal Float   @default(0) // suma de OrderItemOption.extraSnapshot
+
+  opciones OrderItemOption[]
+
+  @@index([orderId])
+}
+
+// Registra exactamente qué opción de personalización se eligió
+// por cada OrderItem (equivalente relacional de
+// CartItem.selecciones en el frontend).
+model OrderItemOption {
+  id           String      @id @default(uuid())
+  orderItemId  String
+  orderItem    OrderItem   @relation(fields: [orderItemId], references: [id], onDelete: Cascade)
+  optionItemId String
+  optionItem   OptionItem  @relation(fields: [optionItemId], references: [id])
+
+  labelSnapshot String
+  extraSnapshot Float
+
+  @@index([orderItemId])
+}
+
+// ------------------------------------------------------------
+// GANANCIAS DEL REPARTIDOR
+// ------------------------------------------------------------
+
+model DriverEarning {
+  id           String    @id @default(uuid())
+  repartidorId String
+  repartidor   User      @relation(fields: [repartidorId], references: [id])
+  orderId      String    @unique
+  order        Order     @relation(fields: [orderId], references: [id])
+  monto        Float
+  fecha        DateTime  @default(now())
+  retirado     Boolean   @default(false)
+  withdrawalId String?
+  withdrawal   Withdrawal? @relation(fields: [withdrawalId], references: [id])
+
+  @@index([repartidorId, retirado])
+  @@index([fecha])
+}
+
+model Withdrawal {
+  id           String   @id @default(uuid())
+  repartidorId String
+  repartidor   User     @relation(fields: [repartidorId], references: [id])
+  monto        Float
+  estado       String   @default("PENDIENTE") // PENDIENTE | PAGADO
+  solicitadoEn DateTime @default(now())
+  pagadoEn     DateTime?
+
+  earnings DriverEarning[]
+
+  @@index([repartidorId, estado])
+}
+
+// ------------------------------------------------------------
+// CONFIGURACIÓN DE LA PLATAFORMA (singleton)
+// ------------------------------------------------------------
+
+model PlatformConfig {
+  id                      String   @id @default("singleton")
+  comisionLocalPorcentaje Float    @default(15)
+  comisionRepartidorFija  Float    @default(20)
+  comisionUsuarioFija     Float    @default(5)
+  updatedAt               DateTime @updatedAt
+}
+
+// ------------------------------------------------------------
+// SOPORTE / CHAT
+// ------------------------------------------------------------
+
+model SupportMessage {
+  id        String       @id @default(uuid())
+  userId    String
+  user      User         @relation(fields: [userId], references: [id], onDelete: Cascade)
+  orderId   String?      // opcional: si el chat se originó desde el seguimiento de un pedido
+  order     Order?       @relation(fields: [orderId], references: [id])
+  autor     AutorMensaje
+  mensaje   String
+  createdAt DateTime     @default(now())
+
+  @@index([userId, createdAt])
+  @@index([orderId])
+}
+
+model EmailVerificationToken {
+  id        String   @id @default(uuid())
+  userId    String
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  tokenHash String   @unique
+  expiresAt DateTime
+  createdAt DateTime @default(now())
+
+  @@index([userId])
+}
+
+model PasswordResetToken {
+  id        String    @id @default(uuid())
+  userId    String
+  user      User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  tokenHash String    @unique
+  expiresAt DateTime
+  usedAt    DateTime?
+  createdAt DateTime  @default(now())
+
+  @@index([userId])
+}
+// Guarda el HASH del refresh token, nunca el token en texto plano.
+// Permite revocar sesiones individuales (ej. "cerrar sesión en todos
+// los dispositivos") sin depender solo de que el JWT expire solo.
+model RefreshToken {
+  id        String    @id @default(uuid())
+  userId    String
+  user      User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  tokenHash String    @unique
+  expiresAt DateTime
+  revokedAt DateTime?
+  createdAt DateTime  @default(now())
+
+  @@index([userId])
+}
+
