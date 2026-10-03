@@ -41,12 +41,15 @@ export default function RateOrder({ orderId, restaurantName = 'el restaurante', 
         })
       }
 
-      onSubmit?.({
-        restaurant: restaurantRating,
-        driver: driverRating,
-        comment: comment.trim() || undefined,
-      })
-      onSkip()
+      if (onSubmit) {
+        onSubmit({
+          restaurant: restaurantRating,
+          driver: driverRating,
+          comment: comment.trim() || undefined,
+        })
+      } else {
+        onSkip()
+      }
     } catch (err: any) {
       if (err?.status === 409 || err?.message?.includes('ya fue calificado') || err?.message?.includes('409')) {
         alert('Este pedido ya había sido calificado anteriormente.')

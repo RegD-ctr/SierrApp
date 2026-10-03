@@ -309,6 +309,10 @@ export async function rateOrder(
     throw new AppError('Pedido no encontrado.', 404)
   }
 
+  if (order.estado !== 'ENTREGADO') {
+    throw new AppError('Solo puedes calificar pedidos que ya han sido entregados.', 400)
+  }
+
   if (order.ratingRestaurant !== null) {
     throw new AppError('Este pedido ya fue calificado.', 409)
   }

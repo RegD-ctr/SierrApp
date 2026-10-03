@@ -36,8 +36,8 @@ const defaultFormData = {
   numero: '',
   colonia: '',
   cp: '',
-  ciudad: 'Oaxaca de Juárez',
-  estado: 'Oaxaca',
+  ciudad: '',
+  estado: '',
   referencias: '',
 }
 
@@ -106,9 +106,9 @@ export default function Addresses({
       calle: a.calle || a.street.split('#')[0].trim(),
       numero: a.numero || (a.street.includes('#') ? a.street.split('#')[1].trim() : 'S/N'),
       colonia: a.colonia || a.col || '',
-      cp: a.cp || '68000',
-      ciudad: a.ciudad || 'Oaxaca de Juárez',
-      estado: a.estado || 'Oaxaca',
+      cp: a.cp || '',
+      ciudad: a.ciudad || '',
+      estado: a.estado || '',
       referencias: a.referencias || '',
     })
     setFormError(null)
@@ -257,7 +257,7 @@ export default function Addresses({
                 <input
                   type="text"
                   required
-                  placeholder="Ej. 68000"
+                  placeholder="Ej. 31000"
                   value={formData.cp}
                   onChange={e => setFormData({ ...formData, cp: e.target.value })}
                   className="w-full bg-[#1a1b1e] border border-[#35373b] rounded-xl p-3 text-sm text-white focus:outline-none focus:border-[#5bc827]"
@@ -268,7 +268,7 @@ export default function Addresses({
                 <input
                   type="text"
                   required
-                  placeholder="Ej. Oaxaca"
+                  placeholder="Ej. Chihuahua"
                   value={formData.ciudad}
                   onChange={e => setFormData({ ...formData, ciudad: e.target.value })}
                   className="w-full bg-[#1a1b1e] border border-[#35373b] rounded-xl p-3 text-sm text-white focus:outline-none focus:border-[#5bc827]"
@@ -281,7 +281,7 @@ export default function Addresses({
               <input
                 type="text"
                 required
-                placeholder="Ej. Oaxaca"
+                placeholder="Ej. Chihuahua"
                 value={formData.estado}
                 onChange={e => setFormData({ ...formData, estado: e.target.value })}
                 className="w-full bg-[#1a1b1e] border border-[#35373b] rounded-xl p-3 text-sm text-white focus:outline-none focus:border-[#5bc827]"

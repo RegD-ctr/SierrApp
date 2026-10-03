@@ -336,6 +336,7 @@ export default function App() {
         driverName={confirmedOrder?.repartidor?.nombre || 'tu repartidor'}
         onSubmit={(_ratings) => {
           showToast('¡Gracias por tu calificación! ⭐')
+          navigateTo('pedidos')
         }}
         onSkip={() => navigateTo('pedidos')}
       />
@@ -496,13 +497,13 @@ function HomeView({
   }
 
   const loadFavorites = async () => {
-    const token = localStorage.getItem('sierra_token')
-    if (!token) return
     try {
       const favs = await api.get<Array<{ id: string }>>('/api/users/me/favorites')
-      setFavoriteIds(new Set(favs.map(f => f.id)))
+      if (Array.isArray(favs)) {
+        setFavoriteIds(new Set(favs.map(f => f.id)))
+      }
     } catch {
-      // Silencioso si falla
+      // Silencioso si falla o no está autenticado
     }
   }
 
@@ -512,8 +513,6 @@ function HomeView({
   }, [])
 
   const handleToggleFavorite = async (restaurantId: string) => {
-    const token = localStorage.getItem('sierra_token')
-    if (!token) return
     if (togglingId) return
     setTogglingId(restaurantId)
     try {

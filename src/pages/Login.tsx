@@ -242,15 +242,8 @@ export default function Login({ onLogin }: Props) {
       if (rFotoFile) {
         const formData = new FormData()
         formData.append('file', rFotoFile)
-        const uploadRes = await fetch(`${import.meta.env.VITE_API_URL || 'http://localhost:4000'}/api/uploads/driver-photo`, {
-          method: 'POST',
-          body: formData,
-        })
-        const uploadData = await uploadRes.json().catch(() => ({}))
-        if (!uploadRes.ok) {
-          throw new Error(uploadData.error || 'Error al subir la fotografía de perfil.')
-        }
-        fotoUrl = uploadData.path
+        const uploadRes = await api.upload<{ path: string }>('/api/uploads/driver-photo', formData)
+        fotoUrl = uploadRes.path
       }
 
       const res = await api.post<{ userId: string; matricula: string }>('/api/auth/register/repartidor', {
