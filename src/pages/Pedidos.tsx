@@ -1,5 +1,6 @@
 import { useState, useEffect, useCallback } from 'react'
 import { api, getImageUrl } from '@/lib/api'
+import { getSocket } from '@/lib/socket'
 
 type Tab = 'activo' | 'historial'
 
@@ -134,6 +135,23 @@ export default function Pedidos({ initialTab = 'activo', onOpenTracking, onRateO
       fetchHistory()
     }
   }, [tab, fetchActive, fetchHistory])
+
+  useEffect(() => {
+    const socket = getSocket()
+    if (!socket) return
+
+    const handleOrderEvent = () => {
+      fetchActive()
+      fetchHistory()
+    }
+
+    socket.on('order:updated', handleOrderEvent)
+    socket.on('order:new', handleOrderEvent)
+    return () => {
+      socket.off('order:updated', handleOrderEvent)
+      socket.off('order:new', handleOrderEvent)
+    }
+  }, [fetchActive, fetchHistory])
 
   const handleCancelOrder = async (orderId: string) => {
     if (!window.confirm('¿Estás seguro de que deseas cancelar este pedido?')) return

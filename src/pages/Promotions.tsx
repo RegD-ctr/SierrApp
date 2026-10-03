@@ -37,6 +37,7 @@ export default function Promotions({ onBack, onSelectRestaurant }: Props) {
   const [promociones, setPromociones] = useState<PublicPromotion[]>([])
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
+  const [navigatingId, setNavigatingId] = useState<string | null>(null)
 
   const loadPromotions = async () => {
     try {
@@ -48,6 +49,19 @@ export default function Promotions({ onBack, onSelectRestaurant }: Props) {
       setError(err?.message || 'Error al cargar las promociones.')
     } finally {
       setLoading(false)
+    }
+  }
+
+  const handleSelectPromo = async (promo: PublicPromotion) => {
+    if (navigatingId) return
+    setNavigatingId(promo.id)
+    try {
+      const full = await api.get<Restaurant>(`/api/restaurants/${promo.restaurantId}`)
+      onSelectRestaurant(full)
+    } catch {
+      onSelectRestaurant(promo.restaurant as unknown as Restaurant)
+    } finally {
+      setNavigatingId(null)
     }
   }
 
@@ -107,8 +121,10 @@ export default function Promotions({ onBack, onSelectRestaurant }: Props) {
             return (
               <div
                 key={promo.id}
-                onClick={() => onSelectRestaurant(r as unknown as Restaurant)}
-                className="bg-[#232427] border border-[#35373b] hover:border-[#5bc827]/50 rounded-2xl overflow-hidden flex cursor-pointer transition-all hover:scale-[1.01] group"
+                onClick={() => handleSelectPromo(promo)}
+                className={`bg-[#232427] border border-[#35373b] hover:border-[#5bc827]/50 rounded-2xl overflow-hidden flex cursor-pointer transition-all hover:scale-[1.01] group ${
+                  navigatingId === promo.id ? 'opacity-60 pointer-events-none' : ''
+                }`}
               >
                 <div className="relative w-28 h-28 shrink-0 overflow-hidden bg-gradient-to-br from-[#232427] via-[#1a1b1e] to-[#0d0e10] flex items-center justify-center">
                   {r.coverImg ? (

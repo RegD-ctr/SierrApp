@@ -98,12 +98,15 @@ export default function OrderTracking({ orderId, order: propOrder, onBack, onSup
     deliveryHandledRef.current = false
     fetchOrderDetail()
 
+    // Polling de respaldo: si el socket está conectado, se usa 20s como red de seguridad;
+    // si no hay conexión socket, se usa 8s para actualizar sin saturar el backend.
+    const pollMs = getSocket()?.connected ? 20000 : 8000
     const interval = setInterval(async () => {
       const current = await fetchOrderDetail()
       if (current && ['ENTREGADO', 'CANCELADO', 'RECHAZADO'].includes(current.estado)) {
         clearInterval(interval)
       }
-    }, 6000)
+    }, pollMs)
 
     return () => clearInterval(interval)
   }, [fetchOrderDetail])

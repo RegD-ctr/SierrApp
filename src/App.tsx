@@ -94,9 +94,20 @@ export default function App() {
     const handleNewNotif = () => {
       setUnreadCount(prev => prev + 1)
     }
+    const handleAccountUpdated = (payload: { status?: string }) => {
+      if (payload?.status === 'SUSPENDIDO') {
+        alert('Tu cuenta ha sido suspendida. Contacta a soporte para más información.')
+        handleLogout()
+      } else if (payload?.status === 'RECHAZADO') {
+        alert('Tu solicitud ha sido rechazada.')
+        handleLogout()
+      }
+    }
     socket.on('notification:new', handleNewNotif)
+    socket.on('account:updated', handleAccountUpdated)
     return () => {
       socket.off('notification:new', handleNewNotif)
+      socket.off('account:updated', handleAccountUpdated)
     }
   }, [currentUser])
 

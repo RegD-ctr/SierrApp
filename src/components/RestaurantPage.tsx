@@ -39,19 +39,16 @@ export default function RestaurantPage({ restaurant, onBack, onAddToCart }: Prop
 
   useEffect(() => {
     fetchDetail()
-    const token = localStorage.getItem('sierra_token')
-    if (token) {
-      api.get<Array<{ id: string }>>('/api/users/me/favorites')
-        .then(favs => {
+    api.get<Array<{ id: string }>>('/api/users/me/favorites')
+      .then(favs => {
+        if (Array.isArray(favs)) {
           setIsFavorite(favs.some(f => f.id === restaurant.id))
-        })
-        .catch(() => {})
-    }
+        }
+      })
+      .catch(() => {})
   }, [restaurant.id])
 
   const handleToggleFav = async () => {
-    const token = localStorage.getItem('sierra_token')
-    if (!token) return
     if (togglingFav) return
     setTogglingFav(true)
     try {

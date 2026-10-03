@@ -569,6 +569,8 @@ export default function LocalPanel({ onLogout }: Props) {
       }
     } catch (err: any) {
       alert(err?.message || 'Error al eliminar el platillo')
+      setPlatillos(ps => ps.map(p => p.id === dishId ? { ...p, disponible: false } : p))
+      setConfirmDeleteId(null)
     }
   }
 

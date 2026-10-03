@@ -2,7 +2,8 @@
 
 import { prisma } from '../../db/prisma'
 import { AppError } from '../../utils/errors'
-import { emitToUser, createNotification } from '../../realtime/socket'
+import { emitToUser, createNotification, disconnectUser } from '../../realtime/socket'
+import { revokeAllSessions } from '../auth/auth.service'
 
 // ------------------------------------------------------------
 // LECTURA PÚBLICA (Explorar.tsx, App.tsx home, RestaurantPage.tsx)
@@ -119,6 +120,21 @@ export async function updateDish(userId: string, dishId: string, data: Partial<{
 
 export async function deleteDish(userId: string, dishId: string) {
   await getOwnDishOrThrow(userId, dishId)
+
+  const orderCount = await prisma.orderItem.count({ where: { dishId } })
+  if (orderCount > 0) {
+    // Si el platillo tiene pedidos históricos, no se puede borrar físicamente sin romper
+    // la integridad referencial de los recibos de clientes. En su lugar se desactiva.
+    await prisma.dish.update({
+      where: { id: dishId },
+      data: { disponible: false },
+    })
+    throw new AppError(
+      'Este platillo no se puede eliminar por completo porque ya tiene pedidos registrados en el historial. Ha sido marcado como no disponible (agotado) para que los clientes no puedan pedirlo.',
+      400
+    )
+  }
+
   await prisma.dish.delete({ where: { id: dishId } })
 }
 
@@ -152,6 +168,8 @@ async function setRestaurantStatus(id: string, status: 'ACTIVO' | 'SUSPENDIDO') 
   }
   if (status === 'SUSPENDIDO') {
     await prisma.user.update({ where: { id: restaurant.ownerId }, data: { status: 'SUSPENDIDO' } })
+    await revokeAllSessions(restaurant.ownerId)
+    disconnectUser(restaurant.ownerId)
   }
 
   const updated = await prisma.restaurant.update({ where: { id }, data: { status } })

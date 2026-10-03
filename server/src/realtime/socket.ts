@@ -76,6 +76,19 @@ export function emitToAdmins(event: string, payload: unknown) {
   getIO().to('admin').emit(event, payload)
 }
 
+export function disconnectUser(userId: string) {
+  try {
+    const sockets = getIO().sockets.sockets
+    for (const [_, s] of sockets) {
+      if (s.data?.userId === userId) {
+        s.disconnect(true)
+      }
+    }
+  } catch {
+    // Silencioso si no hay sockets o socket.io no está inicializado
+  }
+}
+
 // --- Notificación persistida + push en el mismo paso ---
 // Esta es la función que va a usarse en las Partes 2 y 3 para avisar
 // cosas que sí deben quedar en el historial del usuario (bandeja de

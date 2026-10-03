@@ -1,6 +1,7 @@
 import { prisma } from '../../db/prisma'
 import { AppError } from '../../utils/errors'
-import { emitToUser, createNotification } from '../../realtime/socket'
+import { emitToUser, createNotification, disconnectUser } from '../../realtime/socket'
+import { revokeAllSessions } from '../auth/auth.service'
 
 // ------------------------------------------------------------
 // REPARTIDORES
@@ -53,6 +54,9 @@ export async function rejectRepartidor(id: string) {
     throw new AppError('Esta solicitud ya fue procesada.', 409)
   }
   const updated = await prisma.user.update({ where: { id }, data: { status: 'RECHAZADO' } })
+  await revokeAllSessions(id)
+  emitToUser(id, 'account:updated', { status: 'RECHAZADO' })
+  disconnectUser(id)
   await createNotification(id, 'cuenta', 'Solicitud rechazada', 'Tu solicitud para ser repartidor fue rechazada. Contacta a soporte para más información.')
   return updated
 }
@@ -60,7 +64,9 @@ export async function rejectRepartidor(id: string) {
 export async function suspendRepartidor(id: string) {
   await getRepartidorOrThrow(id)
   const updated = await prisma.user.update({ where: { id }, data: { status: 'SUSPENDIDO' } })
+  await revokeAllSessions(id)
   emitToUser(id, 'account:updated', { status: 'SUSPENDIDO' })
+  disconnectUser(id)
   await createNotification(id, 'cuenta', 'Cuenta suspendida', 'Tu cuenta de repartidor fue suspendida. Contacta a soporte para más información.')
   return updated
 }
@@ -96,7 +102,9 @@ async function getUsuarioOrThrow(id: string) {
 export async function suspendUsuario(id: string) {
   await getUsuarioOrThrow(id)
   const updated = await prisma.user.update({ where: { id }, data: { status: 'SUSPENDIDO' } })
+  await revokeAllSessions(id)
   emitToUser(id, 'account:updated', { status: 'SUSPENDIDO' })
+  disconnectUser(id)
   await createNotification(id, 'cuenta', 'Cuenta suspendida', 'Tu cuenta fue suspendida. Contacta a soporte para más información.')
   return updated
 }
