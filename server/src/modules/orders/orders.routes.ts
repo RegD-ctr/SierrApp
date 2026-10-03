@@ -24,6 +24,9 @@ ordersRouter.patch('/:id/picked-up', requireAuth, requireRole('REPARTIDOR'), ord
 ordersRouter.patch('/:id/start-delivery', requireAuth, requireRole('REPARTIDOR'), ordersController.startDelivery)
 ordersRouter.patch('/:id/deliver', requireAuth, requireRole('REPARTIDOR'), ordersController.deliver)
 
+// Admin
+ordersRouter.get('/admin/all', requireAuth, requireRole('ADMIN'), ordersController.listAllForAdmin)
+
 ordersRouter.get('/:id', requireAuth, ordersController.getById)
 ordersRouter.patch('/:id/rate', requireAuth, requireRole('USUARIO'), ordersController.rate)
 

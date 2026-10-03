@@ -173,3 +173,14 @@ export async function listDeliveries(req: Request, res: Response) {
   }
 }
 
+export async function listAllForAdmin(req: Request, res: Response) {
+  try {
+    const { desde, hasta, estado } = req.query as { desde?: string; hasta?: string; estado?: string }
+    const orders = await ordersService.listAllOrdersForAdmin({ desde, hasta, estado })
+    res.json(orders)
+  } catch (err) {
+    respondError(res, err)
+  }
+}
+
+

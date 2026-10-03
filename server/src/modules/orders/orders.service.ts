@@ -531,3 +531,35 @@ export async function listDriverDeliveries(driverUserId: string) {
   })
 }
 
+export async function listAllOrdersForAdmin(filters?: { desde?: string; hasta?: string; estado?: string }) {
+  const where: any = {}
+  if (filters?.estado) {
+    where.estado = filters.estado
+  }
+  if (filters?.desde || filters?.hasta) {
+    where.createdAt = {}
+    if (filters.desde) where.createdAt.gte = new Date(filters.desde)
+    if (filters.hasta) where.createdAt.lte = new Date(filters.hasta)
+  }
+
+  return prisma.order.findMany({
+    where,
+    orderBy: { createdAt: 'desc' },
+    select: {
+      id: true,
+      estado: true,
+      subtotal: true,
+      envio: true,
+      comisionUsuarioFija: true,
+      comisionRepartidorFija: true,
+      comisionLocalMonto: true,
+      total: true,
+      metodoPago: true,
+      createdAt: true,
+      restaurant: { select: { nombre: true } },
+      user: { select: { nombre: true } },
+    },
+  })
+}
+
+

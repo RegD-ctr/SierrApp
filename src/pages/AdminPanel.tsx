@@ -1,12 +1,12 @@
 import { useState, useEffect, useMemo } from 'react'
-import { api } from '@/lib/api'
+import { api, getImageUrl } from '@/lib/api'
 
 type Tab = 'dashboard' | 'usuarios' | 'locales' | 'repartidores' | 'pedidos' | 'config'
 type Timeframe = 'hoy' | 'semana' | 'mes' | 'anio' | 'personalizado'
 type LocalTimeframe = 'hoy' | 'semana' | 'mes' | 'anio' | 'personalizado'
 
 // TODO: reemplazar con datos reales del backend (GET /api/admin/restaurants/earnings)
-const DATA_GANANCIAS_LOCAL: Record<number, Record<Exclude<LocalTimeframe, 'personalizado'>, {
+const DATA_GANANCIAS_LOCAL: Record<string | number, Record<Exclude<LocalTimeframe, 'personalizado'>, {
   total: number
   efectivo: number
   tarjeta: number
@@ -20,7 +20,7 @@ const DATA_GANANCIAS_LOCAL: Record<number, Record<Exclude<LocalTimeframe, 'perso
   },
 }
 
-function generarGananciasPorFecha(localId: number, dia: number | null, mes: number, anio: number) {
+function generarGananciasPorFecha(localId: string | number, dia: number | null, mes: number, anio: number) {
   return { total: 0, efectivo: 0, tarjeta: 0, comisionPlataforma: 0 }
 }
 
@@ -191,7 +191,7 @@ interface UsuarioAdmin {
 }
 
 interface LocalAdmin {
-  id: number
+  id: string
   name: string
   status: string
   statusColor: string
@@ -206,7 +206,7 @@ interface LocalAdmin {
 }
 
 interface RepartidorAdmin {
-  id: number
+  id: string
   name: string
   mat: string
   rating: string
@@ -217,6 +217,7 @@ interface RepartidorAdmin {
   direccion: string
   entregasTotales: number
   gananciasTotales: number
+  fotoUrl?: string | null
 }
 
   // Estados para usuarios
@@ -347,16 +348,10 @@ interface RepartidorAdmin {
     }
   }
 
-  // Carga inicial al montar el componente
-  useEffect(() => {
-    loadUsuarios()
-    loadConfig()
-    loadAdminOrders()
-  }, [])
-
-  // Estados para el local seleccionado
-  // TODO: reemplazar con datos reales del backend (GET /api/admin/restaurants)
+  // Estados para locales
   const [locales, setLocales] = useState<LocalAdmin[]>([])
+  const [loadingLocales, setLoadingLocales] = useState<boolean>(false)
+  const [updatingLocal, setUpdatingLocal] = useState<boolean>(false)
   const [selectedLocal, setSelectedLocal] = useState<LocalAdmin | null>(null)
   const [localTimeframe, setLocalTimeframe] = useState<LocalTimeframe>('mes')
   const [fechaLocalSeleccionada, setFechaLocalSeleccionada] = useState<{
@@ -371,12 +366,227 @@ interface RepartidorAdmin {
   const [showLocalGanancias, setShowLocalGanancias] = useState(false)
   const [showConfirmSuspendLocal, setShowConfirmSuspendLocal] = useState(false)
 
-  // Estados para el repartidor seleccionado
-  // TODO: reemplazar con datos reales del backend (GET /api/admin/delivery)
+  // Estados para repartidores
   const [repartidores, setRepartidores] = useState<RepartidorAdmin[]>([])
+  const [loadingRepartidores, setLoadingRepartidores] = useState<boolean>(false)
+  const [updatingRepartidor, setUpdatingRepartidor] = useState<boolean>(false)
   const [selectedRepartidor, setSelectedRepartidor] = useState<RepartidorAdmin | null>(null)
   const [showConfirmSuspendRepartidor, setShowConfirmSuspendRepartidor] = useState(false)
   const [showConfirmRechazarRepartidor, setShowConfirmRechazarRepartidor] = useState<RepartidorAdmin | null>(null)
+
+  // Estados para el listado global de pedidos
+  const [pedidosList, setPedidosList] = useState<AdminOrder[]>([])
+  const [loadingPedidosList, setLoadingPedidosList] = useState<boolean>(false)
+  const [pedidosEstadoFilter, setPedidosEstadoFilter] = useState<string>('TODOS')
+
+  // Carga de locales desde el backend
+  const loadLocales = async () => {
+    try {
+      setLoadingLocales(true)
+      const data = await api.get<any[]>('/api/restaurants/admin/all')
+      const mapped: LocalAdmin[] = (data || []).map(r => {
+        let statusLabel = 'Pendiente'
+        let statusColor = 'text-amber-400'
+        let bg = 'bg-amber-400/10'
+
+        if (r.status === 'ACTIVO' || r.status === 'Activo') {
+          statusLabel = 'Activo'
+          statusColor = 'text-[#5bc827]'
+          bg = 'bg-[#5bc827]/10'
+        } else if (r.status === 'SUSPENDIDO' || r.status === 'Suspendido') {
+          statusLabel = 'Suspendido'
+          statusColor = 'text-red-400'
+          bg = 'bg-red-400/10'
+        }
+
+        return {
+          id: r.id,
+          name: r.nombre || 'Restaurante',
+          status: statusLabel,
+          statusColor,
+          bg,
+          categoria: r.categoria || 'Restaurante',
+          propietario: r.owner?.nombre || 'Sin propietario',
+          telefono: r.owner?.telefono || r.telefono || 'Sin teléfono',
+          direccion: r.direccion || 'Sin dirección',
+          fechaAlta: r.createdAt
+            ? new Date(r.createdAt).toLocaleDateString('es-MX', {
+                year: 'numeric',
+                month: 'short',
+                day: 'numeric',
+              })
+            : 'Reciente',
+          rating: r.ratingPromedio ?? r.rating ?? 5,
+          pedidosTotales: r.totalPedidos ?? 0,
+        }
+      })
+      setLocales(mapped)
+    } catch (err) {
+      console.error('Error al cargar locales:', err)
+    } finally {
+      setLoadingLocales(false)
+    }
+  }
+
+  // Acción de aprobar local
+  const handleApproveLocal = async (id: string) => {
+    if (updatingLocal) return
+    setUpdatingLocal(true)
+    try {
+      await api.patch(`/api/restaurants/admin/${id}/approve`)
+      await loadLocales()
+    } catch (err) {
+      console.error('Error al aprobar local:', err)
+    } finally {
+      setUpdatingLocal(false)
+    }
+  }
+
+  // Acción de suspender/reactivar local
+  const handleToggleSuspendLocal = async () => {
+    if (!selectedLocal || updatingLocal) return
+    setUpdatingLocal(true)
+    try {
+      const isSuspendido = selectedLocal.status === 'Suspendido'
+      const endpoint = isSuspendido
+        ? `/api/restaurants/admin/${selectedLocal.id}/reactivate`
+        : `/api/restaurants/admin/${selectedLocal.id}/suspend`
+      const updated = await api.patch<any>(endpoint)
+      const nuevoStatus = (updated.status === 'ACTIVO' || updated.status === 'Activo') ? 'Activo' : 'Suspendido'
+      const nuevoColor = nuevoStatus === 'Activo' ? 'text-[#5bc827]' : 'text-red-400'
+      const nuevoBg = nuevoStatus === 'Activo' ? 'bg-[#5bc827]/10' : 'bg-red-400/10'
+      setSelectedLocal(prev => prev ? { ...prev, status: nuevoStatus, statusColor: nuevoColor, bg: nuevoBg } : null)
+      setShowConfirmSuspendLocal(false)
+      await loadLocales()
+    } catch (err) {
+      console.error('Error al suspender/reactivar local:', err)
+    } finally {
+      setUpdatingLocal(false)
+    }
+  }
+
+  // Carga de repartidores desde el backend
+  const loadRepartidores = async () => {
+    try {
+      setLoadingRepartidores(true)
+      const data = await api.get<any[]>('/api/admin/repartidores')
+      const mapped: RepartidorAdmin[] = (data || []).map(r => {
+        let statusLabel = 'Pendiente'
+        if (r.status === 'ACTIVO') statusLabel = 'Activo'
+        else if (r.status === 'SUSPENDIDO') statusLabel = 'Suspendido'
+        else if (r.status === 'RECHAZADO') statusLabel = 'Rechazado'
+
+        const vehiculo = r.driverProfile?.vehiculo || 'Moto'
+        const matricula = r.driverProfile?.matricula ? `Placas: ${r.driverProfile.matricula}` : vehiculo
+
+        return {
+          id: r.id,
+          name: r.nombre || 'Repartidor',
+          mat: matricula,
+          rating: r.driverProfile?.ratingPromedio != null ? String(r.driverProfile.ratingPromedio) : '5.0',
+          status: statusLabel,
+          telefono: r.telefono || 'Sin teléfono',
+          vehiculo,
+          fechaAlta: r.createdAt
+            ? new Date(r.createdAt).toLocaleDateString('es-MX', {
+                year: 'numeric',
+                month: 'short',
+                day: 'numeric',
+              })
+            : 'Reciente',
+          direccion: 'Huatusco, Ver.',
+          entregasTotales: r.driverProfile?.totalEntregas ?? 0,
+          gananciasTotales: 0,
+          fotoUrl: r.driverProfile?.fotoUrl || null,
+        }
+      })
+      setRepartidores(mapped)
+    } catch (err) {
+      console.error('Error al cargar repartidores:', err)
+    } finally {
+      setLoadingRepartidores(false)
+    }
+  }
+
+  // Acción de aprobar repartidor
+  const handleApproveRepartidor = async (id: string) => {
+    if (updatingRepartidor) return
+    setUpdatingRepartidor(true)
+    try {
+      await api.patch(`/api/admin/repartidores/${id}/approve`)
+      await loadRepartidores()
+    } catch (err) {
+      console.error('Error al aprobar repartidor:', err)
+    } finally {
+      setUpdatingRepartidor(false)
+    }
+  }
+
+  // Acción de rechazar repartidor
+  const handleRejectRepartidor = async (id: string) => {
+    if (updatingRepartidor) return
+    setUpdatingRepartidor(true)
+    try {
+      await api.patch(`/api/admin/repartidores/${id}/reject`)
+      setShowConfirmRechazarRepartidor(null)
+      await loadRepartidores()
+    } catch (err) {
+      console.error('Error al rechazar repartidor:', err)
+    } finally {
+      setUpdatingRepartidor(false)
+    }
+  }
+
+  // Acción de suspender/reactivar repartidor
+  const handleToggleSuspendRepartidor = async () => {
+    if (!selectedRepartidor || updatingRepartidor) return
+    setUpdatingRepartidor(true)
+    try {
+      const isActivo = selectedRepartidor.status === 'Activo'
+      const endpoint = isActivo
+        ? `/api/admin/repartidores/${selectedRepartidor.id}/suspend`
+        : `/api/admin/repartidores/${selectedRepartidor.id}/reactivate`
+      const updated = await api.patch<any>(endpoint)
+      const nuevoStatus = updated.status === 'ACTIVO' ? 'Activo' : 'Suspendido'
+      setSelectedRepartidor(prev => prev ? { ...prev, status: nuevoStatus } : null)
+      setShowConfirmSuspendRepartidor(false)
+      await loadRepartidores()
+    } catch (err) {
+      console.error('Error al suspender/reactivar repartidor:', err)
+    } finally {
+      setUpdatingRepartidor(false)
+    }
+  }
+
+  // Carga de pedidos para la pestaña Pedidos
+  const loadPedidosList = async (estado?: string) => {
+    try {
+      setLoadingPedidosList(true)
+      const query = estado && estado !== 'TODOS' ? `?estado=${estado}` : ''
+      const data = await api.get<AdminOrder[]>(`/api/orders/admin/all${query}`)
+      setPedidosList(data || [])
+    } catch (err) {
+      console.error('Error al cargar lista de pedidos:', err)
+      setPedidosList([])
+    } finally {
+      setLoadingPedidosList(false)
+    }
+  }
+
+  const handleFilterPedidos = (nuevoEstado: string) => {
+    setPedidosEstadoFilter(nuevoEstado)
+    loadPedidosList(nuevoEstado)
+  }
+
+  // Carga inicial al montar el componente
+  useEffect(() => {
+    loadUsuarios()
+    loadConfig()
+    loadAdminOrders()
+    loadLocales()
+    loadRepartidores()
+    loadPedidosList()
+  }, [])
 
   /**
    * NOTA DE ARQUITECTURA / INTEGRACIÓN:
@@ -862,17 +1072,11 @@ interface RepartidorAdmin {
                   Cancelar
                 </button>
                 <button
-                  onClick={() => {
-                    const nuevoStatus = selectedLocal.status !== 'Suspendido' ? 'Suspendido' : 'Activo'
-                    const nuevoColor = nuevoStatus === 'Activo' ? 'text-[#5bc827]' : 'text-red-400'
-                    const nuevoBg = nuevoStatus === 'Activo' ? 'bg-[#5bc827]/10' : 'bg-red-400/10'
-                    setLocales(prev => prev.map(l => l.id === selectedLocal.id ? { ...l, status: nuevoStatus, statusColor: nuevoColor, bg: nuevoBg } : l))
-                    setSelectedLocal(prev => prev ? { ...prev, status: nuevoStatus, statusColor: nuevoColor, bg: nuevoBg } : null)
-                    setShowConfirmSuspendLocal(false)
-                  }}
-                  className={`flex-1 py-3 rounded-xl font-bold transition-colors cursor-pointer ${selectedLocal.status !== 'Suspendido' ? 'bg-red-600 hover:bg-red-500 text-white' : 'bg-[#5bc827] hover:bg-[#7ed944] text-[#1a1b1e]'}`}
+                  disabled={updatingLocal}
+                  onClick={handleToggleSuspendLocal}
+                  className={`flex-1 py-3 rounded-xl font-bold transition-colors cursor-pointer disabled:opacity-50 ${selectedLocal.status !== 'Suspendido' ? 'bg-red-600 hover:bg-red-500 text-white' : 'bg-[#5bc827] hover:bg-[#7ed944] text-[#1a1b1e]'}`}
                 >
-                  Confirmar
+                  {updatingLocal ? 'Procesando...' : 'Confirmar'}
                 </button>
               </div>
             </div>
@@ -894,13 +1098,29 @@ interface RepartidorAdmin {
 
         <div className="p-4 max-w-lg mx-auto w-full space-y-5">
           <div className="bg-[#232427] border border-[#35373b] rounded-2xl p-5 flex items-center gap-4">
-            <div className="w-14 h-14 rounded-full bg-[#d9a05b]/20 border-2 border-[#d9a05b] flex items-center justify-center text-xl font-bold text-[#d9a05b]">
-              {selectedRepartidor.name.split(' ').map(n => n[0]).join('')}
-            </div>
+            {selectedRepartidor.fotoUrl ? (
+              <img
+                src={getImageUrl(selectedRepartidor.fotoUrl)}
+                alt={selectedRepartidor.name}
+                className="w-14 h-14 rounded-full object-cover border-2 border-[#d9a05b]"
+              />
+            ) : (
+              <div className="w-14 h-14 rounded-full bg-[#d9a05b]/20 border-2 border-[#d9a05b] flex items-center justify-center text-xl font-bold text-[#d9a05b]">
+                {selectedRepartidor.name.split(' ').map(n => n[0]).join('')}
+              </div>
+            )}
             <div className="flex-1">
               <h2 className="font-bold text-lg text-white">{selectedRepartidor.name} <span className="text-[#d9a05b] text-sm">★ {selectedRepartidor.rating}</span></h2>
               <p className="text-[#9a9da3] text-xs font-mono">{selectedRepartidor.mat}</p>
-              <span className={`inline-block mt-1 text-[10px] uppercase font-bold px-2 py-0.5 rounded ${selectedRepartidor.status === 'Activo' ? 'text-[#5bc827] bg-[#5bc827]/10' : 'text-red-400 bg-red-400/10'}`}>
+              <span className={`inline-block mt-1 text-[10px] uppercase font-bold px-2 py-0.5 rounded ${
+                selectedRepartidor.status === 'Activo'
+                  ? 'text-[#5bc827] bg-[#5bc827]/10'
+                  : selectedRepartidor.status === 'Pendiente'
+                  ? 'text-amber-400 bg-amber-400/10'
+                  : selectedRepartidor.status === 'Rechazado'
+                  ? 'text-red-400 bg-red-400/10'
+                  : 'text-orange-400 bg-orange-400/10'
+              }`}>
                 {selectedRepartidor.status}
               </span>
             </div>
@@ -919,16 +1139,18 @@ interface RepartidorAdmin {
             <StatCard label="Ganancias totales" value={`$${selectedRepartidor.gananciasTotales.toLocaleString('es-MX')}`} icon="💰" />
           </div>
 
-          <button
-            onClick={() => setShowConfirmSuspendRepartidor(true)}
-            className={`w-full py-3.5 rounded-xl font-bold text-sm transition-colors cursor-pointer ${
-              selectedRepartidor.status === 'Activo'
-                ? 'border border-red-800/50 text-red-400 hover:bg-red-900/20'
-                : 'bg-[#5bc827] hover:bg-[#7ed944] text-[#1a1b1e]'
-            }`}
-          >
-            {selectedRepartidor.status === 'Activo' ? 'Suspender repartidor' : 'Reactivar repartidor'}
-          </button>
+          {selectedRepartidor.status !== 'Rechazado' && selectedRepartidor.status !== 'Pendiente' && (
+            <button
+              onClick={() => setShowConfirmSuspendRepartidor(true)}
+              className={`w-full py-3.5 rounded-xl font-bold text-sm transition-colors cursor-pointer ${
+                selectedRepartidor.status === 'Activo'
+                  ? 'border border-red-800/50 text-red-400 hover:bg-red-900/20'
+                  : 'bg-[#5bc827] hover:bg-[#7ed944] text-[#1a1b1e]'
+              }`}
+            >
+              {selectedRepartidor.status === 'Activo' ? 'Suspender repartidor' : 'Reactivar repartidor'}
+            </button>
+          )}
         </div>
 
         {showConfirmSuspendRepartidor && (
@@ -947,15 +1169,11 @@ interface RepartidorAdmin {
                   Cancelar
                 </button>
                 <button
-                  onClick={() => {
-                    const nuevoStatus = selectedRepartidor.status === 'Activo' ? 'Suspendido' : 'Activo'
-                    setRepartidores(prev => prev.map(r => r.id === selectedRepartidor.id ? { ...r, status: nuevoStatus } : r))
-                    setSelectedRepartidor(prev => prev ? { ...prev, status: nuevoStatus } : null)
-                    setShowConfirmSuspendRepartidor(false)
-                  }}
-                  className={`flex-1 py-3 rounded-xl font-bold transition-colors cursor-pointer ${selectedRepartidor.status === 'Activo' ? 'bg-red-600 hover:bg-red-500 text-white' : 'bg-[#5bc827] hover:bg-[#7ed944] text-[#1a1b1e]'}`}
+                  disabled={updatingRepartidor}
+                  onClick={handleToggleSuspendRepartidor}
+                  className={`flex-1 py-3 rounded-xl font-bold transition-colors cursor-pointer disabled:opacity-50 ${selectedRepartidor.status === 'Activo' ? 'bg-red-600 hover:bg-red-500 text-white' : 'bg-[#5bc827] hover:bg-[#7ed944] text-[#1a1b1e]'}`}
                 >
-                  Confirmar
+                  {updatingRepartidor ? 'Procesando...' : 'Confirmar'}
                 </button>
               </div>
             </div>
@@ -1323,86 +1541,252 @@ interface RepartidorAdmin {
         {activeTab === 'locales' && (
           <div>
             <Title text="Locales y Restaurantes" />
-            <div className="space-y-3">
-              {locales.map((l) => (
-                <div key={l.id} className="bg-[#232427] border border-[#35373b] hover:border-[#d9a05b]/50 p-4 rounded-xl flex items-center justify-between transition-colors">
-                  <div>
-                    <p className="font-bold text-sm text-white">{l.name}</p>
-                    <p className="text-[#9a9da3] text-xs">{l.categoria}</p>
+            {loadingLocales ? (
+              <div className="flex flex-col items-center justify-center py-12 text-center bg-[#232427] border border-[#35373b] rounded-xl">
+                <div className="w-8 h-8 border-2 border-[#d9a05b] border-t-transparent rounded-full animate-spin mb-3" />
+                <p className="text-[#9a9da3] text-sm">Cargando locales...</p>
+              </div>
+            ) : locales.length === 0 ? (
+              <div className="flex flex-col items-center justify-center py-12 text-center bg-[#232427] border border-[#35373b] rounded-xl">
+                <span className="text-4xl mb-2">🏪</span>
+                <p className="text-white font-semibold text-sm">No hay locales registrados</p>
+                <p className="text-[#9a9da3] text-xs mt-1">Los restaurantes de la plataforma aparecerán aquí</p>
+              </div>
+            ) : (
+              <div className="space-y-3">
+                {locales.map((l) => (
+                  <div key={l.id} className="bg-[#232427] border border-[#35373b] hover:border-[#d9a05b]/50 p-4 rounded-xl flex items-center justify-between transition-colors">
+                    <div>
+                      <p className="font-bold text-sm text-white">{l.name}</p>
+                      <p className="text-[#9a9da3] text-xs">{l.categoria}</p>
+                    </div>
+                    <div className="flex items-center gap-3">
+                      <span className={`${l.statusColor} ${l.bg} text-[10px] uppercase font-bold px-2 py-1 rounded`}>{l.status}</span>
+                      {l.status === 'Pendiente' ? (
+                        <button 
+                          disabled={updatingLocal}
+                          onClick={() => handleApproveLocal(l.id)} 
+                          className="text-xs font-semibold bg-[#d9a05b] hover:bg-[#e0b07a] text-[#1a1b1e] px-3 py-1.5 rounded-lg transition-colors cursor-pointer disabled:opacity-50"
+                        >
+                          Aprobar
+                        </button>
+                      ) : (
+                        <button 
+                          onClick={() => setSelectedLocal(l)}
+                          className="text-xs font-semibold bg-[#35373b] hover:bg-[#5bc827] hover:text-[#1a1b1e] text-white px-3 py-1.5 rounded-lg transition-colors cursor-pointer"
+                        >
+                          Ver
+                        </button>
+                      )}
+                    </div>
                   </div>
-                  <div className="flex items-center gap-3">
-                    <span className={`${l.statusColor} ${l.bg} text-[10px] uppercase font-bold px-2 py-1 rounded`}>{l.status}</span>
-                    {l.status === 'Pendiente' ? (
-                      <button className="text-xs font-semibold bg-[#d9a05b] hover:bg-[#e0b07a] text-[#1a1b1e] px-3 py-1.5 rounded-lg transition-colors cursor-pointer">Aprobar</button>
-                    ) : (
-                      <button 
-                        onClick={() => setSelectedLocal(l)}
-                        className="text-xs font-semibold bg-[#35373b] hover:bg-[#5bc827] hover:text-[#1a1b1e] text-white px-3 py-1.5 rounded-lg transition-colors cursor-pointer"
-                      >
-                        Ver
-                      </button>
-                    )}
-                  </div>
-                </div>
-              ))}
-            </div>
+                ))}
+              </div>
+            )}
           </div>
         )}
 
         {activeTab === 'repartidores' && (
           <div>
             <Title text="Repartidores" />
-            <div className="space-y-3">
-              {repartidores.map((r) => (
-                <div key={r.id} className="bg-[#232427] border border-[#35373b] hover:border-[#d9a05b]/50 p-4 rounded-xl flex items-center justify-between transition-colors">
-                  <div>
-                    <p className="font-bold text-sm text-white">
-                      {r.name} {r.status !== 'Pendiente' && <span className="text-[#d9a05b] ml-1">★ {r.rating}</span>}
-                    </p>
-                    <p className="text-[#9a9da3] text-xs font-mono mt-0.5">{r.mat}</p>
-                  </div>
-                  <div className="flex items-center gap-2">
-                    {r.status === 'Pendiente' ? (
-                      <>
+            {loadingRepartidores ? (
+              <div className="flex flex-col items-center justify-center py-12 text-center bg-[#232427] border border-[#35373b] rounded-xl">
+                <div className="w-8 h-8 border-2 border-[#d9a05b] border-t-transparent rounded-full animate-spin mb-3" />
+                <p className="text-[#9a9da3] text-sm">Cargando repartidores...</p>
+              </div>
+            ) : repartidores.length === 0 ? (
+              <div className="flex flex-col items-center justify-center py-12 text-center bg-[#232427] border border-[#35373b] rounded-xl">
+                <span className="text-4xl mb-2">🏍️</span>
+                <p className="text-white font-semibold text-sm">No hay repartidores registrados</p>
+                <p className="text-[#9a9da3] text-xs mt-1">Los repartidores de la plataforma aparecerán aquí</p>
+              </div>
+            ) : (
+              <div className="space-y-3">
+                {repartidores.map((r) => (
+                  <div key={r.id} className="bg-[#232427] border border-[#35373b] hover:border-[#d9a05b]/50 p-4 rounded-xl flex items-center justify-between transition-colors">
+                    <div className="flex items-center gap-3">
+                      {r.fotoUrl ? (
+                        <img 
+                          src={getImageUrl(r.fotoUrl)} 
+                          alt={r.name} 
+                          className="w-10 h-10 rounded-full object-cover border border-[#d9a05b]/40 flex-shrink-0" 
+                        />
+                      ) : (
+                        <div className="w-10 h-10 rounded-full bg-[#d9a05b]/20 border border-[#d9a05b]/40 flex items-center justify-center text-xs font-bold text-[#d9a05b] flex-shrink-0">
+                          {r.name.split(' ').map(n => n[0]).join('')}
+                        </div>
+                      )}
+                      <div>
+                        <p className="font-bold text-sm text-white">
+                          {r.name} {r.status !== 'Pendiente' && <span className="text-[#d9a05b] ml-1">★ {r.rating}</span>}
+                        </p>
+                        <p className="text-[#9a9da3] text-xs font-mono mt-0.5">{r.mat}</p>
+                      </div>
+                    </div>
+                    <div className="flex items-center gap-2">
+                      <span className={`text-[10px] uppercase font-bold px-2 py-1 rounded ${
+                        r.status === 'Activo'
+                          ? 'text-[#5bc827] bg-[#5bc827]/10'
+                          : r.status === 'Pendiente'
+                          ? 'text-amber-400 bg-amber-400/10'
+                          : r.status === 'Rechazado'
+                          ? 'text-red-400 bg-red-400/10'
+                          : 'text-orange-400 bg-orange-400/10'
+                      }`}>
+                        {r.status}
+                      </span>
+                      {r.status === 'Pendiente' ? (
+                        <>
+                          <button 
+                            disabled={updatingRepartidor}
+                            onClick={() => handleApproveRepartidor(r.id)}
+                            className="text-xs font-semibold bg-[#5bc827] hover:bg-[#7ed944] text-[#1a1b1e] px-3 py-1.5 rounded-lg transition-colors cursor-pointer disabled:opacity-50"
+                          >
+                            Aprobar
+                          </button>
+                          <button 
+                            disabled={updatingRepartidor}
+                            onClick={() => setShowConfirmRechazarRepartidor(r)}
+                            className="text-xs font-semibold border border-red-800/50 text-red-400 hover:bg-red-900/20 px-3 py-1.5 rounded-lg transition-colors cursor-pointer disabled:opacity-50"
+                          >
+                            Rechazar
+                          </button>
+                        </>
+                      ) : (
                         <button 
-                          onClick={() => setRepartidores(prev => prev.map(x => x.id === r.id ? { ...x, status: 'Activo' } : x))}
-                          className="text-xs font-semibold bg-[#5bc827] hover:bg-[#7ed944] text-[#1a1b1e] px-3 py-1.5 rounded-lg transition-colors cursor-pointer"
+                          onClick={() => setSelectedRepartidor(r)}
+                          className="text-xs bg-[#35373b] hover:bg-[#5bc827] hover:text-[#1a1b1e] text-white px-3 py-1.5 rounded-lg transition-colors cursor-pointer"
                         >
-                          Aprobar
+                          Ver
                         </button>
-                        <button 
-                          onClick={() => setShowConfirmRechazarRepartidor(r)}
-                          className="text-xs font-semibold border border-red-800/50 text-red-400 hover:bg-red-900/20 px-3 py-1.5 rounded-lg transition-colors cursor-pointer"
-                        >
-                          Rechazar
-                        </button>
-                      </>
-                    ) : (
-                      <button 
-                        onClick={() => setSelectedRepartidor(r)}
-                        className="text-xs bg-[#35373b] hover:bg-[#5bc827] hover:text-[#1a1b1e] text-white px-3 py-1.5 rounded-lg transition-colors cursor-pointer"
-                      >
-                        Ver
-                      </button>
-                    )}
+                      )}
+                    </div>
                   </div>
-                </div>
-              ))}
-            </div>
+                ))}
+              </div>
+            )}
           </div>
         )}
 
         {activeTab === 'pedidos' && (
           <div>
             <Title text="Visión global de pedidos" />
-            <div className="space-y-3">
-              {/* TODO: reemplazar con datos reales del backend (GET /api/admin/orders) */}
+
+            {/* Filtros por estado */}
+            <div className="flex items-center gap-2 overflow-x-auto pb-3 mb-4 hide-scrollbar">
+              {[
+                { id: 'TODOS', label: 'Todos' },
+                { id: 'PENDIENTE', label: 'Pendientes' },
+                { id: 'EN_PREPARACION', label: 'En Preparación' },
+                { id: 'EN_CAMINO', label: 'En Camino' },
+                { id: 'ENTREGADO', label: 'Entregados' },
+                { id: 'CANCELADO', label: 'Cancelados' },
+              ].map(f => (
+                <button
+                  key={f.id}
+                  onClick={() => handleFilterPedidos(f.id)}
+                  className={`px-3 py-1.5 rounded-lg text-xs font-bold whitespace-nowrap transition-colors cursor-pointer ${
+                    pedidosEstadoFilter === f.id
+                      ? 'bg-[#d9a05b] text-[#1a1b1e]'
+                      : 'bg-[#232427] border border-[#35373b] text-[#9a9da3] hover:text-white hover:border-[#d9a05b]/40'
+                  }`}
+                >
+                  {f.label}
+                </button>
+              ))}
+            </div>
+
+            {loadingPedidosList ? (
+              <div className="flex flex-col items-center justify-center py-12 text-center bg-[#232427] border border-[#35373b] rounded-xl">
+                <div className="w-8 h-8 border-2 border-[#d9a05b] border-t-transparent rounded-full animate-spin mb-3" />
+                <p className="text-[#9a9da3] text-sm">Cargando pedidos...</p>
+              </div>
+            ) : pedidosList.length === 0 ? (
               <div className="flex flex-col items-center justify-center py-12 text-center bg-[#232427] border border-[#35373b] rounded-xl">
                 <span className="text-4xl mb-2">📦</span>
-                <p className="text-white font-semibold text-sm">No hay pedidos registrados</p>
+                <p className="text-white font-semibold text-sm">
+                  {pedidosEstadoFilter === 'TODOS'
+                    ? 'No hay pedidos registrados'
+                    : `No hay pedidos con estado ${pedidosEstadoFilter}`}
+                </p>
                 <p className="text-[#9a9da3] text-xs mt-1">Los pedidos de la plataforma aparecerán aquí</p>
               </div>
-            </div>
+            ) : (
+              <div className="space-y-3">
+                {pedidosList.map((order) => {
+                  let badgeColor = 'text-amber-400 bg-amber-400/10 border-amber-400/30'
+                  let estadoLabel = order.estado
+                  if (order.estado === 'PENDIENTE') {
+                    badgeColor = 'text-amber-400 bg-amber-400/10 border-amber-400/30'
+                    estadoLabel = 'Pendiente'
+                  } else if (order.estado === 'EN_PREPARACION') {
+                    badgeColor = 'text-blue-400 bg-blue-400/10 border-blue-400/30'
+                    estadoLabel = 'En Preparación'
+                  } else if (order.estado === 'EN_CAMINO') {
+                    badgeColor = 'text-purple-400 bg-purple-400/10 border-purple-400/30'
+                    estadoLabel = 'En Camino'
+                  } else if (order.estado === 'ENTREGADO') {
+                    badgeColor = 'text-[#5bc827] bg-[#5bc827]/10 border-[#5bc827]/30'
+                    estadoLabel = 'Entregado'
+                  } else if (order.estado === 'CANCELADO') {
+                    badgeColor = 'text-red-400 bg-red-400/10 border-red-400/30'
+                    estadoLabel = 'Cancelado'
+                  }
+
+                  const fechaFormateada = order.createdAt
+                    ? new Date(order.createdAt).toLocaleString('es-MX', {
+                        dateStyle: 'short',
+                        timeStyle: 'short',
+                      })
+                    : 'Reciente'
+
+                  const esEfectivo = (order.metodoPago || '').toUpperCase() === 'EFECTIVO'
+
+                  return (
+                    <div
+                      key={order.id}
+                      className="bg-[#232427] border border-[#35373b] hover:border-[#d9a05b]/50 p-4 rounded-xl transition-colors space-y-3"
+                    >
+                      <div className="flex items-center justify-between gap-2">
+                        <div className="flex items-center gap-2">
+                          <span className="font-mono text-xs text-[#d9a05b] font-bold bg-[#d9a05b]/10 border border-[#d9a05b]/30 px-2 py-0.5 rounded">
+                            #{order.id.slice(0, 8)}
+                          </span>
+                          <span className="text-[#9a9da3] text-xs">{fechaFormateada}</span>
+                        </div>
+                        <span className={`text-[10px] uppercase font-bold px-2 py-0.5 rounded border ${badgeColor}`}>
+                          {estadoLabel}
+                        </span>
+                      </div>
+
+                      <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 text-xs">
+                        <div>
+                          <p className="text-[#9a9da3]">Restaurante</p>
+                          <p className="font-semibold text-white truncate">{order.restaurant?.nombre || 'Restaurante'}</p>
+                        </div>
+                        <div>
+                          <p className="text-[#9a9da3]">Cliente</p>
+                          <p className="font-semibold text-white truncate">{order.user?.nombre || 'Cliente'}</p>
+                        </div>
+                      </div>
+
+                      <div className="flex items-center justify-between pt-2 border-t border-[#35373b]/60">
+                        <div className="flex items-center gap-1.5 text-xs text-[#c4c6ca]">
+                          <span>{esEfectivo ? '💵' : '💳'}</span>
+                          <span>{esEfectivo ? 'Efectivo' : 'Tarjeta'}</span>
+                        </div>
+                        <div className="text-right">
+                          <span className="text-[#9a9da3] text-xs mr-1">Total:</span>
+                          <span className="text-sm font-bold text-white">
+                            ${Number(order.total).toFixed(2)}
+                          </span>
+                        </div>
+                      </div>
+                    </div>
+                  )
+                })}
+              </div>
+            )}
           </div>
         )}
 
@@ -1511,13 +1895,11 @@ interface RepartidorAdmin {
                 Cancelar
               </button>
               <button
-                onClick={() => {
-                  setRepartidores(prev => prev.filter(r => r.id !== showConfirmRechazarRepartidor.id))
-                  setShowConfirmRechazarRepartidor(null)
-                }}
-                className="flex-1 py-3 rounded-xl font-bold bg-red-600 hover:bg-red-500 text-white transition-colors cursor-pointer"
+                disabled={updatingRepartidor}
+                onClick={() => handleRejectRepartidor(showConfirmRechazarRepartidor.id)}
+                className="flex-1 py-3 rounded-xl font-bold bg-red-600 hover:bg-red-500 text-white transition-colors cursor-pointer disabled:opacity-50"
               >
-                Sí, rechazar
+                {updatingRepartidor ? 'Rechazando...' : 'Sí, rechazar'}
               </button>
             </div>
           </div>
