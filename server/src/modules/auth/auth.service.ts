@@ -1,16 +1,24 @@
 // Destino: server/src/modules/auth/auth.service.ts
 
-import { prisma } from '../../db/prisma'
-import { hashPassword, verifyPassword, checkPasswordPolicy } from '../../utils/password'
+import { prisma } from "../../db/prisma"
+import {
+  hashPassword,
+  verifyPassword,
+  checkPasswordPolicy,
+} from "../../utils/password"
 import {
   signAccessToken,
   signRefreshToken,
   verifyRefreshToken,
   hashToken,
   generateSecureToken,
-} from '../../utils/tokens'
-import { sendVerificationEmail, sendPasswordResetEmail, sendAccountLockedAlert } from '../../utils/email'
-import { notifyAdmins } from '../../realtime/socket'
+} from "../../utils/tokens"
+import {
+  sendVerificationEmail,
+  sendPasswordResetEmail,
+  sendAccountLockedAlert,
+} from "../../utils/email"
+import { notifyAdmins } from "../../realtime/socket"
 
 const MAX_FAILED_ATTEMPTS = 5
 const LOCK_DURATION_MS = 15 * 60 * 1000 // 15 minutos
@@ -19,7 +27,7 @@ const LOCK_DURATION_MS = 15 * 60 * 1000 // 15 minutos
 // a propósito. Si fueran distintos, alguien podría usar el endpoint de
 // login para descubrir qué correos están registrados (enumeración de
 // usuarios), que es una filtración de información real.
-const GENERIC_LOGIN_ERROR = 'Correo o contraseña incorrectos.'
+const GENERIC_LOGIN_ERROR = "Correo o contraseña incorrectos."
 
 export class AuthError extends Error {
   status: number
@@ -40,14 +48,14 @@ async function assertEmailAvailable(email: string) {
     // porque el registro ya requiere que el usuario apenas esté
     // creando la cuenta — no hay nada sensible que enumerar todavía
     // en el mismo sentido que con login.
-    throw new AuthError('Ya existe una cuenta con este correo.', 409)
+    throw new AuthError("Ya existe una cuenta con este correo.", 409)
   }
 }
 
 function assertStrongPassword(password: string) {
   const policy = checkPasswordPolicy(password)
   if (!policy.valid) {
-    throw new AuthError(policy.errors.join(' '), 422)
+    throw new AuthError(policy.errors.join(" "), 422)
   }
 }
 
@@ -69,8 +77,13 @@ export async function registerUsuario(input: {
   password: string
   telefono: string
   direccion: {
-    calle: string; numero: string; colonia: string; cp: string; ciudad: string
-    estado: string; referencias?: string
+    calle: string
+    numero: string
+    colonia: string
+    cp: string
+    ciudad: string
+    estado: string
+    referencias?: string
   }
 }) {
   await assertEmailAvailable(input.email)
@@ -84,11 +97,11 @@ export async function registerUsuario(input: {
       passwordHash,
       nombre: input.nombre,
       telefono: input.telefono,
-      rol: 'USUARIO',
-      status: 'ACTIVO', // el usuario final no requiere aprobación del admin
+      rol: "USUARIO",
+      status: "ACTIVO", // el usuario final no requiere aprobación del admin
       addresses: {
         create: {
-          etiqueta: 'Casa',
+          etiqueta: "Casa",
           calle: input.direccion.calle,
           numero: input.direccion.numero,
           colonia: input.direccion.colonia,
@@ -124,25 +137,29 @@ export async function registerLocal(input: {
       passwordHash,
       nombre: input.nombreNegocio,
       telefono: input.telefono,
-      rol: 'LOCAL',
-      status: 'PENDIENTE', // requiere aprobación del admin — ver AdminPanel
+      rol: "LOCAL",
+      status: "PENDIENTE", // requiere aprobación del admin — ver AdminPanel
       restaurant: {
         create: {
           nombre: input.nombreNegocio,
-          categoria: 'Sin categoría',
-          tiempoEntrega: '—',
-          deliveryFeeTexto: '—',
+          categoria: "Sin categoría",
+          tiempoEntrega: "—",
+          deliveryFeeTexto: "—",
           deliveryFee: 0,
-          coverImg: '', // se completa después vía el módulo de subida de imágenes
+          coverImg: "", // se completa después vía el módulo de subida de imágenes
           direccion: input.direccion,
-          status: 'PENDIENTE',
+          status: "PENDIENTE",
         },
       },
     },
   })
 
   await createEmailVerification(user.id, user.email)
-  await notifyAdmins('registro', 'Nueva solicitud de local', `"${input.nombreNegocio}" quiere registrarse como restaurante.`)
+  await notifyAdmins(
+    "registro",
+    "Nueva solicitud de local",
+    `"${input.nombreNegocio}" quiere registrarse como restaurante.`,
+  )
   return { userId: user.id }
 }
 
@@ -167,8 +184,8 @@ export async function registerRepartidor(input: {
       passwordHash,
       nombre: input.nombre,
       telefono: input.telefono,
-      rol: 'REPARTIDOR',
-      status: 'PENDIENTE', // requiere aprobación del admin
+      rol: "REPARTIDOR",
+      status: "PENDIENTE", // requiere aprobación del admin
       driverProfile: {
         create: {
           matricula,
@@ -181,7 +198,11 @@ export async function registerRepartidor(input: {
   })
 
   await createEmailVerification(user.id, user.email)
-  await notifyAdmins('registro', 'Nueva solicitud de repartidor', `${input.nombre} quiere registrarse como repartidor.`)
+  await notifyAdmins(
+    "registro",
+    "Nueva solicitud de repartidor",
+    `${input.nombre} quiere registrarse como repartidor.`,
+  )
   return { userId: user.id, matricula }
 }
 
@@ -191,10 +212,15 @@ async function generateUniqueMatricula(): Promise<string> {
   for (let i = 0; i < 5; i++) {
     const n = Math.floor(100000 + Math.random() * 900000)
     const candidate = `REP-${n}`
-    const exists = await prisma.driverProfile.findUnique({ where: { matricula: candidate } })
+    const exists = await prisma.driverProfile.findUnique({
+      where: { matricula: candidate },
+    })
     if (!exists) return candidate
   }
-  throw new AuthError('No se pudo generar una matrícula única, intenta de nuevo.', 500)
+  throw new AuthError(
+    "No se pudo generar una matrícula única, intenta de nuevo.",
+    500,
+  )
 }
 
 // ------------------------------------------------------------
@@ -210,8 +236,13 @@ export async function login(email: string, password: string, ip: string) {
   }
 
   if (user.lockedUntil && user.lockedUntil > new Date()) {
-    const minutosRestantes = Math.ceil((user.lockedUntil.getTime() - Date.now()) / 60000)
-    throw new AuthError(`Cuenta bloqueada temporalmente. Intenta de nuevo en ${minutosRestantes} minuto(s).`, 423)
+    const minutosRestantes = Math.ceil(
+      (user.lockedUntil.getTime() - Date.now()) / 60000,
+    )
+    throw new AuthError(
+      `Cuenta bloqueada temporalmente. Intenta de nuevo en ${minutosRestantes} minuto(s).`,
+      423,
+    )
   }
 
   const passwordOk = await verifyPassword(user.passwordHash, password)
@@ -224,7 +255,9 @@ export async function login(email: string, password: string, ip: string) {
       where: { id: user.id },
       data: {
         failedLoginAttempts: shouldLock ? 0 : attempts,
-        lockedUntil: shouldLock ? new Date(Date.now() + LOCK_DURATION_MS) : null,
+        lockedUntil: shouldLock
+          ? new Date(Date.now() + LOCK_DURATION_MS)
+          : null,
       },
     })
 
@@ -237,17 +270,29 @@ export async function login(email: string, password: string, ip: string) {
 
   // Login correcto — resetea el contador de intentos fallidos.
   if (user.failedLoginAttempts > 0) {
-    await prisma.user.update({ where: { id: user.id }, data: { failedLoginAttempts: 0, lockedUntil: null } })
+    await prisma.user.update({
+      where: { id: user.id },
+      data: { failedLoginAttempts: 0, lockedUntil: null },
+    })
   }
 
-  if (user.status === 'SUSPENDIDO') {
-    throw new AuthError('Tu cuenta ha sido suspendida. Contacta a soporte.', 403)
+  if (user.status === "SUSPENDIDO") {
+    throw new AuthError(
+      "Tu cuenta ha sido suspendida. Contacta a soporte.",
+      403,
+    )
   }
-  if (user.status === 'PENDIENTE') {
-    throw new AuthError('Tu cuenta está pendiente de aprobación. Te avisaremos por correo cuando esté lista.', 403)
+  if (user.status === "PENDIENTE") {
+    throw new AuthError(
+      "Tu cuenta está pendiente de aprobación. Te avisaremos por correo cuando esté lista.",
+      403,
+    )
   }
-  if (user.status === 'RECHAZADO') {
-    throw new AuthError('Tu solicitud fue rechazada. Contacta a soporte para más información.', 403)
+  if (user.status === "RECHAZADO") {
+    throw new AuthError(
+      "Tu solicitud fue rechazada. Contacta a soporte para más información.",
+      403,
+    )
   }
 
   return issueTokens(user.id, user.rol)
@@ -279,23 +324,26 @@ export async function refreshSession(oldRefreshToken: string) {
   try {
     payload = verifyRefreshToken(oldRefreshToken)
   } catch {
-    throw new AuthError('Sesión inválida, inicia sesión de nuevo.', 401)
+    throw new AuthError("Sesión inválida, inicia sesión de nuevo.", 401)
   }
 
   const tokenHash = hashToken(oldRefreshToken)
   const stored = await prisma.refreshToken.findUnique({ where: { tokenHash } })
 
   if (!stored || stored.revokedAt || stored.expiresAt < new Date()) {
-    throw new AuthError('Sesión inválida, inicia sesión de nuevo.', 401)
+    throw new AuthError("Sesión inválida, inicia sesión de nuevo.", 401)
   }
 
   const user = await prisma.user.findUnique({ where: { id: payload.userId } })
-  if (!user || user.status !== 'ACTIVO') {
-    throw new AuthError('Sesión inválida, inicia sesión de nuevo.', 401)
+  if (!user || user.status !== "ACTIVO") {
+    throw new AuthError("Sesión inválida, inicia sesión de nuevo.", 401)
   }
 
   // Revoca el token viejo y emite uno nuevo (rotación).
-  await prisma.refreshToken.update({ where: { id: stored.id }, data: { revokedAt: new Date() } })
+  await prisma.refreshToken.update({
+    where: { id: stored.id },
+    data: { revokedAt: new Date() },
+  })
 
   return issueTokens(user.id, user.rol)
 }
@@ -324,14 +372,19 @@ export async function revokeAllSessions(userId: string) {
 
 export async function verifyEmail(rawToken: string) {
   const tokenHash = hashToken(rawToken)
-  const record = await prisma.emailVerificationToken.findUnique({ where: { tokenHash } })
+  const record = await prisma.emailVerificationToken.findUnique({
+    where: { tokenHash },
+  })
 
   if (!record || record.expiresAt < new Date()) {
-    throw new AuthError('El enlace de verificación es inválido o expiró.', 400)
+    throw new AuthError("El enlace de verificación es inválido o expiró.", 400)
   }
 
   await prisma.$transaction([
-    prisma.user.update({ where: { id: record.userId }, data: { emailVerified: true } }),
+    prisma.user.update({
+      where: { id: record.userId },
+      data: { emailVerified: true },
+    }),
     prisma.emailVerificationToken.delete({ where: { id: record.id } }),
   ])
 }
@@ -363,17 +416,25 @@ export async function resetPassword(rawToken: string, newPassword: string) {
   assertStrongPassword(newPassword)
 
   const tokenHash = hashToken(rawToken)
-  const record = await prisma.passwordResetToken.findUnique({ where: { tokenHash } })
+  const record = await prisma.passwordResetToken.findUnique({
+    where: { tokenHash },
+  })
 
   if (!record || record.usedAt || record.expiresAt < new Date()) {
-    throw new AuthError('El enlace de recuperación es inválido o expiró.', 400)
+    throw new AuthError("El enlace de recuperación es inválido o expiró.", 400)
   }
 
   const passwordHash = await hashPassword(newPassword)
 
   await prisma.$transaction([
-    prisma.user.update({ where: { id: record.userId }, data: { passwordHash } }),
-    prisma.passwordResetToken.update({ where: { id: record.id }, data: { usedAt: new Date() } }),
+    prisma.user.update({
+      where: { id: record.userId },
+      data: { passwordHash },
+    }),
+    prisma.passwordResetToken.update({
+      where: { id: record.id },
+      data: { usedAt: new Date() },
+    }),
     // Al cambiar la contraseña, revoca todas las sesiones activas —
     // si alguien más tenía acceso, se cae en cuanto se cambia la clave.
   ])
@@ -384,12 +445,81 @@ export async function getMe(userId: string) {
   const user = await prisma.user.findUnique({
     where: { id: userId },
     select: {
-      id: true, email: true, nombre: true, telefono: true, rol: true,
-      status: true, emailVerified: true,
-      driverProfile: { select: { matricula: true, tieneVehiculo: true, vehiculo: true, fotoUrl: true, ratingPromedio: true } },
-      restaurant: { select: { id: true, nombre: true, status: true, isOpen: true } },
+      id: true,
+      email: true,
+      nombre: true,
+      telefono: true,
+      rol: true,
+      status: true,
+      emailVerified: true,
+      driverProfile: {
+        select: {
+          matricula: true,
+          tieneVehiculo: true,
+          vehiculo: true,
+          fotoUrl: true,
+          ratingPromedio: true,
+        },
+      },
+      restaurant: {
+        select: { id: true, nombre: true, status: true, isOpen: true },
+      },
     },
   })
-  if (!user) throw new AuthError('Usuario no encontrado.', 404)
+  if (!user) throw new AuthError("Usuario no encontrado.", 404)
   return user
+}
+
+export interface UpdateMeData {
+  nombre?: string
+  telefono?: string
+}
+
+export async function updateMe(userId: string, data: UpdateMeData) {
+  const user = await prisma.user.update({ where: { id: userId }, data })
+  return getMe(user.id)
+}
+
+export async function updateDriverProfile(
+  userId: string,
+  data: {
+    tieneVehiculo?: boolean
+    vehiculo?: string
+    fotoUrl?: string
+  },
+) {
+  const profile = await prisma.driverProfile.findUnique({ where: { userId } })
+  if (!profile) {
+    throw new AuthError("No tienes un perfil de repartidor.", 404)
+  }
+  await prisma.driverProfile.update({ where: { userId }, data })
+  return getMe(userId)
+}
+
+export async function changePassword(
+  userId: string,
+  currentPassword: string,
+  newPassword: string,
+) {
+  const user = await prisma.user.findUnique({ where: { id: userId } })
+  if (!user) {
+    throw new AuthError("Usuario no encontrado.", 404)
+  }
+
+  const valid = await verifyPassword(user.passwordHash, currentPassword)
+  if (!valid) {
+    throw new AuthError("La contraseña actual no es correcta.", 401)
+  }
+
+  const policy = checkPasswordPolicy(newPassword)
+  if (!policy.valid) {
+    throw new AuthError(policy.errors.join(" "), 422)
+  }
+
+  const passwordHash = await hashPassword(newPassword)
+  await prisma.user.update({ where: { id: userId }, data: { passwordHash } })
+
+  // Igual que en resetPassword: cambiar la contraseña revoca todas las
+  // sesiones activas — si alguien más tenía acceso, se cae de inmediato.
+  await revokeAllSessions(userId)
 }

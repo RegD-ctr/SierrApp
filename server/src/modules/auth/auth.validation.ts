@@ -7,12 +7,19 @@
 // que evita inyecciones de tipos raros, payloads gigantes, o campos
 // inesperados llegando hasta Prisma.
 
-import { z } from 'zod'
-import { uploadedImagePathSchema } from '../uploads/uploads.validation'
+import { z } from "zod"
+import { uploadedImagePathSchema } from "../uploads/uploads.validation"
 
-const emailSchema = z.string().trim().toLowerCase().email('Correo inválido').max(255)
+const emailSchema = z
+  .string()
+  .trim()
+  .toLowerCase()
+  .email("Correo inválido")
+  .max(255)
 const passwordSchema = z.string().min(10).max(128)
-const telefonoSchema = z.string().regex(/^[0-9 +()-]{7,20}$/, 'Teléfono inválido')
+const telefonoSchema = z
+  .string()
+  .regex(/^[0-9 +()-]{7,20}$/, "Teléfono inválido")
 
 export const registerUsuarioSchema = z.object({
   nombre: z.string().trim().min(2).max(100),
@@ -64,4 +71,20 @@ export const resetPasswordSchema = z.object({
 
 export const verifyEmailSchema = z.object({
   token: z.string().min(10),
+})
+
+export const updateMeSchema = z.object({
+  nombre: z.string().trim().min(2).max(100).optional(),
+  telefono: telefonoSchema.optional(),
+})
+
+export const updateDriverProfileSchema = z.object({
+  tieneVehiculo: z.boolean().optional(),
+  vehiculo: z.string().trim().max(100).optional(),
+  fotoUrl: uploadedImagePathSchema.optional(),
+})
+
+export const changePasswordSchema = z.object({
+  currentPassword: z.string().min(1),
+  newPassword: passwordSchema,
 })
