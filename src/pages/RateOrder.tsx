@@ -1,35 +1,65 @@
 import { useState } from 'react'
+import { api } from '@/lib/api'
 
 interface Props {
-  restaurantName: string
-  driverName: string
-  onSubmit: (ratings: { restaurant: number; driver: number; comment?: string }) => void
+  orderId?: string
+  restaurantName?: string
+  driverName?: string
+  onSubmit?: (ratings: { restaurant: number; driver: number; comment?: string }) => void
   onSkip: () => void
 }
 
 /**
  * Componente para calificar la entrega de un pedido al completarse.
- * Permite calificar de forma independiente al restaurante y al repartidor con 5 estrellas,
- * agregar comentarios opcionales o bien omitir la evaluación.
+ * Llama a PATCH /api/orders/:id/rate con ratingRestaurant, ratingRepartidor y comentario.
+ * Maneja errores 409 (pedido ya calificado) redirigiendo a pedidos.
  * 
- * @param {Props} props - Nombres de los evaluados y funciones callbacks.
+ * @param {Props} props - Nombres de los evaluados, ID de la orden y callbacks.
  */
-export default function RateOrder({ restaurantName, driverName, onSubmit, onSkip }: Props) {
+export default function RateOrder({ orderId, restaurantName = 'el restaurante', driverName = 'tu repartidor', onSubmit, onSkip }: Props) {
   const [restaurantRating, setRestaurantRating] = useState(0)
   const [driverRating, setDriverRating] = useState(0)
   const [hoverRest, setHoverRest] = useState(0)
   const [hoverDriver, setHoverDriver] = useState(0)
   const [comment, setComment] = useState('')
+  const [submitting, setSubmitting] = useState(false)
+  const [error, setError] = useState<string | null>(null)
 
-  const isValid = restaurantRating > 0 && driverRating > 0
+  const isValid = restaurantRating > 0
 
-  const handleSubmit = () => {
-    if (!isValid) return
-    onSubmit({
-      restaurant: restaurantRating,
-      driver: driverRating,
-      comment: comment.trim() || undefined,
-    })
+  const handleSubmit = async () => {
+    if (!isValid || submitting) return
+    setSubmitting(true)
+    setError(null)
+
+    try {
+      if (orderId) {
+        await api.patch(`/api/orders/${orderId}/rate`, {
+          ratingRestaurant: restaurantRating,
+          ratingRepartidor: driverRating > 0 ? driverRating : undefined,
+          comentario: comment.trim() || undefined,
+        })
+      }
+
+      if (onSubmit) {
+        onSubmit({
+          restaurant: restaurantRating,
+          driver: driverRating,
+          comment: comment.trim() || undefined,
+        })
+      } else {
+        onSkip()
+      }
+    } catch (err: any) {
+      if (err?.status === 409 || err?.message?.includes('ya fue calificado') || err?.message?.includes('409')) {
+        alert('Este pedido ya había sido calificado anteriormente.')
+        onSkip()
+      } else {
+        setError(err?.message || 'Error al enviar calificación.')
+      }
+    } finally {
+      setSubmitting(false)
+    }
   }
 
   return (
@@ -44,6 +74,13 @@ export default function RateOrder({ restaurantName, driverName, onSubmit, onSkip
           <p className="text-[#9a9da3] text-sm">Cuéntanos cómo fue tu experiencia</p>
         </div>
 
+        {error && (
+          <div className="bg-red-500/10 border border-red-500/30 text-red-400 text-xs p-3 rounded-xl flex items-center gap-2">
+            <span>⚠️</span>
+            <span>{error}</span>
+          </div>
+        )}
+
         {/* Sección 1: Calificación del Restaurante */}
         <div className="bg-[#1a1b1e] border border-[#35373b] rounded-2xl p-4 text-center space-y-2">
           <p className="text-xs uppercase tracking-wider text-[#9a9da3] font-semibold">Restaurante</p>
@@ -57,7 +94,7 @@ export default function RateOrder({ restaurantName, driverName, onSubmit, onSkip
                 onMouseEnter={() => setHoverRest(star)}
                 onMouseLeave={() => setHoverRest(0)}
                 onClick={() => setRestaurantRating(star)}
-                className="text-3xl transition-transform hover:scale-125 focus:outline-none"
+                className="text-3xl transition-transform hover:scale-125 focus:outline-none cursor-pointer"
               >
                 <span className={(hoverRest || restaurantRating) >= star ? 'text-[#5bc827]' : 'text-[#35373b]'}>
                   ★
@@ -85,7 +122,7 @@ export default function RateOrder({ restaurantName, driverName, onSubmit, onSkip
                 onMouseEnter={() => setHoverDriver(star)}
                 onMouseLeave={() => setHoverDriver(0)}
                 onClick={() => setDriverRating(star)}
-                className="text-3xl transition-transform hover:scale-125 focus:outline-none"
+                className="text-3xl transition-transform hover:scale-125 focus:outline-none cursor-pointer"
               >
                 <span className={(hoverDriver || driverRating) >= star ? 'text-[#5bc827]' : 'text-[#35373b]'}>
                   ★
@@ -116,14 +153,14 @@ export default function RateOrder({ restaurantName, driverName, onSubmit, onSkip
         <div className="space-y-3 pt-2">
           <button
             onClick={handleSubmit}
-            disabled={!isValid}
+            disabled={!isValid || submitting}
             className={`w-full py-3.5 rounded-xl font-bold text-sm transition-all shadow-lg ${
-              isValid
+              isValid && !submitting
                 ? 'bg-[#5bc827] hover:bg-[#7ed944] text-[#1a1b1e] hover:scale-[1.01] active:scale-98 cursor-pointer'
                 : 'bg-[#35373b] text-[#9a9da3] cursor-not-allowed'
             }`}
           >
-            Enviar calificación
+            {submitting ? 'Enviando...' : 'Enviar calificación'}
           </button>
 
           <button
