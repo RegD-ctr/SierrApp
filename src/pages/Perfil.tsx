@@ -26,11 +26,11 @@ const menuItems = [
   {
     icon: "🔒",
     label: "Privacidad y seguridad",
-    sub: "Cambiar contraseña",
-    view: null,
+    sub: "Aviso de privacidad y datos",
+    view: "privacidad",
   },
   { icon: "❓", label: "Ayuda y soporte", sub: null, view: "support" },
-  { icon: "📋", label: "Términos y condiciones", sub: null, view: null },
+  { icon: "📋", label: "Términos y condiciones", sub: null, view: "terminos" },
 ]
 
 const stats = [
@@ -191,10 +191,7 @@ export default function Perfil({
           <button
             key={item.label}
             onClick={() => {
-              if (item.label === "Privacidad y seguridad") {
-                setEditModalTab("password")
-                setEditModalOpen(true)
-              } else if (item.view) {
+              if (item.view) {
                 onNavigate(item.view)
               }
             }}

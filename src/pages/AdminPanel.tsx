@@ -2,6 +2,8 @@ import { useState, useEffect, useMemo, useRef } from "react"
 import { api, getImageUrl, type CurrentUser } from "@/lib/api"
 import { getSocket } from "@/lib/socket"
 import EditProfileModal from "@/components/EditProfileModal"
+import Terminos from "@/pages/Terminos"
+import Privacidad from "@/pages/Privacidad"
 
 type Tab = "dashboard" | "usuarios" | "locales" | "repartidores" | "pedidos" | "soporte" | "config"
 type Timeframe = "hoy" | "semana" | "mes" | "anio" | "personalizado"
@@ -196,6 +198,21 @@ export default function AdminPanel({
   const [comisionRepartidor, setComisionRepartidor] = useState<number>(20)
   const [comisionUsuario, setComisionUsuario] = useState<number>(5)
   const [showToast, setShowToast] = useState(false)
+
+  // Estados para vistas legales y zonas de cobertura
+  const [legalView, setLegalView] = useState<"terminos" | "privacidad" | null>(null)
+  interface DeliveryZoneItem {
+    id: string
+    nombre: string
+    activa: boolean
+    createdAt: string
+  }
+  const [zones, setZones] = useState<DeliveryZoneItem[]>([])
+  const [loadingZones, setLoadingZones] = useState<boolean>(false)
+  const [zoneModalOpen, setZoneModalOpen] = useState<boolean>(false)
+  const [newZoneName, setNewZoneName] = useState<string>("")
+  const [savingZone, setSavingZone] = useState<boolean>(false)
+  const [zoneActionError, setZoneActionError] = useState<string | null>(null)
 
   // Estados para el desplegable de ingresos
   const [showIngresosDetails, setShowIngresosDetails] = useState<boolean>(false)
@@ -414,6 +431,60 @@ export default function AdminPanel({
       console.error("Error al guardar configuración:", err)
     } finally {
       setSavingConfig(false)
+    }
+  }
+
+  // Carga y gestión de zonas de cobertura
+  const loadZones = async () => {
+    try {
+      setLoadingZones(true)
+      setZoneActionError(null)
+      const data = await api.get<DeliveryZoneItem[]>("/api/admin/zonas")
+      setZones(data || [])
+    } catch (err: any) {
+      console.error("Error al cargar zonas de cobertura:", err)
+      setZoneActionError(err?.message || "Error al cargar zonas.")
+    } finally {
+      setLoadingZones(false)
+    }
+  }
+
+  const handleAddZone = async (e?: React.FormEvent) => {
+    if (e) e.preventDefault()
+    const trimmed = newZoneName.trim()
+    if (!trimmed || savingZone) return
+    try {
+      setSavingZone(true)
+      setZoneActionError(null)
+      await api.post("/api/admin/zonas", { nombre: trimmed })
+      setNewZoneName("")
+      setZoneModalOpen(false)
+      await loadZones()
+    } catch (err: any) {
+      setZoneActionError(err?.message || "Error al crear zona.")
+    } finally {
+      setSavingZone(false)
+    }
+  }
+
+  const handleToggleZone = async (id: string, activaActual: boolean) => {
+    try {
+      setZoneActionError(null)
+      await api.patch(`/api/admin/zonas/${id}`, { activa: !activaActual })
+      await loadZones()
+    } catch (err: any) {
+      setZoneActionError(err?.message || "Error al actualizar zona.")
+    }
+  }
+
+  const handleDeleteZone = async (id: string, nombre: string) => {
+    if (!confirm(`¿Eliminar la zona "${nombre}"? Esta acción no se puede deshacer.`)) return
+    try {
+      setZoneActionError(null)
+      await api.delete(`/api/admin/zonas/${id}`)
+      await loadZones()
+    } catch (err: any) {
+      setZoneActionError(err?.message || "Error al eliminar zona.")
     }
   }
 
@@ -784,7 +855,14 @@ export default function AdminPanel({
     loadRepartidores()
     loadPedidosList()
     loadConversations()
+    loadZones()
   }, [])
+
+  useEffect(() => {
+    if (activeTab === "config") {
+      loadZones()
+    }
+  }, [activeTab])
 
   /**
    * NOTA DE ARQUITECTURA / INTEGRACIÓN:
@@ -1703,6 +1781,9 @@ export default function AdminPanel({
       </div>
     )
   }
+
+  if (legalView === "terminos") return <Terminos onBack={() => setLegalView(null)} />
+  if (legalView === "privacidad") return <Privacidad onBack={() => setLegalView(null)} />
 
   return (
     <div className="min-h-screen bg-[#1a1b1e] text-white pb-20">
@@ -2630,18 +2711,112 @@ export default function AdminPanel({
 
               {/* Zonas de cobertura */}
               <div className="bg-[#232427] p-5 rounded-2xl border border-[#35373b] mt-5">
+                <div className="flex items-center justify-between mb-3">
+                  <div>
+                    <h3 className="text-white text-sm font-bold">Zonas de cobertura activas</h3>
+                    <p className="text-[#9a9da3] text-xs">
+                      Gestión de colonias y sectores con servicio de entrega.
+                    </p>
+                  </div>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setNewZoneName("")
+                      setZoneActionError(null)
+                      setZoneModalOpen(true)
+                    }}
+                    className="border border-dashed border-[#d9a05b] text-[#d9a05b] hover:bg-[#d9a05b]/10 px-3 py-1.5 rounded-full text-xs font-bold transition-colors cursor-pointer flex items-center gap-1"
+                  >
+                    + Añadir zona
+                  </button>
+                </div>
+
+                {zoneActionError && (
+                  <div className="mb-3 p-2.5 rounded-xl bg-red-900/30 border border-red-500/40 text-red-300 text-xs">
+                    {zoneActionError}
+                  </div>
+                )}
+
+                {loadingZones ? (
+                  <div className="py-4 text-center text-xs text-[#9a9da3]">
+                    Cargando zonas de cobertura...
+                  </div>
+                ) : zones.length === 0 ? (
+                  <div className="py-4 text-center text-xs text-[#9a9da3]">
+                    No hay zonas registradas aún. Haz clic en "+ Añadir zona" para registrar una.
+                  </div>
+                ) : (
+                  <div className="space-y-2 mt-2">
+                    {zones.map((zone) => (
+                      <div
+                        key={zone.id}
+                        className="flex items-center justify-between p-3 rounded-xl bg-[#1a1b1e] border border-[#35373b]"
+                      >
+                        <div className="flex items-center gap-2.5">
+                          <span className="text-sm">📍</span>
+                          <div>
+                            <span className="text-sm font-semibold text-white block">
+                              {zone.nombre}
+                            </span>
+                            <span
+                              className={`inline-block text-[10px] font-bold px-2 py-0.5 rounded-full ${
+                                zone.activa
+                                  ? "bg-[#5bc827]/20 text-[#5bc827] border border-[#5bc827]/40"
+                                  : "bg-[#35373b]/50 text-[#9a9da3] border border-[#35373b]"
+                              }`}
+                            >
+                              {zone.activa ? "Activa" : "Inactiva"}
+                            </span>
+                          </div>
+                        </div>
+                        <div className="flex items-center gap-2">
+                          <button
+                            type="button"
+                            onClick={() => handleToggleZone(zone.id, zone.activa)}
+                            className={`px-2.5 py-1 rounded-lg text-xs font-medium transition-colors cursor-pointer ${
+                              zone.activa
+                                ? "bg-[#35373b]/60 hover:bg-[#35373b] text-[#c4c6ca]"
+                                : "bg-[#5bc827]/20 hover:bg-[#5bc827]/30 text-[#5bc827] border border-[#5bc827]/40"
+                            }`}
+                          >
+                            {zone.activa ? "Desactivar" : "Activar"}
+                          </button>
+                          <button
+                            type="button"
+                            onClick={() => handleDeleteZone(zone.id, zone.nombre)}
+                            className="p-1.5 rounded-lg text-[#9a9da3] hover:text-red-400 hover:bg-red-950/30 transition-colors cursor-pointer"
+                            title="Eliminar zona"
+                          >
+                            🗑️
+                          </button>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                )}
+              </div>
+
+              {/* Documentación Legal y Privacidad */}
+              <div className="bg-[#232427] p-5 rounded-2xl border border-[#35373b] mt-5">
                 <label className="text-[#c4c6ca] text-xs font-semibold block mb-3">
-                  Zonas de cobertura activas
+                  Documentación legal de la plataforma
                 </label>
                 <div className="flex gap-2 flex-wrap">
-                  <span className="bg-[#d9a05b]/20 border border-[#d9a05b]/50 text-[#d9a05b] px-3 py-1.5 rounded-full text-xs font-bold">
-                    Norte
-                  </span>
-                  <span className="bg-[#d9a05b]/20 border border-[#d9a05b]/50 text-[#d9a05b] px-3 py-1.5 rounded-full text-xs font-bold">
-                    Centro
-                  </span>
-                  <button className="border border-dashed border-[#9a9da3] text-[#9a9da3] px-3 py-1.5 rounded-full text-xs hover:border-[#d9a05b] hover:text-[#d9a05b] transition-colors">
-                    + Añadir zona
+                  <button
+                    type="button"
+                    onClick={() => setLegalView("terminos")}
+                    className="px-3.5 py-2 rounded-xl bg-[#1a1b1e] border border-[#35373b] hover:border-[#d9a05b] text-white text-xs font-semibold transition-colors flex items-center gap-2 cursor-pointer"
+                  >
+                    <span>📋</span>
+                    <span>Términos y condiciones</span>
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setLegalView("privacidad")}
+                    className="px-3.5 py-2 rounded-xl bg-[#1a1b1e] border border-[#35373b] hover:border-[#d9a05b] text-white text-xs font-semibold transition-colors flex items-center gap-2 cursor-pointer"
+                  >
+                    <span>🔒</span>
+                    <span>Aviso de Privacidad</span>
                   </button>
                 </div>
               </div>
@@ -3020,6 +3195,45 @@ export default function AdminPanel({
         onUserUpdate={onUserUpdate}
         onLogout={onLogout}
       />
+
+      {/* Modal Añadir Zona de Cobertura */}
+      {zoneModalOpen && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/70 backdrop-blur-sm p-4">
+          <div className="bg-[#232427] border border-[#35373b] rounded-2xl w-full max-w-sm p-5 shadow-2xl">
+            <h3 className="text-base font-bold text-white mb-1">Añadir Zona de Cobertura</h3>
+            <p className="text-xs text-[#9a9da3] mb-4">
+              Ingresa el nombre del área o sector para el servicio de entregas.
+            </p>
+            <form onSubmit={handleAddZone}>
+              <input
+                type="text"
+                value={newZoneName}
+                onChange={(e) => setNewZoneName(e.target.value)}
+                placeholder="Ej. El Brillante, Centro, Norte..."
+                autoFocus
+                className="w-full bg-[#1a1b1e] border border-[#35373b] focus:border-[#d9a05b] rounded-xl px-4 py-3 text-sm text-white placeholder-[#9a9da3] outline-none mb-4"
+              />
+              <div className="flex gap-2 justify-end">
+                <button
+                  type="button"
+                  onClick={() => setZoneModalOpen(false)}
+                  disabled={savingZone}
+                  className="px-4 py-2 rounded-xl text-xs font-semibold text-[#9a9da3] hover:text-white transition-colors cursor-pointer"
+                >
+                  Cancelar
+                </button>
+                <button
+                  type="submit"
+                  disabled={!newZoneName.trim() || savingZone}
+                  className="px-4 py-2 rounded-xl bg-[#d9a05b] hover:bg-[#b38346] text-[#1a1b1e] text-xs font-bold transition-colors disabled:opacity-50 cursor-pointer"
+                >
+                  {savingZone ? "Guardando..." : "Guardar zona"}
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
     </div>
   )
 }

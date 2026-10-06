@@ -17,7 +17,10 @@ interface SupportMessageItem {
 }
 
 export default function Support({ onBack, orderId }: SupportProps) {
-  const [msg, setMsg] = useState('')
+  const initialText = orderId
+    ? `Tengo una pregunta sobre mi pedido #${orderId.slice(0, 8).toUpperCase()}: `
+    : ''
+  const [msg, setMsg] = useState(initialText)
   const [messages, setMessages] = useState<SupportMessageItem[]>([])
   const [loading, setLoading] = useState(true)
   const [sending, setSending] = useState(false)
@@ -183,7 +186,7 @@ export default function Support({ onBack, orderId }: SupportProps) {
               }
             }}
             disabled={sending}
-            placeholder="Escribe tu mensaje..."
+            placeholder={orderId ? "Describe tu consulta sobre este pedido..." : "Escribe tu mensaje..."}
             className="flex-1 bg-[#232427] border border-[#35373b] rounded-full px-4 py-3 text-sm text-white placeholder-[#9a9da3] focus:outline-none focus:border-[#5bc827] transition-colors disabled:opacity-50"
           />
           <button

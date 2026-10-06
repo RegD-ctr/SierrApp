@@ -102,3 +102,43 @@ export async function updateConfig(req: Request, res: Response) {
     respondError(res, err)
   }
 }
+
+import { createZoneSchema, updateZoneSchema, idParamSchema as zoneIdParamSchema } from './zones.validation'
+
+export async function listZones(_req: Request, res: Response) {
+  try {
+    res.json(await adminService.listZones())
+  } catch (err) {
+    respondError(res, err)
+  }
+}
+
+export async function createZone(req: Request, res: Response) {
+  try {
+    const { nombre } = createZoneSchema.parse(req.body)
+    res.status(201).json(await adminService.createZone(nombre))
+  } catch (err) {
+    respondError(res, err)
+  }
+}
+
+export async function updateZone(req: Request, res: Response) {
+  try {
+    const { id } = zoneIdParamSchema.parse(req.params)
+    const data = updateZoneSchema.parse(req.body)
+    res.json(await adminService.updateZone(id, data))
+  } catch (err) {
+    respondError(res, err)
+  }
+}
+
+export async function deleteZone(req: Request, res: Response) {
+  try {
+    const { id } = zoneIdParamSchema.parse(req.params)
+    await adminService.deleteZone(id)
+    res.status(204).send()
+  } catch (err) {
+    respondError(res, err)
+  }
+}
+

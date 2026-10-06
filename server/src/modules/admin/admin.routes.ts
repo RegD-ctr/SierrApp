@@ -22,3 +22,9 @@ adminRouter.patch('/usuarios/:id/reactivate', adminController.reactivateUsuario)
 
 adminRouter.get('/config', adminController.getConfig)
 adminRouter.patch('/config', adminController.updateConfig)
+
+adminRouter.get('/zonas', adminController.listZones)
+adminRouter.post('/zonas', adminController.createZone)
+adminRouter.patch('/zonas/:id', adminController.updateZone)
+adminRouter.delete('/zonas/:id', adminController.deleteZone)
+

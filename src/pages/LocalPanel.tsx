@@ -2,13 +2,15 @@ import { useState, useRef, useEffect } from "react"
 import logoImg from "@/imports/logo.jpeg"
 import LocalOrderDetail from "@/components/LocalOrderDetail"
 import EditProfileModal from "@/components/EditProfileModal"
+import Terminos from "@/pages/Terminos"
+import Privacidad from "@/pages/Privacidad"
 import { api, getImageUrl, type CurrentUser } from "@/lib/api"
 import { getSocket } from "@/lib/socket"
 import { playOrderAlertSound } from "@/lib/sound"
 
 type Role = "usuario" | "local" | "repartidor"
 type Filter = "todos" | "disponibles" | "agotados"
-type LocalView = "dashboard" | "platillos" | "pedidos" | "promociones" | "perfil"
+type LocalView = "dashboard" | "platillos" | "pedidos" | "promociones" | "perfil" | "terminos" | "privacidad"
 
 interface PromotionMe {
   id: string
@@ -872,6 +874,9 @@ export default function LocalPanel({
           ["PENDIENTE", "ACEPTADO", "LISTO"].includes(o.estado),
         )
       : orders
+
+  if (view === "terminos") return <Terminos onBack={() => setView("perfil")} />
+  if (view === "privacidad") return <Privacidad onBack={() => setView("perfil")} />
 
   return (
     <div className="min-h-screen bg-[#1a1b1e] text-white">
@@ -1968,6 +1973,31 @@ export default function LocalPanel({
                 </div>
               </div>
             ))}
+
+            <div className="mt-4 space-y-2">
+              <button
+                type="button"
+                onClick={() => setView("terminos")}
+                className="w-full flex items-center justify-between p-3.5 rounded-xl bg-[#232427] border border-[#35373b] hover:border-[#5bc827] text-white text-xs font-semibold transition-colors cursor-pointer"
+              >
+                <div className="flex items-center gap-2.5">
+                  <span className="text-base">📋</span>
+                  <span>Términos y condiciones</span>
+                </div>
+                <span className="text-[#9a9da3]">›</span>
+              </button>
+              <button
+                type="button"
+                onClick={() => setView("privacidad")}
+                className="w-full flex items-center justify-between p-3.5 rounded-xl bg-[#232427] border border-[#35373b] hover:border-[#5bc827] text-white text-xs font-semibold transition-colors cursor-pointer"
+              >
+                <div className="flex items-center gap-2.5">
+                  <span className="text-base">🔒</span>
+                  <span>Privacidad y seguridad</span>
+                </div>
+                <span className="text-[#9a9da3]">›</span>
+              </button>
+            </div>
 
             <div className="mt-6">
               <button

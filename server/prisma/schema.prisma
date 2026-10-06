@@ -513,3 +513,9 @@ model RefreshToken {
   @@index([userId])
 }
 
+model DeliveryZone {
+  id        String   @id @default(uuid())
+  nombre    String
+  activa    Boolean  @default(true)
+  createdAt DateTime @default(now())
+}

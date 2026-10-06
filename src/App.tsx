@@ -32,8 +32,10 @@ import Support from "@/pages/Support"
 import OrderTracking from "@/pages/OrderTracking"
 import type { Order } from "@/pages/OrderTracking"
 import RateOrder from "@/pages/RateOrder"
+import Terminos from "@/pages/Terminos"
+import Privacidad from "@/pages/Privacidad"
 
-type View = "inicio" | "explorar" | "pedidos" | "perfil" | "checkout" | "order-confirmation" | "payment-methods" | "addresses" | "favorites" | "promotions" | "notifications" | "support" | "order-tracking" | "rate-order"
+type View = "inicio" | "explorar" | "pedidos" | "perfil" | "checkout" | "order-confirmation" | "payment-methods" | "addresses" | "favorites" | "promotions" | "notifications" | "support" | "order-tracking" | "rate-order" | "terminos" | "privacidad"
 
 const categories = [
   { icon: "🍔", label: "Comida" },
@@ -435,6 +437,8 @@ export default function App() {
   if (view === "notifications") return <Notifications onBack={goBack} />
   if (view === "support")
     return <Support onBack={goBack} orderId={activeOrderId || undefined} />
+  if (view === "terminos") return <Terminos onBack={goBack} />
+  if (view === "privacidad") return <Privacidad onBack={goBack} />
 
   if (view === "order-tracking") {
     return (

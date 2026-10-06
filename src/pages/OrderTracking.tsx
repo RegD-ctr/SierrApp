@@ -321,10 +321,10 @@ export default function OrderTracking({ orderId, order: propOrder, onBack, onSup
             <div className="flex items-center gap-2">
               <button
                 type="button"
-                onClick={() => alert(`Llamando a ${driverName}...`)}
-                className="bg-[#1a1b1e] border border-[#35373b] hover:border-[#5bc827] rounded-full px-3.5 py-1.5 text-xs text-[#c4c6ca] transition-colors cursor-pointer"
+                onClick={onSupport}
+                className="bg-[#1a1b1e] border border-[#35373b] hover:border-[#5bc827] rounded-full px-3.5 py-1.5 text-xs text-[#c4c6ca] hover:text-white transition-colors cursor-pointer flex items-center gap-1.5"
               >
-                📞 Llamar
+                💬 Contactar sobre este pedido
               </button>
               <div className="bg-[#5bc827]/20 text-[#5bc827] border border-[#5bc827]/30 rounded-full px-3 py-1.5 text-xs font-bold">
                 ETA {driverEta}

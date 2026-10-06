@@ -139,3 +139,31 @@ export async function updateConfig(data: Partial<{
   await getConfig()
   return prisma.platformConfig.update({ where: { id: 'singleton' }, data })
 }
+
+// ------------------------------------------------------------
+// ZONAS DE COBERTURA
+// ------------------------------------------------------------
+
+export async function listZones() {
+  return prisma.deliveryZone.findMany({ orderBy: { createdAt: 'asc' } })
+}
+
+export async function createZone(nombre: string) {
+  return prisma.deliveryZone.create({ data: { nombre } })
+}
+
+export async function updateZone(id: string, data: Partial<{ nombre: string; activa: boolean }>) {
+  const zone = await prisma.deliveryZone.findUnique({ where: { id } })
+  if (!zone) {
+    throw new AppError('Zona no encontrada.', 404)
+  }
+  return prisma.deliveryZone.update({ where: { id }, data })
+}
+
+export async function deleteZone(id: string) {
+  const zone = await prisma.deliveryZone.findUnique({ where: { id } })
+  if (!zone) {
+    throw new AppError('Zona no encontrada.', 404)
+  }
+  await prisma.deliveryZone.delete({ where: { id } })
+}

@@ -1,11 +1,13 @@
 import { useState, useEffect } from "react"
 import logoImg from "@/imports/logo.jpeg"
 import EarningsRepartidor from "@/pages/EarningsRepartidor"
+import Terminos from "@/pages/Terminos"
+import Privacidad from "@/pages/Privacidad"
 import { api, getImageUrl, type CurrentUser } from "@/lib/api"
 import { getSocket } from "@/lib/socket"
 import EditProfileModal from "@/components/EditProfileModal"
 
-type RepView = "mapa" | "ordenes" | "activa" | "historial" | "perfil" | "ganancias"
+type RepView = "mapa" | "ordenes" | "activa" | "historial" | "perfil" | "ganancias" | "terminos" | "privacidad"
 type OrderStatus = "nueva" | "dirigete" | "esperando" | "recibido" | "en_camino" | "entregado"
 
 interface Order {
@@ -375,6 +377,12 @@ export default function RepartidorPanel({
 
   if (view === "ganancias") {
     return <EarningsRepartidor onBack={() => setView("perfil")} />
+  }
+  if (view === "terminos") {
+    return <Terminos onBack={() => setView("perfil")} />
+  }
+  if (view === "privacidad") {
+    return <Privacidad onBack={() => setView("perfil")} />
   }
 
   return (
@@ -1008,6 +1016,8 @@ export default function RepartidorPanel({
               { icon: "🔔", label: "Notificaciones", sub: "Activadas" },
               { icon: "🔒", label: "Seguridad", sub: "Cambiar contraseña" },
               { icon: "❓", label: "Ayuda", sub: null },
+              { icon: "📋", label: "Términos y condiciones", sub: null },
+              { icon: "🛡️", label: "Privacidad y seguridad", sub: "Aviso de privacidad" },
             ].map((item) => (
               <button
                 key={item.label}
@@ -1019,6 +1029,10 @@ export default function RepartidorPanel({
                   } else if (item.label === "Seguridad") {
                     setEditModalTab("password")
                     setEditModalOpen(true)
+                  } else if (item.label === "Términos y condiciones") {
+                    setView("terminos")
+                  } else if (item.label === "Privacidad y seguridad") {
+                    setView("privacidad")
                   }
                 }}
                 className="w-full flex items-center gap-3 px-3 py-3.5 rounded-xl hover:bg-[#232427] transition-colors text-left cursor-pointer"
