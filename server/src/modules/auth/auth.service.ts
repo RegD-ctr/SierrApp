@@ -227,7 +227,12 @@ async function generateUniqueMatricula(): Promise<string> {
 // LOGIN
 // ------------------------------------------------------------
 
-export async function login(email: string, password: string, ip: string) {
+export async function login(
+  email: string,
+  password: string,
+  ip: string,
+  expectedRole?: 'USUARIO' | 'LOCAL' | 'REPARTIDOR' | 'ADMIN',
+) {
   const user = await prisma.user.findUnique({ where: { email } })
 
   // No reveles si el correo existe o no — mismo mensaje en ambos casos.
@@ -274,6 +279,23 @@ export async function login(email: string, password: string, ip: string) {
       where: { id: user.id },
       data: { failedLoginAttempts: 0, lockedUntil: null },
     })
+  }
+
+  // Validación estricta de rol/apartado de acceso:
+  // Un usuario solo debe poder entrar al apartado que le corresponde según su rol
+  if (expectedRole && user.rol !== expectedRole) {
+    const roleLabels: Record<string, string> = {
+      USUARIO: "Usuario",
+      LOCAL: "Colaborador",
+      REPARTIDOR: "Repartidor",
+      ADMIN: "Administrador",
+    }
+    const expectedLabel = roleLabels[expectedRole] || expectedRole
+    const actualLabel = roleLabels[user.rol] || user.rol
+    throw new AuthError(
+      `Esta cuenta no pertenece al apartado de ${expectedLabel}. Por favor inicia sesión como ${actualLabel}.`,
+      403,
+    )
   }
 
   if (user.status === "SUSPENDIDO") {
@@ -340,10 +362,15 @@ export async function refreshSession(oldRefreshToken: string) {
   }
 
   // Revoca el token viejo y emite uno nuevo (rotación).
-  await prisma.refreshToken.update({
-    where: { id: stored.id },
+  // Se valida de forma atómica para prevenir condiciones de carrera concurrentes.
+  const updated = await prisma.refreshToken.updateMany({
+    where: { id: stored.id, revokedAt: null },
     data: { revokedAt: new Date() },
   })
+
+  if (updated.count === 0) {
+    throw new AuthError("Sesión inválida, inicia sesión de nuevo.", 401)
+  }
 
   return issueTokens(user.id, user.rol)
 }

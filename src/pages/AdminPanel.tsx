@@ -247,6 +247,7 @@ export default function AdminPanel({
     bg: string
     categoria: string
     propietario: string
+    email?: string
     telefono: string
     direccion: string
     fechaAlta: string
@@ -257,11 +258,13 @@ export default function AdminPanel({
   interface RepartidorAdmin {
     id: string
     name: string
+    email?: string
     mat: string
     rating: string
     status: string
     telefono: string
     vehiculo: string
+    tieneVehiculo?: boolean
     fechaAlta: string
     direccion: string
     entregasTotales: number
@@ -565,6 +568,7 @@ export default function AdminPanel({
           bg,
           categoria: r.categoria || "Restaurante",
           propietario: r.owner?.nombre || "Sin propietario",
+          email: r.owner?.email || "Sin correo",
           telefono: r.owner?.telefono || r.telefono || "Sin teléfono",
           direccion: r.direccion || "Sin dirección",
           fechaAlta: r.createdAt
@@ -656,6 +660,7 @@ export default function AdminPanel({
         return {
           id: r.id,
           name: r.nombre || "Repartidor",
+          email: r.email || "Sin correo",
           mat: matricula,
           rating:
             r.driverProfile?.ratingPromedio != null
@@ -664,6 +669,7 @@ export default function AdminPanel({
           status: statusLabel,
           telefono: r.telefono || "Sin teléfono",
           vehiculo,
+          tieneVehiculo: r.driverProfile?.tieneVehiculo ?? true,
           fechaAlta: r.createdAt
             ? new Date(r.createdAt).toLocaleDateString("es-MX", {
                 year: "numeric",
@@ -834,8 +840,28 @@ export default function AdminPanel({
 
     socket.on("support:message", handleSupportMessage)
 
+    const handleAdminAlert = (msg: any) => {
+      loadLocales()
+      loadRepartidores()
+    }
+
+    const handleNewNotification = (notif: any) => {
+      if (
+        notif?.tipo === "registro" ||
+        (notif?.titulo && notif.titulo.toLowerCase().includes("solicitud"))
+      ) {
+        loadLocales()
+        loadRepartidores()
+      }
+    }
+
+    socket.on("admin:alert", handleAdminAlert)
+    socket.on("notification:new", handleNewNotification)
+
     return () => {
       socket.off("support:message", handleSupportMessage)
+      socket.off("admin:alert", handleAdminAlert)
+      socket.off("notification:new", handleNewNotification)
     }
   }, [selectedConversationUser])
 
@@ -1163,7 +1189,9 @@ export default function AdminPanel({
             className="text-xl font-bold uppercase tracking-wide"
             style={{ fontFamily: "Barlow Condensed, sans-serif" }}
           >
-            Detalle del local
+            {selectedLocal.status === "Pendiente"
+              ? "Solicitud de local"
+              : "Detalle del local"}
           </h1>
         </header>
 
@@ -1181,6 +1209,15 @@ export default function AdminPanel({
               </span>
             </div>
             <p className="text-[#9a9da3] text-xs">{selectedLocal.categoria}</p>
+
+            {selectedLocal.status === "Pendiente" && (
+              <div className="mt-3 p-3 bg-amber-400/10 border border-amber-400/30 rounded-xl text-xs text-amber-300 flex items-center gap-2.5">
+                <span className="text-base">⏳</span>
+                <span>
+                  Solicitud de registro pendiente de validación y aprobación.
+                </span>
+              </div>
+            )}
           </div>
 
           {/* Información general */}
@@ -1189,24 +1226,38 @@ export default function AdminPanel({
               Información general
             </h3>
             <InfoRow label="Propietario" value={selectedLocal.propietario} />
+            <InfoRow
+              label="Correo electrónico"
+              value={selectedLocal.email || "No especificado"}
+            />
             <InfoRow label="Teléfono" value={selectedLocal.telefono} />
             <InfoRow label="Dirección" value={selectedLocal.direccion} />
-            <InfoRow label="Fecha de alta" value={selectedLocal.fechaAlta} />
+            <InfoRow label="Categoría" value={selectedLocal.categoria} />
+            <InfoRow
+              label={
+                selectedLocal.status === "Pendiente"
+                  ? "Fecha de solicitud"
+                  : "Fecha de alta"
+              }
+              value={selectedLocal.fechaAlta}
+            />
           </div>
 
-          {/* Estadísticas */}
-          <div className="grid grid-cols-2 gap-3">
-            <StatCard
-              label="Rating"
-              value={`${selectedLocal.rating} ★`}
-              icon="⭐"
-            />
-            <StatCard
-              label="Pedidos totales"
-              value={String(selectedLocal.pedidosTotales)}
-              icon="📦"
-            />
-          </div>
+          {/* Estadísticas (solo si ya no está pendiente) */}
+          {selectedLocal.status !== "Pendiente" && (
+            <div className="grid grid-cols-2 gap-3">
+              <StatCard
+                label="Rating"
+                value={`${selectedLocal.rating} ★`}
+                icon="⭐"
+              />
+              <StatCard
+                label="Pedidos totales"
+                value={String(selectedLocal.pedidosTotales)}
+                icon="📦"
+              />
+            </div>
+          )}
 
           {/* Ganancias del local */}
           <div className="bg-gradient-to-r from-[#232427] to-[#1a1b1e] border border-[#5bc827]/30 rounded-2xl shadow-lg shadow-[#5bc827]/5 relative overflow-hidden">
@@ -1562,19 +1613,51 @@ export default function AdminPanel({
             )}
           </div>
 
-          {/* Botón de suspender/reactivar */}
-          <button
-            onClick={() => setShowConfirmSuspendLocal(true)}
-            className={`w-full py-3.5 rounded-xl font-bold text-sm transition-colors cursor-pointer ${
-              selectedLocal.status !== "Suspendido"
-                ? "border border-red-800/50 text-red-400 hover:bg-red-900/20"
-                : "bg-[#5bc827] hover:bg-[#7ed944] text-[#1a1b1e]"
-            }`}
-          >
-            {selectedLocal.status !== "Suspendido"
-              ? "Suspender local"
-              : "Reactivar local"}
-          </button>
+          {/* Botón de acción según estado */}
+          {selectedLocal.status === "Pendiente" ? (
+            <button
+              disabled={updatingLocal}
+              onClick={async () => {
+                await handleApproveLocal(selectedLocal.id)
+                setSelectedLocal((prev) =>
+                  prev
+                    ? {
+                        ...prev,
+                        status: "Activo",
+                        statusColor: "text-[#5bc827]",
+                        bg: "bg-[#5bc827]/10",
+                      }
+                    : null,
+                )
+              }}
+              className="w-full py-3.5 rounded-xl font-bold text-sm bg-[#5bc827] hover:bg-[#7ed944] text-[#1a1b1e] transition-colors cursor-pointer disabled:opacity-50 flex items-center justify-center gap-2 shadow-lg"
+            >
+              {updatingLocal ? (
+                <>
+                  <span className="w-4 h-4 border-2 border-[#1a1b1e] border-t-transparent rounded-full animate-spin" />
+                  <span>Aprobando negocio...</span>
+                </>
+              ) : (
+                <>
+                  <span>✓</span>
+                  <span>Aprobar solicitud de local</span>
+                </>
+              )}
+            </button>
+          ) : (
+            <button
+              onClick={() => setShowConfirmSuspendLocal(true)}
+              className={`w-full py-3.5 rounded-xl font-bold text-sm transition-colors cursor-pointer ${
+                selectedLocal.status !== "Suspendido"
+                  ? "border border-red-800/50 text-red-400 hover:bg-red-900/20"
+                  : "bg-[#5bc827] hover:bg-[#7ed944] text-[#1a1b1e]"
+              }`}
+            >
+              {selectedLocal.status !== "Suspendido"
+                ? "Suspender local"
+                : "Reactivar local"}
+            </button>
+          )}
         </div>
 
         {showConfirmSuspendLocal && (
@@ -1648,93 +1731,162 @@ export default function AdminPanel({
             className="text-xl font-bold uppercase tracking-wide"
             style={{ fontFamily: "Barlow Condensed, sans-serif" }}
           >
-            Detalle del repartidor
+            {selectedRepartidor.status === "Pendiente"
+              ? "Solicitud de repartidor"
+              : "Detalle del repartidor"}
           </h1>
         </header>
 
         <div className="p-4 max-w-lg mx-auto w-full space-y-5">
-          <div className="bg-[#232427] border border-[#35373b] rounded-2xl p-5 flex items-center gap-4">
-            {selectedRepartidor.fotoUrl ? (
-              <img
-                src={getImageUrl(selectedRepartidor.fotoUrl)}
-                alt={selectedRepartidor.name}
-                className="w-14 h-14 rounded-full object-cover border-2 border-[#d9a05b]"
-              />
-            ) : (
-              <div className="w-14 h-14 rounded-full bg-[#d9a05b]/20 border-2 border-[#d9a05b] flex items-center justify-center text-xl font-bold text-[#d9a05b]">
-                {selectedRepartidor.name
-                  .split(" ")
-                  .map((n) => n[0])
-                  .join("")}
+          <div className="bg-[#232427] border border-[#35373b] rounded-2xl p-5">
+            <div className="flex items-center gap-4">
+              {selectedRepartidor.fotoUrl ? (
+                <img
+                  src={getImageUrl(selectedRepartidor.fotoUrl)}
+                  alt={selectedRepartidor.name}
+                  className="w-16 h-16 rounded-2xl object-cover border-2 border-[#5bc827] flex-shrink-0 shadow-lg"
+                />
+              ) : (
+                <div className="w-16 h-16 rounded-2xl bg-[#d9a05b]/20 border-2 border-[#d9a05b] flex items-center justify-center text-xl font-bold text-[#d9a05b] flex-shrink-0 shadow-lg">
+                  {selectedRepartidor.name
+                    .split(" ")
+                    .map((n) => n[0])
+                    .join("")}
+                </div>
+              )}
+              <div className="flex-1 min-w-0">
+                <h2 className="font-bold text-lg text-white truncate">
+                  {selectedRepartidor.name}{" "}
+                  {selectedRepartidor.status !== "Pendiente" && (
+                    <span className="text-[#d9a05b] text-sm">
+                      ★ {selectedRepartidor.rating}
+                    </span>
+                  )}
+                </h2>
+                <p className="text-[#9a9da3] text-xs font-mono">
+                  {selectedRepartidor.mat}
+                </p>
+                <span
+                  className={`inline-block mt-1 text-[10px] uppercase font-bold px-2 py-0.5 rounded ${
+                    selectedRepartidor.status === "Activo"
+                      ? "text-[#5bc827] bg-[#5bc827]/10"
+                      : selectedRepartidor.status === "Pendiente"
+                        ? "text-amber-400 bg-amber-400/10"
+                        : selectedRepartidor.status === "Rechazado"
+                          ? "text-red-400 bg-red-400/10"
+                          : "text-orange-400 bg-orange-400/10"
+                  }`}
+                >
+                  {selectedRepartidor.status}
+                </span>
+              </div>
+            </div>
+
+            {selectedRepartidor.status === "Pendiente" && (
+              <div className="mt-4 p-3 bg-amber-400/10 border border-amber-400/30 rounded-xl text-xs text-amber-300 flex items-center gap-2.5">
+                <span className="text-base">⏳</span>
+                <span>
+                  Solicitud de repartidor pendiente de revisión. Verifica los
+                  datos y vehículo antes de autorizar.
+                </span>
               </div>
             )}
-            <div className="flex-1">
-              <h2 className="font-bold text-lg text-white">
-                {selectedRepartidor.name}{" "}
-                <span className="text-[#d9a05b] text-sm">
-                  ★ {selectedRepartidor.rating}
-                </span>
-              </h2>
-              <p className="text-[#9a9da3] text-xs font-mono">
-                {selectedRepartidor.mat}
-              </p>
-              <span
-                className={`inline-block mt-1 text-[10px] uppercase font-bold px-2 py-0.5 rounded ${
-                  selectedRepartidor.status === "Activo"
-                    ? "text-[#5bc827] bg-[#5bc827]/10"
-                    : selectedRepartidor.status === "Pendiente"
-                      ? "text-amber-400 bg-amber-400/10"
-                      : selectedRepartidor.status === "Rechazado"
-                        ? "text-red-400 bg-red-400/10"
-                        : "text-orange-400 bg-orange-400/10"
-                }`}
-              >
-                {selectedRepartidor.status}
-              </span>
-            </div>
           </div>
 
           <div className="bg-[#232427] border border-[#35373b] rounded-2xl p-5 space-y-3">
             <h3 className="text-[#9a9da3] text-xs uppercase tracking-widest font-semibold mb-2">
               Información general
             </h3>
-            <InfoRow label="Teléfono" value={selectedRepartidor.telefono} />
-            <InfoRow label="Vehículo" value={selectedRepartidor.vehiculo} />
-            <InfoRow label="Dirección" value={selectedRepartidor.direccion} />
             <InfoRow
-              label="Fecha de alta"
+              label="Correo electrónico"
+              value={selectedRepartidor.email || "No especificado"}
+            />
+            <InfoRow label="Teléfono" value={selectedRepartidor.telefono} />
+            <InfoRow
+              label="¿Tiene vehículo propio?"
+              value={selectedRepartidor.tieneVehiculo ? "Sí" : "No"}
+            />
+            <InfoRow
+              label="Vehículo / Modelo"
+              value={selectedRepartidor.vehiculo}
+            />
+            <InfoRow label="Ubicación" value={selectedRepartidor.direccion} />
+            <InfoRow label="Matrícula / Folio" value={selectedRepartidor.mat} />
+            <InfoRow
+              label={
+                selectedRepartidor.status === "Pendiente"
+                  ? "Fecha de solicitud"
+                  : "Fecha de alta"
+              }
               value={selectedRepartidor.fechaAlta}
             />
           </div>
 
-          <div className="grid grid-cols-2 gap-3">
-            <StatCard
-              label="Entregas totales"
-              value={String(selectedRepartidor.entregasTotales)}
-              icon="📦"
-            />
-            <StatCard
-              label="Ganancias totales"
-              value={`$${selectedRepartidor.gananciasTotales.toLocaleString("es-MX")}`}
-              icon="💰"
-            />
-          </div>
+          {selectedRepartidor.status !== "Pendiente" && (
+            <div className="grid grid-cols-2 gap-3">
+              <StatCard
+                label="Entregas totales"
+                value={String(selectedRepartidor.entregasTotales)}
+                icon="📦"
+              />
+              <StatCard
+                label="Ganancias totales"
+                value={`$${selectedRepartidor.gananciasTotales.toLocaleString("es-MX")}`}
+                icon="💰"
+              />
+            </div>
+          )}
 
-          {selectedRepartidor.status !== "Rechazado" &&
-            selectedRepartidor.status !== "Pendiente" && (
+          {/* Botones de acción según estado */}
+          {selectedRepartidor.status === "Pendiente" ? (
+            <div className="flex gap-3">
               <button
-                onClick={() => setShowConfirmSuspendRepartidor(true)}
-                className={`w-full py-3.5 rounded-xl font-bold text-sm transition-colors cursor-pointer ${
-                  selectedRepartidor.status === "Activo"
-                    ? "border border-red-800/50 text-red-400 hover:bg-red-900/20"
-                    : "bg-[#5bc827] hover:bg-[#7ed944] text-[#1a1b1e]"
-                }`}
+                disabled={updatingRepartidor}
+                onClick={async () => {
+                  await handleApproveRepartidor(selectedRepartidor.id)
+                  setSelectedRepartidor((prev) =>
+                    prev ? { ...prev, status: "Activo" } : null,
+                  )
+                }}
+                className="flex-1 py-3.5 rounded-xl font-bold text-sm bg-[#5bc827] hover:bg-[#7ed944] text-[#1a1b1e] transition-colors cursor-pointer disabled:opacity-50 flex items-center justify-center gap-2 shadow-lg"
               >
-                {selectedRepartidor.status === "Activo"
-                  ? "Suspender repartidor"
-                  : "Reactivar repartidor"}
+                {updatingRepartidor ? (
+                  <>
+                    <span className="w-4 h-4 border-2 border-[#1a1b1e] border-t-transparent rounded-full animate-spin" />
+                    <span>Aprobando...</span>
+                  </>
+                ) : (
+                  <>
+                    <span>✓</span>
+                    <span>Aprobar repartidor</span>
+                  </>
+                )}
               </button>
-            )}
+              <button
+                disabled={updatingRepartidor}
+                onClick={() =>
+                  setShowConfirmRechazarRepartidor(selectedRepartidor)
+                }
+                className="flex-1 py-3.5 rounded-xl font-bold text-sm border border-red-800/50 text-red-400 hover:bg-red-900/20 transition-colors cursor-pointer disabled:opacity-50 flex items-center justify-center gap-2"
+              >
+                <span>✕</span>
+                <span>Rechazar</span>
+              </button>
+            </div>
+          ) : selectedRepartidor.status !== "Rechazado" ? (
+            <button
+              onClick={() => setShowConfirmSuspendRepartidor(true)}
+              className={`w-full py-3.5 rounded-xl font-bold text-sm transition-colors cursor-pointer ${
+                selectedRepartidor.status === "Activo"
+                  ? "border border-red-800/50 text-red-400 hover:bg-red-900/20"
+                  : "bg-[#5bc827] hover:bg-[#7ed944] text-[#1a1b1e]"
+              }`}
+            >
+              {selectedRepartidor.status === "Activo"
+                ? "Suspender repartidor"
+                : "Reactivar repartidor"}
+            </button>
+          ) : null}
         </div>
 
         {showConfirmSuspendRepartidor && (
@@ -1825,6 +1977,50 @@ export default function AdminPanel({
                 onClick={() => setActiveTab("pedidos")}
               />
             </div>
+
+            {/* Aviso interactivo de solicitudes pendientes */}
+            {(() => {
+              const pendingLocales = locales.filter((l) => l.status === "Pendiente")
+              const pendingRepas = repartidores.filter((r) => r.status === "Pendiente")
+              const total = pendingLocales.length + pendingRepas.length
+              if (total === 0) return null
+
+              return (
+                <div className="mb-6 p-4 bg-gradient-to-r from-amber-500/15 to-orange-500/10 border border-amber-500/40 rounded-2xl flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 shadow-lg">
+                  <div className="flex items-center gap-3">
+                    <span className="text-2xl animate-bounce">🔔</span>
+                    <div>
+                      <p className="font-bold text-white text-sm">
+                        Tienes {total} solicitud{total > 1 ? "es" : ""} de registro pendiente{total > 1 ? "s" : ""}
+                      </p>
+                      <p className="text-[#c4c6ca] text-xs">
+                        {pendingLocales.length} local{pendingLocales.length === 1 ? "" : "es"} y {pendingRepas.length} repartidor{pendingRepas.length === 1 ? "" : "es"} esperando revisión.
+                      </p>
+                    </div>
+                  </div>
+                  <div className="flex items-center gap-2 w-full sm:w-auto">
+                    {pendingLocales.length > 0 && (
+                      <button
+                        type="button"
+                        onClick={() => setActiveTab("locales")}
+                        className="flex-1 sm:flex-none text-xs font-bold bg-[#d9a05b] hover:bg-[#e0b07a] text-[#1a1b1e] px-3.5 py-2 rounded-xl transition-colors cursor-pointer"
+                      >
+                        Ver Locales ({pendingLocales.length})
+                      </button>
+                    )}
+                    {pendingRepas.length > 0 && (
+                      <button
+                        type="button"
+                        onClick={() => setActiveTab("repartidores")}
+                        className="flex-1 sm:flex-none text-xs font-bold bg-[#5bc827] hover:bg-[#7ed944] text-[#1a1b1e] px-3.5 py-2 rounded-xl transition-colors cursor-pointer"
+                      >
+                        Ver Repartidores ({pendingRepas.length})
+                      </button>
+                    )}
+                  </div>
+                </div>
+              )
+            })()}
 
             {/* Apartado Desplegable: Ingresos de la plataforma */}
             <div className="bg-gradient-to-r from-[#232427] to-[#1a1b1e] border border-[#d9a05b]/30 rounded-2xl shadow-lg shadow-[#d9a05b]/5 relative overflow-hidden transition-all duration-300">
@@ -2325,32 +2521,38 @@ export default function AdminPanel({
                 {locales.map((l) => (
                   <div
                     key={l.id}
-                    className="bg-[#232427] border border-[#35373b] hover:border-[#d9a05b]/50 p-4 rounded-xl flex items-center justify-between transition-colors"
+                    onClick={() => setSelectedLocal(l)}
+                    className="bg-[#232427] border border-[#35373b] hover:border-[#d9a05b] p-4 rounded-xl flex items-center justify-between transition-colors cursor-pointer"
                   >
                     <div>
                       <p className="font-bold text-sm text-white">{l.name}</p>
                       <p className="text-[#9a9da3] text-xs">{l.categoria}</p>
                     </div>
-                    <div className="flex items-center gap-3">
+                    <div className="flex items-center gap-2">
                       <span
                         className={`${l.statusColor} ${l.bg} text-[10px] uppercase font-bold px-2 py-1 rounded`}
                       >
                         {l.status}
                       </span>
-                      {l.status === "Pendiente" ? (
+                      <button
+                        onClick={(e) => {
+                          e.stopPropagation()
+                          setSelectedLocal(l)
+                        }}
+                        className="text-xs font-semibold bg-[#35373b] hover:bg-[#5bc827] hover:text-[#1a1b1e] text-white px-3 py-1.5 rounded-lg transition-colors cursor-pointer"
+                      >
+                        Ver perfil
+                      </button>
+                      {l.status === "Pendiente" && (
                         <button
                           disabled={updatingLocal}
-                          onClick={() => handleApproveLocal(l.id)}
+                          onClick={(e) => {
+                            e.stopPropagation()
+                            handleApproveLocal(l.id)
+                          }}
                           className="text-xs font-semibold bg-[#d9a05b] hover:bg-[#e0b07a] text-[#1a1b1e] px-3 py-1.5 rounded-lg transition-colors cursor-pointer disabled:opacity-50"
                         >
                           Aprobar
-                        </button>
-                      ) : (
-                        <button
-                          onClick={() => setSelectedLocal(l)}
-                          className="text-xs font-semibold bg-[#35373b] hover:bg-[#5bc827] hover:text-[#1a1b1e] text-white px-3 py-1.5 rounded-lg transition-colors cursor-pointer"
-                        >
-                          Ver
                         </button>
                       )}
                     </div>
@@ -2386,7 +2588,8 @@ export default function AdminPanel({
                 {repartidores.map((r) => (
                   <div
                     key={r.id}
-                    className="bg-[#232427] border border-[#35373b] hover:border-[#d9a05b]/50 p-4 rounded-xl flex items-center justify-between transition-colors"
+                    onClick={() => setSelectedRepartidor(r)}
+                    className="bg-[#232427] border border-[#35373b] hover:border-[#d9a05b] p-4 rounded-xl flex items-center justify-between transition-colors cursor-pointer"
                   >
                     <div className="flex items-center gap-3">
                       {r.fotoUrl ? (
@@ -2431,30 +2634,38 @@ export default function AdminPanel({
                       >
                         {r.status}
                       </span>
-                      {r.status === "Pendiente" ? (
+                      <button
+                        onClick={(e) => {
+                          e.stopPropagation()
+                          setSelectedRepartidor(r)
+                        }}
+                        className="text-xs font-semibold bg-[#35373b] hover:bg-[#5bc827] hover:text-[#1a1b1e] text-white px-3 py-1.5 rounded-lg transition-colors cursor-pointer"
+                      >
+                        Ver perfil
+                      </button>
+                      {r.status === "Pendiente" && (
                         <>
                           <button
                             disabled={updatingRepartidor}
-                            onClick={() => handleApproveRepartidor(r.id)}
+                            onClick={(e) => {
+                              e.stopPropagation()
+                              handleApproveRepartidor(r.id)
+                            }}
                             className="text-xs font-semibold bg-[#5bc827] hover:bg-[#7ed944] text-[#1a1b1e] px-3 py-1.5 rounded-lg transition-colors cursor-pointer disabled:opacity-50"
                           >
                             Aprobar
                           </button>
                           <button
                             disabled={updatingRepartidor}
-                            onClick={() => setShowConfirmRechazarRepartidor(r)}
+                            onClick={(e) => {
+                              e.stopPropagation()
+                              setShowConfirmRechazarRepartidor(r)
+                            }}
                             className="text-xs font-semibold border border-red-800/50 text-red-400 hover:bg-red-900/20 px-3 py-1.5 rounded-lg transition-colors cursor-pointer disabled:opacity-50"
                           >
                             Rechazar
                           </button>
                         </>
-                      ) : (
-                        <button
-                          onClick={() => setSelectedRepartidor(r)}
-                          className="text-xs bg-[#35373b] hover:bg-[#5bc827] hover:text-[#1a1b1e] text-white px-3 py-1.5 rounded-lg transition-colors cursor-pointer"
-                        >
-                          Ver
-                        </button>
                       )}
                     </div>
                   </div>

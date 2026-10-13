@@ -37,7 +37,11 @@ export function verifyAccessToken(token: string): AccessTokenPayload {
 // la tabla RefreshToken (ver auth.service.ts). Esto es lo que permite
 // "cerrar sesión en todos los dispositivos" de verdad.
 export function signRefreshToken(userId: string): string {
-  return jwt.sign({ userId }, validRefreshSecret, { expiresIn: '7d' })
+  return jwt.sign(
+    { userId, jti: crypto.randomUUID() },
+    validRefreshSecret,
+    { expiresIn: '7d' },
+  )
 }
 
 export function verifyRefreshToken(token: string): { userId: string } {

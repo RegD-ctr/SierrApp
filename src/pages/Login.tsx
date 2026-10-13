@@ -270,12 +270,37 @@ export default function Login({
     setSuccess(null)
     setLoading(true)
     try {
+      const roleMapping: Record<Role, "USUARIO" | "LOCAL" | "REPARTIDOR" | "ADMIN"> = {
+        usuario: "USUARIO",
+        local: "LOCAL",
+        repartidor: "REPARTIDOR",
+        admin: "ADMIN",
+      }
+      const targetRole = selectedRole ? roleMapping[selectedRole] : undefined
+
       const res = await api.post<{ accessToken: string }>("/api/auth/login", {
         email: email.trim(),
         password,
+        rol: targetRole,
       })
       setAccessToken(res.accessToken)
       const user = await api.get<CurrentUser>("/api/auth/me")
+
+      // Doble validación en cliente
+      if (targetRole && user.rol !== targetRole) {
+        setAccessToken(null)
+        const roleLabels: Record<string, string> = {
+          USUARIO: "Usuario",
+          LOCAL: "Colaborador",
+          REPARTIDOR: "Repartidor",
+          ADMIN: "Administrador",
+        }
+        setError(
+          `Esta cuenta no pertenece al apartado de ${roleLabels[targetRole] || targetRole}. Por favor inicia sesión como ${roleLabels[user.rol] || user.rol}.`,
+        )
+        return
+      }
+
       onLogin(user)
     } catch (err: any) {
       setError(err.message || "Error al iniciar sesión.")

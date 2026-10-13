@@ -34,6 +34,10 @@ import type { Order } from "@/pages/OrderTracking"
 import RateOrder from "@/pages/RateOrder"
 import Terminos from "@/pages/Terminos"
 import Privacidad from "@/pages/Privacidad"
+import PushNotificationPopup, {
+  type PushNotificationData,
+} from "@/components/PushNotificationPopup"
+import { playNotificationSound } from "@/lib/sound"
 
 type View = "inicio" | "explorar" | "pedidos" | "perfil" | "checkout" | "order-confirmation" | "payment-methods" | "addresses" | "favorites" | "promotions" | "notifications" | "support" | "order-tracking" | "rate-order" | "terminos" | "privacidad"
 
@@ -66,6 +70,8 @@ export default function App() {
   const [currentUser, setCurrentUser] = useState<CurrentUser | null>(null)
   const [isRestoringSession, setIsRestoringSession] = useState(true)
   const [unreadCount, setUnreadCount] = useState(0)
+  const [pushNotification, setPushNotification] =
+    useState<PushNotificationData | null>(null)
   const [resetToken, setResetToken] = useState<string | null>(() => {
     if (typeof window !== "undefined") {
       const params = new URLSearchParams(window.location.search)
@@ -73,6 +79,24 @@ export default function App() {
     }
     return null
   })
+
+  const triggerPushNotification = (data: PushNotificationData) => {
+    setPushNotification(data)
+    playNotificationSound()
+  }
+
+  useEffect(() => {
+    const handleCustomPush = (e: Event) => {
+      const customEvent = e as CustomEvent<PushNotificationData>
+      if (customEvent.detail) {
+        triggerPushNotification(customEvent.detail)
+      }
+    }
+    window.addEventListener("app:push-notification", handleCustomPush)
+    return () => {
+      window.removeEventListener("app:push-notification", handleCustomPush)
+    }
+  }, [])
 
   useEffect(() => {
     let isMounted = true
@@ -129,9 +153,30 @@ export default function App() {
   useEffect(() => {
     const socket = getSocket()
     if (!socket) return
-    const handleNewNotif = () => {
+
+    const handleNewNotif = (payload: any) => {
       setUnreadCount((prev) => prev + 1)
+      if (payload && (payload.titulo || payload.mensaje)) {
+        triggerPushNotification({
+          id: payload.id,
+          titulo: payload.titulo,
+          mensaje: payload.mensaje,
+          tipo: payload.tipo,
+        })
+      }
     }
+
+    const handleAdminAlert = (payload: any) => {
+      if (payload && (payload.titulo || payload.mensaje)) {
+        triggerPushNotification({
+          id: payload.id || String(Date.now()),
+          titulo: payload.titulo,
+          mensaje: payload.mensaje,
+          tipo: payload.tipo || "admin",
+        })
+      }
+    }
+
     const handleAccountUpdated = (payload: { status?: string }) => {
       if (payload?.status === "SUSPENDIDO") {
         alert(
@@ -143,10 +188,14 @@ export default function App() {
         handleLogout()
       }
     }
+
     socket.on("notification:new", handleNewNotif)
+    socket.on("admin:alert", handleAdminAlert)
     socket.on("account:updated", handleAccountUpdated)
+
     return () => {
       socket.off("notification:new", handleNewNotif)
+      socket.off("admin:alert", handleAdminAlert)
       socket.off("account:updated", handleAccountUpdated)
     }
   }, [currentUser])
@@ -316,16 +365,17 @@ export default function App() {
     )
   }
 
-  if (resetToken || !currentUser || !role) {
-    return (
-      <Login
-        onLogin={(user) => setCurrentUser(user)}
-        initialScreen={resetToken ? "reset_password" : undefined}
-        initialToken={resetToken || undefined}
-        onResetPasswordComplete={() => setResetToken(null)}
-      />
-    )
-  }
+  const renderMainContent = () => {
+    if (resetToken || !currentUser || !role) {
+      return (
+        <Login
+          onLogin={(user) => setCurrentUser(user)}
+          initialScreen={resetToken ? "reset_password" : undefined}
+          initialToken={resetToken || undefined}
+          onResetPasswordComplete={() => setResetToken(null)}
+        />
+      )
+    }
   if (role === "local")
     return (
       <LocalPanel
@@ -721,6 +771,17 @@ export default function App() {
         }}
       />
     </div>
+    )
+  }
+
+  return (
+    <>
+      {renderMainContent()}
+      <PushNotificationPopup
+        notification={pushNotification}
+        onClose={() => setPushNotification(null)}
+      />
+    </>
   )
 }
 

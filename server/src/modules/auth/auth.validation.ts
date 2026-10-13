@@ -58,6 +58,7 @@ export const registerRepartidorSchema = z.object({
 export const loginSchema = z.object({
   email: emailSchema,
   password: z.string().min(1).max(128), // sin política aquí, solo "que no venga vacío" — la política se valida al REGISTRAR, no al hacer login
+  rol: z.enum(['USUARIO', 'LOCAL', 'REPARTIDOR', 'ADMIN']).optional(),
 })
 
 export const forgotPasswordSchema = z.object({

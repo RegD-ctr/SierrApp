@@ -83,12 +83,13 @@ export async function registerRepartidor(req: Request, res: Response) {
 
 export async function login(req: Request, res: Response) {
   try {
-    const { email, password } = loginSchema.parse(req.body)
+    const { email, password, rol } = loginSchema.parse(req.body)
     const ip = req.ip ?? "unknown"
     const { accessToken, refreshToken } = await authService.login(
       email,
       password,
       ip,
+      rol,
     )
 
     res.cookie(REFRESH_COOKIE_NAME, refreshToken, refreshCookieOptions)
