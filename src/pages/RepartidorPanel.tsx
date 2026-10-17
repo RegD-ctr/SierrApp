@@ -98,7 +98,7 @@ function mapBackendOrder(b: any): Order {
   })
 
   let status: OrderStatus = "nueva"
-  if (b.estado === "LISTO") status = "nueva"
+  if (b.estado === "LISTO" || b.estado === "ACEPTADO") status = "nueva"
   else if (b.estado === "REPARTIDOR_ASIGNADO") status = "dirigete"
   else if (b.estado === "RECOGIDO") status = "recibido"
   else if (b.estado === "EN_CAMINO") status = "en_camino"
@@ -124,6 +124,60 @@ function mapBackendOrder(b: any): Order {
     comision: b.comisionRepartidorFija ?? 20,
     updatedAt: b.updatedAt,
   }
+}
+
+function getOrderMapsDestination(order?: Order | null): {
+  targetType: "local" | "cliente"
+  label: string
+  address: string
+  url: string
+} {
+  if (!order) {
+    const fallbackAddr = "Huatusco, Veracruz, México"
+    return {
+      targetType: "local",
+      label: "Zona de cobertura",
+      address: fallbackAddr,
+      url: `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(fallbackAddr)}`,
+    }
+  }
+
+  const goingToClient =
+    order.rawStatus === "RECOGIDO" ||
+    order.rawStatus === "EN_CAMINO" ||
+    order.rawStatus === "ENTREGADO" ||
+    order.status === "recibido" ||
+    order.status === "en_camino" ||
+    order.status === "entregado"
+
+  if (goingToClient) {
+    const addr =
+      order.clienteDir && order.clienteDir !== "—"
+        ? order.clienteDir
+        : "Huatusco, Veracruz"
+    return {
+      targetType: "cliente",
+      label: `Ir al domicilio del cliente (${order.cliente})`,
+      address: addr,
+      url: `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(addr)}`,
+    }
+  }
+
+  const addr =
+    order.localDir && order.localDir !== "—"
+      ? order.localDir
+      : `${order.local}, Huatusco, Veracruz`
+  return {
+    targetType: "local",
+    label: `Ir al local (${order.local})`,
+    address: addr,
+    url: `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(addr)}`,
+  }
+}
+
+function openGoogleMapsForOrder(order?: Order | null) {
+  const dest = getOrderMapsDestination(order)
+  window.open(dest.url, "_blank", "noopener,noreferrer")
 }
 
 /**
@@ -470,87 +524,127 @@ export default function RepartidorPanel({
         {view === "mapa" && (
           <div>
             {/* Map */}
-            <div className="relative h-[55vh] bg-[#0a1a0c] overflow-hidden">
-              <div
-                className="absolute inset-0"
-                style={{
-                  backgroundImage:
-                    "linear-gradient(rgba(42,72,48,0.4) 1px, transparent 1px), linear-gradient(90deg, rgba(42,72,48,0.4) 1px, transparent 1px)",
-                  backgroundSize: "40px 40px",
-                }}
-              />
-              <div className="absolute left-[30%] top-0 bottom-0 w-[3px] bg-[#1a3320] opacity-60" />
-              <div className="absolute left-[60%] top-0 bottom-0 w-[2px] bg-[#1a3320] opacity-40" />
-              <div className="absolute top-[35%] left-0 right-0 h-[3px] bg-[#1a3320] opacity-60" />
-              <div className="absolute top-[65%] left-0 right-0 h-[2px] bg-[#1a3320] opacity-40" />
+            {(() => {
+              const mapOrder = activeOrder || orders[0] || null
+              const mapDest = getOrderMapsDestination(mapOrder)
+              return (
+                <div
+                  data-testid="repartidor-main-map"
+                  role="button"
+                  tabIndex={0}
+                  onClick={() => openGoogleMapsForOrder(mapOrder)}
+                  onKeyDown={(e) => {
+                    if (e.key === "Enter" || e.key === " ") {
+                      e.preventDefault()
+                      openGoogleMapsForOrder(mapOrder)
+                    }
+                  }}
+                  title={`Abrir en Google Maps: ${mapDest.address}`}
+                  className="relative h-[55vh] bg-[#0a1a0c] overflow-hidden cursor-pointer group select-none"
+                >
+                  <div
+                    className="absolute inset-0"
+                    style={{
+                      backgroundImage:
+                        "linear-gradient(rgba(42,72,48,0.4) 1px, transparent 1px), linear-gradient(90deg, rgba(42,72,48,0.4) 1px, transparent 1px)",
+                      backgroundSize: "40px 40px",
+                    }}
+                  />
+                  <div className="absolute left-[30%] top-0 bottom-0 w-[3px] bg-[#1a3320] opacity-60" />
+                  <div className="absolute left-[60%] top-0 bottom-0 w-[2px] bg-[#1a3320] opacity-40" />
+                  <div className="absolute top-[35%] left-0 right-0 h-[3px] bg-[#1a3320] opacity-60" />
+                  <div className="absolute top-[65%] left-0 right-0 h-[2px] bg-[#1a3320] opacity-40" />
 
-              {/* Route line & Markers */}
-              {(activeOrder || orders.length > 0) && (
-                <>
-                  <svg
-                    className="absolute inset-0 w-full h-full"
-                    viewBox="0 0 100 100"
-                    preserveAspectRatio="none"
-                  >
-                    <path
-                      d="M 20 75 Q 30 60 30 35 Q 30 20 55 20 Q 70 20 75 30"
-                      stroke="#5bc827"
-                      strokeWidth="0.8"
-                      fill="none"
-                      strokeDasharray="3,2"
-                    />
-                  </svg>
+                  {/* Floating Google Maps CTA Badge */}
+                  <div className="absolute top-3 left-3 right-3 z-20 flex items-center justify-between bg-[#1a1b1e]/95 border border-[#5bc827]/60 rounded-xl px-3.5 py-2.5 shadow-lg group-hover:border-[#5bc827] group-hover:bg-[#232427] transition-all">
+                    <div className="flex items-center gap-2.5 min-w-0">
+                      <span className="w-8 h-8 rounded-lg bg-[#5bc827]/20 border border-[#5bc827]/40 flex items-center justify-center text-base shrink-0">
+                        {mapDest.targetType === "cliente" ? "🏠" : "🏪"}
+                      </span>
+                      <div className="min-w-0">
+                        <p className="text-[10px] font-bold uppercase tracking-wider text-[#5bc827]">
+                          {mapDest.label}
+                        </p>
+                        <p className="text-xs text-white font-semibold truncate">
+                          📍 {mapDest.address}
+                        </p>
+                      </div>
+                    </div>
+                    <span className="ml-2 shrink-0 bg-[#5bc827] text-[#1a1b1e] text-[10px] font-bold px-2.5 py-1.5 rounded-lg flex items-center gap-1 shadow">
+                      <span>🗺️</span>
+                      <span>Google Maps ↗</span>
+                    </span>
+                  </div>
+
+                  {/* Route line & Markers */}
+                  {mapOrder && (
+                    <>
+                      <svg
+                        className="absolute inset-0 w-full h-full"
+                        viewBox="0 0 100 100"
+                        preserveAspectRatio="none"
+                      >
+                        <path
+                          d="M 20 75 Q 30 60 30 35 Q 30 20 55 20 Q 70 20 75 30"
+                          stroke="#5bc827"
+                          strokeWidth="0.8"
+                          fill="none"
+                          strokeDasharray="3,2"
+                        />
+                      </svg>
+                      <div
+                        className="absolute"
+                        style={{
+                          left: "28%",
+                          top: "42%",
+                          transform: "translate(-50%,-100%)",
+                        }}
+                      >
+                        <div className="flex flex-col items-center">
+                          <div className="bg-[#232427] border-2 border-[#5bc827] rounded-xl px-2 py-1 text-[10px] font-bold text-[#5bc827] whitespace-nowrap mb-1">
+                            🏪 {mapOrder.local}
+                          </div>
+                          <div className="w-2 h-2 rounded-full bg-[#5bc827]" />
+                        </div>
+                      </div>
+                      <div
+                        className="absolute"
+                        style={{
+                          left: "74%",
+                          top: "36%",
+                          transform: "translate(-50%,-100%)",
+                        }}
+                      >
+                        <div className="flex flex-col items-center">
+                          <div className="bg-[#232427] border-2 border-[#7ed944] rounded-xl px-2 py-1 text-[10px] font-bold text-[#7ed944] whitespace-nowrap mb-1">
+                            🏠 {mapOrder.cliente}
+                          </div>
+                          <div className="w-2 h-2 rounded-full bg-[#7ed944]" />
+                        </div>
+                      </div>
+                    </>
+                  )}
+
+                  {/* Repartidor dot */}
                   <div
                     className="absolute"
                     style={{
-                      left: "28%",
-                      top: "33%",
-                      transform: "translate(-50%,-100%)",
+                      left: "20%",
+                      top: "73%",
+                      transform: "translate(-50%,-50%)",
                     }}
                   >
-                    <div className="flex flex-col items-center">
-                      <div className="bg-[#232427] border-2 border-[#5bc827] rounded-xl px-2 py-1 text-[10px] font-bold text-[#5bc827] whitespace-nowrap mb-1">
-                        🏪 {(activeOrder || orders[0]).local}
+                    <div className="relative">
+                      <div className="absolute inset-0 rounded-full bg-[#5bc827]/30 animate-ping scale-150" />
+                      <div className="relative w-8 h-8 bg-[#5bc827] rounded-full flex items-center justify-center border-2 border-white shadow-lg text-sm z-10">
+                        🛵
                       </div>
-                      <div className="w-2 h-2 rounded-full bg-[#5bc827]" />
                     </div>
                   </div>
-                  <div
-                    className="absolute"
-                    style={{
-                      left: "74%",
-                      top: "28%",
-                      transform: "translate(-50%,-100%)",
-                    }}
-                  >
-                    <div className="flex flex-col items-center">
-                      <div className="bg-[#232427] border-2 border-[#7ed944] rounded-xl px-2 py-1 text-[10px] font-bold text-[#7ed944] whitespace-nowrap mb-1">
-                        🏠 {(activeOrder || orders[0]).cliente}
-                      </div>
-                      <div className="w-2 h-2 rounded-full bg-[#7ed944]" />
-                    </div>
-                  </div>
-                </>
-              )}
-
-              {/* Repartidor dot */}
-              <div
-                className="absolute"
-                style={{
-                  left: "20%",
-                  top: "73%",
-                  transform: "translate(-50%,-50%)",
-                }}
-              >
-                <div className="relative">
-                  <div className="absolute inset-0 rounded-full bg-[#5bc827]/30 animate-ping scale-150" />
-                  <div className="relative w-8 h-8 bg-[#5bc827] rounded-full flex items-center justify-center border-2 border-white shadow-lg text-sm z-10">
-                    🛵
-                  </div>
+                  <div className="absolute bottom-0 left-0 right-0 h-20 bg-gradient-to-t from-[#1a1b1e] to-transparent" />
                 </div>
-              </div>
-              <div className="absolute bottom-0 left-0 right-0 h-20 bg-gradient-to-t from-[#1a1b1e] to-transparent" />
-            </div>
+              )
+            })()}
 
             {/* Info below map */}
             <div className="px-4 -mt-4 relative z-10">
@@ -1291,81 +1385,116 @@ function OrderDetail({
       </div>
 
       {/* Map mini */}
-      <div className="relative h-44 rounded-2xl overflow-hidden bg-[#0a1a0c] mb-4 border border-[#35373b]">
-        <div
-          className="absolute inset-0"
-          style={{
-            backgroundImage:
-              "linear-gradient(rgba(42,72,48,0.3) 1px, transparent 1px), linear-gradient(90deg, rgba(42,72,48,0.3) 1px, transparent 1px)",
-            backgroundSize: "28px 28px",
-          }}
-        />
-        <svg
-          className="absolute inset-0 w-full h-full"
-          viewBox="0 0 100 100"
-          preserveAspectRatio="none"
-        >
-          <path
-            d={
-              isEnCamino
-                ? "M 30 75 Q 50 60 65 35 Q 70 25 80 20"
-                : "M 20 75 Q 28 55 28 30 Q 28 18 50 18 Q 65 18 70 28"
-            }
-            stroke="#5bc827"
-            strokeWidth="1"
-            fill="none"
-            strokeDasharray="4,2"
-          />
-        </svg>
-        {!isEnCamino ? (
+      {(() => {
+        const dest = getOrderMapsDestination(order)
+        const goingToClient = dest.targetType === "cliente"
+        return (
           <div
-            className="absolute"
-            style={{
-              left: "48%",
-              top: "16%",
-              transform: "translate(-50%,-100%)",
+            data-testid="repartidor-order-map"
+            role="button"
+            tabIndex={0}
+            onClick={() => openGoogleMapsForOrder(order)}
+            onKeyDown={(e) => {
+              if (e.key === "Enter" || e.key === " ") {
+                e.preventDefault()
+                openGoogleMapsForOrder(order)
+              }
             }}
+            title={`Abrir en Google Maps: ${dest.address}`}
+            className="relative h-48 rounded-2xl overflow-hidden bg-[#0a1a0c] mb-4 border border-[#5bc827]/50 hover:border-[#5bc827] cursor-pointer group select-none transition-all"
           >
-            <div className="flex flex-col items-center">
-              <div className="bg-[#232427] border border-[#5bc827] rounded-lg px-2 py-0.5 text-[9px] font-bold text-[#5bc827] whitespace-nowrap mb-1">
-                🏪 {order.local}
+            <div
+              className="absolute inset-0"
+              style={{
+                backgroundImage:
+                  "linear-gradient(rgba(42,72,48,0.3) 1px, transparent 1px), linear-gradient(90deg, rgba(42,72,48,0.3) 1px, transparent 1px)",
+                backgroundSize: "28px 28px",
+              }}
+            />
+            {/* Top floating Google Maps banner */}
+            <div className="absolute top-2.5 left-2.5 right-2.5 z-20 flex items-center justify-between bg-[#1a1b1e]/95 border border-[#5bc827]/60 rounded-xl px-3 py-1.5 shadow-md group-hover:bg-[#232427] transition-all">
+              <div className="min-w-0 pr-2">
+                <p className="text-[9px] font-bold uppercase tracking-wider text-[#5bc827]">
+                  {dest.label}
+                </p>
+                <p className="text-[11px] text-white font-semibold truncate">
+                  📍 {dest.address}
+                </p>
               </div>
-              <div className="w-1.5 h-1.5 rounded-full bg-[#5bc827]" />
+              <span className="shrink-0 bg-[#5bc827] text-[#1a1b1e] text-[10px] font-bold px-2 py-1 rounded-lg flex items-center gap-1">
+                <span>🗺️</span>
+                <span>Google Maps ↗</span>
+              </span>
             </div>
-          </div>
-        ) : (
-          <div
-            className="absolute"
-            style={{
-              left: "79%",
-              top: "18%",
-              transform: "translate(-50%,-100%)",
-            }}
-          >
-            <div className="flex flex-col items-center">
-              <div className="bg-[#232427] border border-[#7ed944] rounded-lg px-2 py-0.5 text-[9px] font-bold text-[#7ed944] whitespace-nowrap mb-1">
-                🏠 {order.cliente}
+
+            <svg
+              className="absolute inset-0 w-full h-full"
+              viewBox="0 0 100 100"
+              preserveAspectRatio="none"
+            >
+              <path
+                d={
+                  goingToClient
+                    ? "M 30 82 Q 50 65 65 48 Q 70 38 80 35"
+                    : "M 20 82 Q 28 65 28 45 Q 28 35 50 35 Q 65 35 70 42"
+                }
+                stroke="#5bc827"
+                strokeWidth="1"
+                fill="none"
+                strokeDasharray="4,2"
+              />
+            </svg>
+            {!goingToClient ? (
+              <div
+                className="absolute"
+                style={{
+                  left: "52%",
+                  top: "45%",
+                  transform: "translate(-50%,-100%)",
+                }}
+              >
+                <div className="flex flex-col items-center">
+                  <div className="bg-[#232427] border border-[#5bc827] rounded-lg px-2 py-0.5 text-[9px] font-bold text-[#5bc827] whitespace-nowrap mb-1">
+                    🏪 {order.local}
+                  </div>
+                  <div className="w-1.5 h-1.5 rounded-full bg-[#5bc827]" />
+                </div>
               </div>
-              <div className="w-1.5 h-1.5 rounded-full bg-[#7ed944]" />
+            ) : (
+              <div
+                className="absolute"
+                style={{
+                  left: "78%",
+                  top: "45%",
+                  transform: "translate(-50%,-100%)",
+                }}
+              >
+                <div className="flex flex-col items-center">
+                  <div className="bg-[#232427] border border-[#7ed944] rounded-lg px-2 py-0.5 text-[9px] font-bold text-[#7ed944] whitespace-nowrap mb-1">
+                    🏠 {order.cliente}
+                  </div>
+                  <div className="w-1.5 h-1.5 rounded-full bg-[#7ed944]" />
+                </div>
+              </div>
+            )}
+            <div
+              className="absolute"
+              style={{ left: "20%", top: "80%", transform: "translate(-50%,-50%)" }}
+            >
+              <div className="relative">
+                <div className="absolute inset-0 rounded-full bg-[#5bc827]/30 animate-ping" />
+                <div className="relative w-6 h-6 bg-[#5bc827] rounded-full flex items-center justify-center border border-white text-xs z-10">
+                  🛵
+                </div>
+              </div>
             </div>
           </div>
-        )}
-        <div
-          className="absolute"
-          style={{ left: "20%", top: "73%", transform: "translate(-50%,-50%)" }}
-        >
-          <div className="relative">
-            <div className="absolute inset-0 rounded-full bg-[#5bc827]/30 animate-ping" />
-            <div className="relative w-6 h-6 bg-[#5bc827] rounded-full flex items-center justify-center border border-white text-xs z-10">
-              🛵
-            </div>
-          </div>
-        </div>
-      </div>
+        )
+      })()}
 
       {/* Info card */}
       <div className="bg-[#232427] border border-[#35373b] rounded-2xl p-4 mb-4">
-        {!isEnCamino ? (
+        {!(isRecibido || isEnCamino) ? (
           <>
             <p className="text-[#9a9da3] text-[10px] uppercase tracking-widest font-semibold mb-1">
               Recoge en restaurante

@@ -1,5 +1,5 @@
 import { useState, useEffect, useCallback, useRef } from 'react'
-import { api } from '@/lib/api'
+import { api, getImageUrl } from '@/lib/api'
 import { getSocket } from '@/lib/socket'
 
 export interface Order {
@@ -21,7 +21,7 @@ interface Props {
 }
 
 const STEP_DEFINITIONS = [
-  { label: 'Confirmado', icon: '✓' },
+  { label: 'Pedido recibido', icon: '📝' },
   { label: 'En preparación', icon: '🍳' },
   { label: 'En camino', icon: '🛵' },
   { label: 'Entregado', icon: '🏠' },
@@ -155,11 +155,24 @@ export default function OrderTracking({ orderId, order: propOrder, onBack, onSup
   const currentStep = getStepNumber(estado)
   const isFinalState = ['ENTREGADO', 'CANCELADO', 'RECHAZADO'].includes(estado)
 
-  // Driver details
-  const driverName = orderDetail?.repartidor?.nombre || 'Repartidor asignado'
-  const driverRating = orderDetail?.repartidor?.driverProfile?.ratingPromedio ?? 5.0
-  const driverEta = estado === 'ENTREGADO' ? 'Entregado' : estado === 'EN_CAMINO' ? '5-10 min' : '20-30 min'
+  // Real Driver details (sin datos precargados)
+  const hasDriver = Boolean(orderDetail?.repartidor)
+  const driver = orderDetail?.repartidor
+  const driverName = driver?.nombre || null
+  const driverRating = driver?.driverProfile?.ratingPromedio != null ? Number(driver.driverProfile.ratingPromedio) : 5.0
+  const driverVehiculo = driver?.driverProfile?.vehiculo || null
+  const driverFoto = driver?.driverProfile?.fotoUrl ? getImageUrl(driver.driverProfile.fotoUrl) : null
   const starsCount = Math.round(driverRating)
+
+  const driverEta = estado === 'ENTREGADO'
+    ? 'Entregado'
+    : estado === 'EN_CAMINO'
+    ? '5-10 min'
+    : estado === 'RECOGIDO'
+    ? '10-15 min'
+    : estado === 'REPARTIDOR_ASIGNADO'
+    ? 'Llegando al restaurante'
+    : null
 
   // Items
   const itemsText = (orderDetail?.items || [])
@@ -194,7 +207,7 @@ export default function OrderTracking({ orderId, order: propOrder, onBack, onSup
         {/* Status notice if cancelled/rejected */}
         {(estado === 'CANCELADO' || estado === 'RECHAZADO') && (
           <div className="bg-red-500/10 border border-red-500/30 text-red-400 p-3 rounded-2xl text-xs font-semibold text-center">
-            Este pedido ha sido {estado === 'CANCELADO' ? 'cancelado' : 'rechazado'}.
+            Este pedido ha sido {estado === 'CANCELADO' ? 'cancelado' : 'rechazado por el restaurante'}.
           </div>
         )}
 
@@ -217,34 +230,64 @@ export default function OrderTracking({ orderId, order: propOrder, onBack, onSup
           {/* Current State Badge */}
           <div className="absolute top-3 left-3 bg-[#1a1b1e]/90 border border-[#35373b] backdrop-blur-md px-3 py-1.5 rounded-full flex items-center gap-2 z-10">
             <span className="relative flex h-2 w-2">
-              <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-[#5bc827] opacity-75"></span>
-              <span className="relative inline-flex rounded-full h-2 w-2 bg-[#5bc827]"></span>
+              <span
+                className={`animate-ping absolute inline-flex h-full w-full rounded-full ${
+                  estado === 'RECHAZADO' || estado === 'CANCELADO' ? 'bg-red-400' : 'bg-[#5bc827]'
+                } opacity-75`}
+              />
+              <span
+                className={`relative inline-flex rounded-full h-2 w-2 ${
+                  estado === 'RECHAZADO' || estado === 'CANCELADO' ? 'bg-red-400' : 'bg-[#5bc827]'
+                }`}
+              />
             </span>
             <span className="text-xs font-bold text-white">
-              {estado === 'ENTREGADO' ? '¡Pedido entregado!' : `ETA: ${driverEta}`}
+              {estado === 'ENTREGADO'
+                ? '¡Pedido entregado!'
+                : estado === 'RECHAZADO'
+                ? 'Pedido rechazado'
+                : estado === 'CANCELADO'
+                ? 'Pedido cancelado'
+                : estado === 'PENDIENTE'
+                ? 'Esperando al restaurante...'
+                : !hasDriver
+                ? 'Buscando repartidor...'
+                : driverEta
+                ? `ETA: ${driverEta}`
+                : 'Repartidor asignado'}
             </span>
+          </div>
+
+          {/* Restaurant Pin (Origin) */}
+          <div className="absolute left-[15%] top-[65%] -translate-x-1/2 -translate-y-1/2 flex flex-col items-center z-10">
+            <div className="bg-[#1a1b1e] text-[#d9a05b] text-[10px] font-bold px-2 py-0.5 rounded border border-[#d9a05b]/40 mb-1 shadow-lg whitespace-nowrap">
+              {orderDetail?.restaurant?.nombre || 'Restaurante'}
+            </div>
+            <div className="text-2xl">🏪</div>
           </div>
 
           {/* Destination Pin */}
           <div className="absolute right-[15%] top-[25%] -translate-x-1/2 -translate-y-1/2 flex flex-col items-center z-10">
-            <div className="bg-[#1a1b1e] text-[#5bc827] text-[10px] font-bold px-2 py-0.5 rounded border border-[#5bc827]/40 mb-1 shadow-lg">
+            <div className="bg-[#1a1b1e] text-[#5bc827] text-[10px] font-bold px-2 py-0.5 rounded border border-[#5bc827]/40 mb-1 shadow-lg whitespace-nowrap">
               Tu ubicación
             </div>
             <div className="text-3xl animate-bounce">📍</div>
           </div>
 
-          {/* Moving Driver Marker */}
-          <div
-            className="absolute z-20 flex flex-col items-center -translate-x-1/2 -translate-y-1/2 transition-all duration-1000 ease-in-out"
-            style={{ left: `${driverLeft}%`, top: `${driverTop}%` }}
-          >
-            <div className="bg-[#5bc827] text-[#1a1b1e] text-[10px] font-extrabold px-2 py-0.5 rounded-full shadow-lg whitespace-nowrap mb-1">
-              {driverName} 🛵
+          {/* Moving Driver Marker (SOLO SI HAY REPARTIDOR REAL ASIGNADO) */}
+          {hasDriver && (
+            <div
+              className="absolute z-20 flex flex-col items-center -translate-x-1/2 -translate-y-1/2 transition-all duration-1000 ease-in-out"
+              style={{ left: `${driverLeft}%`, top: `${driverTop}%` }}
+            >
+              <div className="bg-[#5bc827] text-[#1a1b1e] text-[10px] font-extrabold px-2 py-0.5 rounded-full shadow-lg whitespace-nowrap mb-1">
+                {driverName} 🛵
+              </div>
+              <div className="w-10 h-10 bg-[#5bc827] rounded-full border-2 border-[#1a1b1e] flex items-center justify-center text-xl shadow-2xl">
+                🛵
+              </div>
             </div>
-            <div className="w-10 h-10 bg-[#5bc827] rounded-full border-2 border-[#1a1b1e] flex items-center justify-center text-xl shadow-2xl">
-              🛵
-            </div>
-          </div>
+          )}
         </section>
 
         {/* Details card */}
@@ -295,42 +338,136 @@ export default function OrderTracking({ orderId, order: propOrder, onBack, onSup
           </div>
         </section>
 
-        {/* Driver Card */}
+        {/* Driver Card / Status Section */}
         <section className="p-4 bg-[#232427] rounded-2xl border border-[#35373b] space-y-3">
-          <h2 className="text-xs font-bold text-[#9a9da3] uppercase tracking-wider">Tu Repartidor</h2>
-          <div className="flex items-center justify-between">
-            <div className="flex items-center gap-3">
-              <div className="w-11 h-11 bg-[#5bc827] rounded-full flex items-center justify-center text-[#1a1b1e] font-extrabold text-base">
-                {driverName[0]}
-              </div>
-              <div>
-                <p className="text-white text-sm font-bold">{driverName}</p>
-                <div className="flex items-center gap-1 mt-0.5">
-                  <div className="flex text-[#5bc827] text-xs">
-                    {[1, 2, 3, 4, 5].map(star => (
-                      <span key={star} className={star <= starsCount ? 'text-[#5bc827]' : 'text-[#35373b]'}>
-                        ★
-                      </span>
-                    ))}
+          <h2 className="text-xs font-bold text-[#9a9da3] uppercase tracking-wider">
+            {hasDriver ? 'Tu Repartidor' : 'Asignación de Repartidor'}
+          </h2>
+
+          {hasDriver ? (
+            /* Repartidor Real Asignado */
+            <div className="flex items-center justify-between">
+              <div className="flex items-center gap-3">
+                {driverFoto ? (
+                  <img
+                    src={driverFoto}
+                    alt={driverName || 'Repartidor'}
+                    className="w-11 h-11 rounded-full object-cover border-2 border-[#5bc827]"
+                  />
+                ) : (
+                  <div className="w-11 h-11 bg-[#5bc827] rounded-full flex items-center justify-center text-[#1a1b1e] font-extrabold text-base">
+                    {driverName ? driverName[0] : 'R'}
                   </div>
-                  <span className="text-white text-xs font-semibold ml-1">{driverRating}</span>
+                )}
+                <div>
+                  <div className="flex items-center gap-2">
+                    <p className="text-white text-sm font-bold">{driverName}</p>
+                    <span className="text-[10px] bg-[#5bc827]/20 text-[#5bc827] px-2 py-0.5 rounded-full font-bold">
+                      Asignado
+                    </span>
+                  </div>
+                  <div className="flex items-center gap-1 mt-0.5">
+                    <div className="flex text-[#5bc827] text-xs">
+                      {[1, 2, 3, 4, 5].map((star) => (
+                        <span
+                          key={star}
+                          className={star <= starsCount ? 'text-[#5bc827]' : 'text-[#35373b]'}
+                        >
+                          ★
+                        </span>
+                      ))}
+                    </div>
+                    <span className="text-white text-xs font-semibold ml-1">
+                      {driverRating.toFixed(1)}
+                    </span>
+                  </div>
+                  {driverVehiculo && (
+                    <p className="text-[#9a9da3] text-[11px] mt-0.5">
+                      🛵 {driverVehiculo}
+                    </p>
+                  )}
                 </div>
               </div>
-            </div>
 
-            <div className="flex items-center gap-2">
+              <div className="flex items-center gap-2">
+                <button
+                  type="button"
+                  onClick={onSupport}
+                  className="bg-[#1a1b1e] border border-[#35373b] hover:border-[#5bc827] rounded-full px-3 py-1.5 text-xs text-[#c4c6ca] hover:text-white transition-colors cursor-pointer flex items-center gap-1"
+                >
+                  💬 Contactar
+                </button>
+                {driverEta && (
+                  <div className="bg-[#5bc827]/20 text-[#5bc827] border border-[#5bc827]/30 rounded-full px-3 py-1.5 text-xs font-bold whitespace-nowrap">
+                    ETA {driverEta}
+                  </div>
+                )}
+              </div>
+            </div>
+          ) : estado === 'PENDIENTE' ? (
+            /* Estado: Esperando confirmación del restaurante */
+            <div className="flex items-center gap-3 py-1">
+              <div className="w-11 h-11 bg-amber-400/10 border border-amber-400/30 rounded-full flex items-center justify-center text-amber-400 text-xl flex-shrink-0">
+                <span className="animate-pulse">⏳</span>
+              </div>
+              <div className="flex-1">
+                <div className="flex items-center gap-2">
+                  <p className="text-white text-sm font-bold">Esperando confirmación del restaurante</p>
+                  <span className="text-[10px] bg-amber-400/20 text-amber-300 px-2 py-0.5 rounded-full font-bold">
+                    Pendiente
+                  </span>
+                </div>
+                <p className="text-[#9a9da3] text-xs mt-0.5">
+                  El local está revisando tu orden. En cuanto la confirme se notificará a los repartidores disponibles.
+                </p>
+              </div>
+            </div>
+          ) : estado === 'RECHAZADO' ? (
+            /* Estado: Rechazado */
+            <div className="flex items-center gap-3 py-1">
+              <div className="w-11 h-11 bg-red-400/10 border border-red-400/30 rounded-full flex items-center justify-center text-red-400 text-xl flex-shrink-0">
+                ✕
+              </div>
+              <div className="flex-1">
+                <div className="flex items-center gap-2">
+                  <p className="text-white text-sm font-bold">Pedido rechazado por el restaurante</p>
+                  <span className="text-[10px] bg-red-400/20 text-red-300 px-2 py-0.5 rounded-full font-bold">
+                    Rechazado
+                  </span>
+                </div>
+                <p className="text-[#9a9da3] text-xs mt-0.5">
+                  El restaurante no pudo aceptar tu pedido. No se te ha realizado ningún cargo.
+                </p>
+              </div>
+            </div>
+          ) : (
+            /* Estado: Aceptado o Listo esperando que un repartidor lo tome */
+            <div className="flex items-center justify-between py-1">
+              <div className="flex items-center gap-3">
+                <div className="w-11 h-11 bg-[#5bc827]/10 border border-[#5bc827]/30 rounded-full flex items-center justify-center text-[#5bc827] text-xl flex-shrink-0">
+                  <span className="animate-pulse">📡</span>
+                </div>
+                <div>
+                  <div className="flex items-center gap-2">
+                    <p className="text-white text-sm font-bold">Buscando repartidor cercano...</p>
+                    <span className="text-[10px] bg-[#5bc827]/20 text-[#5bc827] px-2 py-0.5 rounded-full font-bold animate-pulse">
+                      Buscando
+                    </span>
+                  </div>
+                  <p className="text-[#9a9da3] text-xs mt-0.5">
+                    El restaurante confirmó tu pedido. Notificando a repartidores disponibles en la zona.
+                  </p>
+                </div>
+              </div>
               <button
                 type="button"
                 onClick={onSupport}
-                className="bg-[#1a1b1e] border border-[#35373b] hover:border-[#5bc827] rounded-full px-3.5 py-1.5 text-xs text-[#c4c6ca] hover:text-white transition-colors cursor-pointer flex items-center gap-1.5"
+                className="bg-[#1a1b1e] border border-[#35373b] hover:border-[#5bc827] rounded-full px-3 py-1.5 text-xs text-[#c4c6ca] hover:text-white transition-colors cursor-pointer flex items-center gap-1"
               >
-                💬 Contactar sobre este pedido
+                💬 Ayuda
               </button>
-              <div className="bg-[#5bc827]/20 text-[#5bc827] border border-[#5bc827]/30 rounded-full px-3 py-1.5 text-xs font-bold">
-                ETA {driverEta}
-              </div>
             </div>
-          </div>
+          )}
         </section>
 
         {/* Ayuda / Soporte */}

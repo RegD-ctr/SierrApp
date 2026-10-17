@@ -13,7 +13,7 @@ export async function listPendingRepartidores() {
     orderBy: { createdAt: 'asc' },
     select: {
       id: true, nombre: true, email: true, telefono: true, status: true, createdAt: true,
-      driverProfile: { select: { matricula: true, tieneVehiculo: true, vehiculo: true, fotoUrl: true } },
+      driverProfile: { select: { matricula: true, tieneVehiculo: true, vehiculo: true, fotoUrl: true, licenciaUrl: true } },
     },
   })
 }
@@ -24,7 +24,7 @@ export async function listAllRepartidores() {
     orderBy: { createdAt: 'desc' },
     select: {
       id: true, nombre: true, email: true, telefono: true, status: true, createdAt: true,
-      driverProfile: { select: { matricula: true, tieneVehiculo: true, vehiculo: true, fotoUrl: true, ratingPromedio: true } },
+      driverProfile: { select: { matricula: true, tieneVehiculo: true, vehiculo: true, fotoUrl: true, licenciaUrl: true, ratingPromedio: true } },
     },
   })
 }

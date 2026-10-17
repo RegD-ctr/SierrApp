@@ -18,7 +18,7 @@ const authenticatedUploadLimiter = rateLimit({
 // foto al REGISTRARSE, cuando todavía no puede iniciar sesión).
 const publicUploadLimiter = rateLimit({
   windowMs: 60 * 60 * 1000,
-  max: 5,
+  max: 100,
   standardHeaders: true,
   legacyHeaders: false,
   message: { error: "Demasiadas subidas desde esta red. Inténtalo más tarde." },
@@ -30,6 +30,13 @@ uploadsRouter.post(
   requireAuth,
   requireRole("LOCAL"),
   authenticatedUploadLimiter,
+  uploadsController.uploadImage,
+)
+
+// Imágenes de registro (logo/portada de local o licencia de repartidor antes de autenticar)
+uploadsRouter.post(
+  "/register-image",
+  publicUploadLimiter,
   uploadsController.uploadImage,
 )
 

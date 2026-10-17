@@ -128,6 +128,7 @@ model DriverProfile {
   tieneVehiculo  Boolean
   vehiculo       String? // descripción del vehículo si aplica (ej. "Motocicleta Italika 150")
   fotoUrl        String?
+  licenciaUrl    String?
   ratingPromedio Float   @default(0)
 }
 
@@ -191,6 +192,7 @@ model Restaurant {
   deliveryFeeTexto String        // ej. "Envío $20" — texto mostrado en Explorar
   deliveryFee   Float            // monto numérico usado en cálculos
   coverImg      String
+  logoUrl       String?
   badge         String?
   direccion     String
   isOpen        Boolean          @default(true) // toggle "Abrir/Cerrar local"

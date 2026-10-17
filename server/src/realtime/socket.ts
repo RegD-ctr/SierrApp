@@ -55,30 +55,28 @@ export function initSocket(httpServer: HTTPServer) {
   return io
 }
 
-function getIO(): SocketIOServer {
-  if (!io) {
-    throw new Error('Socket.io no se ha inicializado. Llama a initSocket() primero.')
-  }
+function getIO(): SocketIOServer | null {
   return io
 }
 
 // --- Broadcasts efímeros (no se guardan en base de datos) ---
 
 export function broadcastToDrivers(event: string, payload: unknown) {
-  getIO().to('drivers:online').emit(event, payload)
+  io?.to('drivers:online').emit(event, payload)
 }
 
 export function emitToUser(userId: string, event: string, payload: unknown) {
-  getIO().to(`user:${userId}`).emit(event, payload)
+  io?.to(`user:${userId}`).emit(event, payload)
 }
 
 export function emitToAdmins(event: string, payload: unknown) {
-  getIO().to('admin').emit(event, payload)
+  io?.to('admin').emit(event, payload)
 }
 
 export function disconnectUser(userId: string) {
   try {
-    const sockets = getIO().sockets.sockets
+    if (!io) return
+    const sockets = io.sockets.sockets
     for (const [_, s] of sockets) {
       if (s.data?.userId === userId) {
         s.disconnect(true)

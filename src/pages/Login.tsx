@@ -2,6 +2,7 @@ import { useState, useRef, useEffect } from "react"
 import logoImg from "@/imports/logo.jpeg"
 import Onboarding from "@/pages/Onboarding"
 import { api, setAccessToken, type CurrentUser } from "@/lib/api"
+import ImageCaptureField from "@/components/ImageCaptureField"
 
 export type Role = "usuario" | "local" | "repartidor" | "admin"
 type Screen = "roleSelect" | "login" | "forgot_password" | "reset_password" | "register_roleSelect" | "register_usuario_intro" | "register_usuario" | "register_local" | "register_local_platillos" | "register_repartidor" | "register_repartidor_result"
@@ -126,9 +127,13 @@ export default function Login({
   const [lPass2, setLPass2] = useState("")
   const [lDir, setLDir] = useState("")
   const [lTel, setLTel] = useState("")
+  const [lLogoPreview, setLLogoPreview] = useState<string | null>(null)
+  const [lLogoFile, setLLogoFile] = useState<File | null>(null)
+  const [lCoverPreview, setLCoverPreview] = useState<string | null>(null)
+  const [lCoverFile, setLCoverFile] = useState<File | null>(null)
   const [lAceptaTerminos, setLAceptaTerminos] = useState(false)
 
-  // Repartidor register fields
+  // Repartidor register & login fields
   const [rNombre, setRNombre] = useState("")
   const [rEmail, setREmail] = useState("")
   const [rPass, setRPass] = useState("")
@@ -138,6 +143,10 @@ export default function Login({
   const [rVehiculo, setRVehiculo] = useState("")
   const [rFoto, setRFoto] = useState<string | null>(null)
   const [rFotoFile, setRFotoFile] = useState<File | null>(null)
+  const [rLicencia, setRLicencia] = useState<string | null>(null)
+  const [rLicenciaFile, setRLicenciaFile] = useState<File | null>(null)
+  const [loginLicenciaPreview, setLoginLicenciaPreview] = useState<string | null>(null)
+  const [loginLicenciaFile, setLoginLicenciaFile] = useState<File | null>(null)
   const [backendMatricula, setBackendMatricula] = useState<string | null>(null)
   const [rMatricula] = useState(genMatricula)
   const [rAceptaTerminos, setRAceptaTerminos] = useState(false)
@@ -278,10 +287,22 @@ export default function Login({
       }
       const targetRole = selectedRole ? roleMapping[selectedRole] : undefined
 
+      let licenciaUrl: string | undefined = undefined
+      if (selectedRole === "repartidor" && loginLicenciaFile) {
+        const formData = new FormData()
+        formData.append("file", loginLicenciaFile)
+        const uploadRes = await api.upload<{ path: string }>(
+          "/api/uploads/register-image",
+          formData,
+        )
+        licenciaUrl = uploadRes.path
+      }
+
       const res = await api.post<{ accessToken: string }>("/api/auth/login", {
         email: email.trim(),
         password,
         rol: targetRole,
+        licenciaUrl,
       })
       setAccessToken(res.accessToken)
       const user = await api.get<CurrentUser>("/api/auth/me")
@@ -368,12 +389,37 @@ export default function Login({
     setSuccess(null)
     setLoading(true)
     try {
+      let logoUrl: string | undefined = undefined
+      let coverImg: string | undefined = undefined
+
+      if (lLogoFile) {
+        const formData = new FormData()
+        formData.append("file", lLogoFile)
+        const uploadRes = await api.upload<{ path: string }>(
+          "/api/uploads/register-image",
+          formData,
+        )
+        logoUrl = uploadRes.path
+      }
+
+      if (lCoverFile) {
+        const formData = new FormData()
+        formData.append("file", lCoverFile)
+        const uploadRes = await api.upload<{ path: string }>(
+          "/api/uploads/register-image",
+          formData,
+        )
+        coverImg = uploadRes.path
+      }
+
       await api.post("/api/auth/register/local", {
         nombreNegocio: lNombre.trim(),
         email: lEmail.trim(),
         password: lPass,
         telefono: lTel.trim(),
         direccion: lDir.trim(),
+        logoUrl,
+        coverImg,
       })
       setScreen("register_local_platillos")
     } catch (err: any) {
@@ -387,6 +433,12 @@ export default function Login({
     e.preventDefault()
     if (rTieneVehiculo === null) {
       setError("Debes seleccionar si cuentas con vehículo para repartir.")
+      return
+    }
+    if (!rLicenciaFile) {
+      setError(
+        "Debes subir o tomar una foto de tu licencia de conducir para que el administrador la revise.",
+      )
       return
     }
     if (!rAceptaTerminos) {
@@ -412,6 +464,17 @@ export default function Login({
         fotoUrl = uploadRes.path
       }
 
+      let licenciaUrl: string | undefined = undefined
+      if (rLicenciaFile) {
+        const formData = new FormData()
+        formData.append("file", rLicenciaFile)
+        const uploadRes = await api.upload<{ path: string }>(
+          "/api/uploads/register-image",
+          formData,
+        )
+        licenciaUrl = uploadRes.path
+      }
+
       const res = await api.post<{ userId: string; matricula: string }>(
         "/api/auth/register/repartidor",
         {
@@ -422,9 +485,12 @@ export default function Login({
           tieneVehiculo: rTieneVehiculo,
           vehiculo: rVehiculo.trim() || undefined,
           fotoUrl,
+          licenciaUrl,
         },
       )
 
+      setLoginLicenciaFile(rLicenciaFile)
+      setLoginLicenciaPreview(rLicencia)
       setBackendMatricula(res.matricula)
       setScreen("register_repartidor_result")
     } catch (err: any) {
@@ -664,6 +730,32 @@ export default function Login({
                 {showPass ? "🙈" : "👁️"}
               </button>
             </div>
+
+            {selectedRole === "repartidor" && (
+              <div className="pt-1">
+                <ImageCaptureField
+                  label="Foto de licencia de conducir"
+                  sublabel="Para revisión del administrador"
+                  placeholderText="Sube o toma foto de tu licencia de conducir"
+                  icon="🪪"
+                  preview={loginLicenciaPreview}
+                  onSelectFile={(file, dataUrl) => {
+                    setLoginLicenciaFile(file)
+                    setLoginLicenciaPreview(dataUrl)
+                    if (error) setError(null)
+                  }}
+                  onClear={() => {
+                    setLoginLicenciaFile(null)
+                    setLoginLicenciaPreview(null)
+                  }}
+                  accentColor="#7ed944"
+                  heightClass="h-24"
+                  testId="login-repartidor-licencia"
+                  required
+                />
+              </div>
+            )}
+
             <button
               type="button"
               onClick={() => changeScreen("forgot_password")}
@@ -1372,28 +1464,44 @@ export default function Login({
               type="tel"
             />
 
-            <div>
-              <label className="text-[#c4c6ca] text-xs font-semibold block mb-1">
-                Logo del restaurante
-              </label>
-              <div className="h-24 border-2 border-dashed border-[#35373b] hover:border-[#5bc827] rounded-xl flex items-center justify-center cursor-pointer transition-colors">
-                <div className="flex flex-col items-center gap-1 text-[#9a9da3]">
-                  <span className="text-2xl">🖼️</span>
-                  <span className="text-xs">Subir logo</span>
-                </div>
-              </div>
-            </div>
-            <div>
-              <label className="text-[#c4c6ca] text-xs font-semibold block mb-1">
-                Imagen de portada
-              </label>
-              <div className="h-24 border-2 border-dashed border-[#35373b] hover:border-[#5bc827] rounded-xl flex items-center justify-center cursor-pointer transition-colors">
-                <div className="flex flex-col items-center gap-1 text-[#9a9da3]">
-                  <span className="text-2xl">📷</span>
-                  <span className="text-xs">Subir portada</span>
-                </div>
-              </div>
-            </div>
+            <ImageCaptureField
+              label="Logo del restaurante"
+              sublabel="Para tu perfil y revisión"
+              placeholderText="Subir logo o tomar foto"
+              icon="🖼️"
+              preview={lLogoPreview}
+              onSelectFile={(file, dataUrl) => {
+                setLLogoFile(file)
+                setLLogoPreview(dataUrl)
+                if (error) setError(null)
+              }}
+              onClear={() => {
+                setLLogoFile(null)
+                setLLogoPreview(null)
+              }}
+              accentColor="#4dbd5a"
+              heightClass="h-24"
+              testId="local-logo"
+            />
+            <ImageCaptureField
+              label="Imagen de portada"
+              sublabel="Banner principal del local"
+              placeholderText="Subir portada o tomar foto"
+              icon="📷"
+              preview={lCoverPreview}
+              onSelectFile={(file, dataUrl) => {
+                setLCoverFile(file)
+                setLCoverPreview(dataUrl)
+                if (error) setError(null)
+              }}
+              onClear={() => {
+                setLCoverFile(null)
+                setLCoverPreview(null)
+              }}
+              accentColor="#4dbd5a"
+              heightClass="h-28"
+              testId="local-portada"
+            />
 
             <div>
               <label className="text-[#c4c6ca] text-xs font-semibold block mb-1">
@@ -1482,8 +1590,16 @@ export default function Login({
       <div className="min-h-screen bg-[#1a1b1e] flex flex-col items-center justify-center px-4 relative overflow-hidden">
         {BG}
         <div className="relative w-full max-w-sm text-center">
-          <div className="w-16 h-16 bg-[#4dbd5a]/20 border-2 border-[#4dbd5a] rounded-2xl flex items-center justify-center text-3xl mx-auto mb-4">
-            ✅
+          <div className="w-16 h-16 bg-[#4dbd5a]/20 border-2 border-[#4dbd5a] rounded-2xl flex items-center justify-center text-3xl mx-auto mb-4 overflow-hidden">
+            {lLogoPreview ? (
+              <img
+                src={lLogoPreview}
+                alt="Logo restaurante"
+                className="w-full h-full object-cover"
+              />
+            ) : (
+              "✅"
+            )}
           </div>
           <h2
             className="text-3xl font-bold text-white uppercase mb-2"
@@ -1498,6 +1614,35 @@ export default function Login({
             </span>{" "}
             fue registrado!
           </p>
+          {(lLogoPreview || lCoverPreview) && (
+            <div className="bg-[#232427] border border-[#35373b] rounded-2xl p-3 mb-4 text-left space-y-2">
+              <p className="text-[10px] text-[#9a9da3] uppercase tracking-widest font-semibold">
+                Imágenes cargadas
+              </p>
+              <div className="flex items-center gap-3">
+                {lLogoPreview && (
+                  <div>
+                    <p className="text-[10px] text-[#c4c6ca] mb-1">Logo</p>
+                    <img
+                      src={lLogoPreview}
+                      alt="Logo"
+                      className="w-14 h-14 rounded-xl object-cover border border-[#4dbd5a]/50"
+                    />
+                  </div>
+                )}
+                {lCoverPreview && (
+                  <div className="flex-1">
+                    <p className="text-[10px] text-[#c4c6ca] mb-1">Portada</p>
+                    <img
+                      src={lCoverPreview}
+                      alt="Portada"
+                      className="w-full h-14 rounded-xl object-cover border border-[#4dbd5a]/50"
+                    />
+                  </div>
+                )}
+              </div>
+            </div>
+          )}
           <p className="text-[#9a9da3] text-xs mb-6 leading-relaxed">
             Tu cuenta está en revisión. Un administrador validará tu información
             y te avisaremos por correo cuando tu panel esté activo para que
@@ -1619,35 +1764,46 @@ export default function Login({
                 className="w-full bg-[#232427] border border-[#35373b] focus:border-[#7ed944] rounded-xl px-4 py-3 text-sm text-white placeholder-[#9a9da3] outline-none transition-colors"
               />
             </div>
-            <div>
-              <label className="text-[#c4c6ca] text-xs font-semibold block mb-1">
-                Fotografía de perfil
-              </label>
-              <div
-                onClick={() => fotoRef.current?.click()}
-                className="h-32 border-2 border-dashed border-[#35373b] hover:border-[#7ed944] rounded-xl flex items-center justify-center cursor-pointer overflow-hidden transition-colors"
-              >
-                {rFoto ? (
-                  <img
-                    src={rFoto}
-                    alt="preview"
-                    className="w-full h-full object-cover"
-                  />
-                ) : (
-                  <div className="flex flex-col items-center gap-1 text-[#9a9da3]">
-                    <span className="text-3xl">📷</span>
-                    <span className="text-xs">Subir foto</span>
-                  </div>
-                )}
-              </div>
-              <input
-                ref={fotoRef}
-                type="file"
-                accept="image/*"
-                onChange={handleFoto}
-                className="hidden"
-              />
-            </div>
+            <ImageCaptureField
+              label="Fotografía de perfil"
+              sublabel="Rostro visible"
+              placeholderText="Subir foto de perfil o tomar con cámara"
+              icon="📷"
+              preview={rFoto}
+              onSelectFile={(file, dataUrl) => {
+                setRFotoFile(file)
+                setRFoto(dataUrl)
+                if (error) setError(null)
+              }}
+              onClear={() => {
+                setRFotoFile(null)
+                setRFoto(null)
+              }}
+              accentColor="#7ed944"
+              heightClass="h-28"
+              testId="repartidor-foto"
+            />
+
+            <ImageCaptureField
+              label="Foto de licencia de conducir"
+              sublabel="Requerida para revisión del administrador"
+              placeholderText="Sube o toma foto de tu licencia de conducir"
+              icon="🪪"
+              preview={rLicencia}
+              onSelectFile={(file, dataUrl) => {
+                setRLicenciaFile(file)
+                setRLicencia(dataUrl)
+                if (error) setError(null)
+              }}
+              onClear={() => {
+                setRLicenciaFile(null)
+                setRLicencia(null)
+              }}
+              accentColor="#7ed944"
+              heightClass="h-28"
+              testId="repartidor-licencia"
+              required
+            />
 
             <div>
               <label className="text-[#c4c6ca] text-xs font-semibold block mb-2">
@@ -1855,20 +2011,36 @@ export default function Login({
                 Pendiente de aprobación
               </p>
               <p className="text-[#9a9da3] text-[10px] mt-0.5">
-                Un administrador revisará tus datos antes de activar tus
-                entregas.
+                Un administrador revisará tus datos y tu licencia de conducir
+                antes de activar tus entregas.
               </p>
             </div>
-            {rFoto && (
-              <div>
-                <p className="text-[#9a9da3] text-[10px] uppercase tracking-widest mb-1">
-                  Foto
-                </p>
-                <img
-                  src={rFoto}
-                  alt="Foto repartidor"
-                  className="w-14 h-14 rounded-xl object-cover"
-                />
+            {(rFoto || rLicencia) && (
+              <div className="flex items-center gap-4 pt-1">
+                {rFoto && (
+                  <div>
+                    <p className="text-[#9a9da3] text-[10px] uppercase tracking-widest mb-1">
+                      Foto de perfil
+                    </p>
+                    <img
+                      src={rFoto}
+                      alt="Foto repartidor"
+                      className="w-14 h-14 rounded-xl object-cover border border-[#35373b]"
+                    />
+                  </div>
+                )}
+                {rLicencia && (
+                  <div className="flex-1">
+                    <p className="text-[#9a9da3] text-[10px] uppercase tracking-widest mb-1">
+                      Licencia de conducir
+                    </p>
+                    <img
+                      src={rLicencia}
+                      alt="Licencia de conducir"
+                      className="h-14 w-24 rounded-xl object-cover border border-[#7ed944]/50"
+                    />
+                  </div>
+                )}
               </div>
             )}
           </div>

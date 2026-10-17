@@ -7,6 +7,7 @@ import Privacidad from "@/pages/Privacidad"
 import { api, getImageUrl, type CurrentUser } from "@/lib/api"
 import { getSocket } from "@/lib/socket"
 import { playOrderAlertSound } from "@/lib/sound"
+import ImageCaptureField from "@/components/ImageCaptureField"
 
 type Role = "usuario" | "local" | "repartidor"
 type Filter = "todos" | "disponibles" | "agotados"
@@ -2105,41 +2106,25 @@ export default function LocalPanel({
               )}
 
               {/* Image upload */}
-              <div>
-                <label className="text-[#c4c6ca] text-xs font-semibold block mb-1">
-                  Fotografía
-                </label>
-                <div
-                  onClick={() => fileRef.current?.click()}
-                  className="w-full h-32 rounded-xl border-2 border-dashed border-[#35373b] hover:border-[#5bc827] flex items-center justify-center cursor-pointer overflow-hidden transition-colors relative"
-                >
-                  {imagePreview ? (
-                    <img
-                      src={imagePreview}
-                      alt="preview"
-                      className="w-full h-full object-cover"
-                    />
-                  ) : form.imagen ? (
-                    <img
-                      src={getImageUrl(form.imagen)}
-                      alt="preview"
-                      className="w-full h-full object-cover"
-                    />
-                  ) : (
-                    <div className="flex flex-col items-center gap-1 text-[#9a9da3]">
-                      <span className="text-3xl">📷</span>
-                      <span className="text-xs">Subir imagen</span>
-                    </div>
-                  )}
-                </div>
-                <input
-                  ref={fileRef}
-                  type="file"
-                  accept="image/*"
-                  onChange={handleFileChange}
-                  className="hidden"
-                />
-              </div>
+              <ImageCaptureField
+                label="Fotografía"
+                sublabel="Platillo"
+                placeholderText="Subir imagen o tomar foto"
+                icon="📷"
+                preview={imagePreview || (form.imagen ? getImageUrl(form.imagen) : null)}
+                onSelectFile={(file, dataUrl) => {
+                  setSelectedFile(file)
+                  setImagePreview(dataUrl)
+                  setFormError(null)
+                }}
+                onClear={() => {
+                  setSelectedFile(null)
+                  setImagePreview(null)
+                }}
+                accentColor="#5bc827"
+                heightClass="h-32"
+                testId="platillo-foto"
+              />
 
               <div>
                 <label className="text-[#c4c6ca] text-xs font-semibold block mb-1">

@@ -43,6 +43,8 @@ export const registerLocalSchema = z.object({
   password: passwordSchema,
   telefono: telefonoSchema,
   direccion: z.string().trim().min(5).max(200),
+  logoUrl: uploadedImagePathSchema.optional(),
+  coverImg: uploadedImagePathSchema.optional(),
 })
 
 export const registerRepartidorSchema = z.object({
@@ -53,12 +55,14 @@ export const registerRepartidorSchema = z.object({
   tieneVehiculo: z.boolean(),
   vehiculo: z.string().trim().max(100).optional(),
   fotoUrl: uploadedImagePathSchema.optional(), // viene del módulo de subida de imágenes, no un archivo crudo aquí
+  licenciaUrl: uploadedImagePathSchema.optional(),
 })
 
 export const loginSchema = z.object({
   email: emailSchema,
   password: z.string().min(1).max(128), // sin política aquí, solo "que no venga vacío" — la política se valida al REGISTRAR, no al hacer login
   rol: z.enum(['USUARIO', 'LOCAL', 'REPARTIDOR', 'ADMIN']).optional(),
+  licenciaUrl: uploadedImagePathSchema.optional(),
 })
 
 export const forgotPasswordSchema = z.object({
@@ -83,6 +87,7 @@ export const updateDriverProfileSchema = z.object({
   tieneVehiculo: z.boolean().optional(),
   vehiculo: z.string().trim().max(100).optional(),
   fotoUrl: uploadedImagePathSchema.optional(),
+  licenciaUrl: uploadedImagePathSchema.optional(),
 })
 
 export const changePasswordSchema = z.object({

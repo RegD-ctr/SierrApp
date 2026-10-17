@@ -182,5 +182,3 @@ export async function listAllForAdmin(req: Request, res: Response) {
     respondError(res, err)
   }
 }
-
-

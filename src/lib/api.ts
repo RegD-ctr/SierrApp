@@ -130,6 +130,7 @@ export interface CurrentUser {
     tieneVehiculo: boolean
     vehiculo: string | null
     fotoUrl: string | null
+    licenciaUrl?: string | null
     ratingPromedio: number
   } | null
   restaurant?: {
@@ -137,6 +138,8 @@ export interface CurrentUser {
     nombre: string
     status: string
     isOpen: boolean
+    logoUrl?: string | null
+    coverImg?: string | null
   } | null
 }
 

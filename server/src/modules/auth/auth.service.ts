@@ -125,6 +125,8 @@ export async function registerLocal(input: {
   password: string
   telefono: string
   direccion: string
+  logoUrl?: string
+  coverImg?: string
 }) {
   await assertEmailAvailable(input.email)
   assertStrongPassword(input.password)
@@ -146,7 +148,8 @@ export async function registerLocal(input: {
           tiempoEntrega: "—",
           deliveryFeeTexto: "—",
           deliveryFee: 0,
-          coverImg: "", // se completa después vía el módulo de subida de imágenes
+          coverImg: input.coverImg ?? "",
+          logoUrl: input.logoUrl ?? null,
           direccion: input.direccion,
           status: "PENDIENTE",
         },
@@ -171,6 +174,7 @@ export async function registerRepartidor(input: {
   tieneVehiculo: boolean
   vehiculo?: string
   fotoUrl?: string
+  licenciaUrl?: string
 }) {
   await assertEmailAvailable(input.email)
   assertStrongPassword(input.password)
@@ -192,6 +196,7 @@ export async function registerRepartidor(input: {
           tieneVehiculo: input.tieneVehiculo,
           vehiculo: input.vehiculo,
           fotoUrl: input.fotoUrl,
+          licenciaUrl: input.licenciaUrl,
         },
       },
     },
@@ -232,6 +237,7 @@ export async function login(
   password: string,
   ip: string,
   expectedRole?: 'USUARIO' | 'LOCAL' | 'REPARTIDOR' | 'ADMIN',
+  licenciaUrl?: string,
 ) {
   const user = await prisma.user.findUnique({ where: { email } })
 
@@ -296,6 +302,29 @@ export async function login(
       `Esta cuenta no pertenece al apartado de ${expectedLabel}. Por favor inicia sesión como ${actualLabel}.`,
       403,
     )
+  }
+
+  // Si es repartidor, verificar que adjunte o ya tenga registrada su licencia de conducir para revisión del administrador
+  if (user.rol === "REPARTIDOR") {
+    const driverProfile = await prisma.driverProfile.findUnique({
+      where: { userId: user.id },
+    })
+    if (licenciaUrl) {
+      await prisma.driverProfile.updateMany({
+        where: { userId: user.id },
+        data: { licenciaUrl },
+      })
+      await notifyAdmins(
+        "registro",
+        "Licencia de conducir recibida",
+        `${user.nombre} subió su licencia de conducir para revisión del administrador.`,
+      )
+    } else if (!driverProfile?.licenciaUrl) {
+      throw new AuthError(
+        "Debes subir una foto de tu licencia de conducir para que el administrador la revise.",
+        400,
+      )
+    }
   }
 
   if (user.status === "SUSPENDIDO") {
@@ -485,11 +514,12 @@ export async function getMe(userId: string) {
           tieneVehiculo: true,
           vehiculo: true,
           fotoUrl: true,
+          licenciaUrl: true,
           ratingPromedio: true,
         },
       },
       restaurant: {
-        select: { id: true, nombre: true, status: true, isOpen: true },
+        select: { id: true, nombre: true, status: true, isOpen: true, logoUrl: true, coverImg: true },
       },
     },
   })
@@ -513,6 +543,7 @@ export async function updateDriverProfile(
     tieneVehiculo?: boolean
     vehiculo?: string
     fotoUrl?: string
+    licenciaUrl?: string
   },
 ) {
   const profile = await prisma.driverProfile.findUnique({ where: { userId } })

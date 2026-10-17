@@ -173,7 +173,22 @@ export async function getOrderDetail(orderId: string, requester: { userId: strin
       items: { include: { opciones: true } },
       statusHistory: { orderBy: { timestamp: 'asc' } },
       restaurant: { select: { id: true, nombre: true, ownerId: true, coverImg: true, direccion: true } },
-      repartidor: { select: { id: true, nombre: true, driverProfile: { select: { ratingPromedio: true } } } },
+      repartidor: {
+        select: {
+          id: true,
+          nombre: true,
+          telefono: true,
+          driverProfile: {
+            select: {
+              ratingPromedio: true,
+              vehiculo: true,
+              tieneVehiculo: true,
+              fotoUrl: true,
+              matricula: true,
+            },
+          },
+        },
+      },
       user: { select: { id: true, nombre: true, telefono: true } },
     },
   })
@@ -220,7 +235,16 @@ export async function cancelOrder(orderId: string, userId: string) {
 async function getOwnRestaurantOrderOrThrow(orderId: string, ownerUserId: string) {
   const order = await prisma.order.findUnique({
     where: { id: orderId },
-    include: { restaurant: { select: { ownerId: true } } },
+    include: {
+      restaurant: {
+        select: {
+          id: true,
+          ownerId: true,
+          nombre: true,
+          direccion: true,
+        },
+      },
+    },
   })
   if (!order || order.restaurant.ownerId !== ownerUserId) {
     throw new AppError('Pedido no encontrado.', 404)
@@ -246,8 +270,42 @@ export async function acceptOrder(orderId: string, ownerUserId: string) {
     throw new AppError('Este pedido ya fue procesado.', 409)
   }
   const updated = await transitionStatus(orderId, 'ACEPTADO')
+
+  // 1. Notificar al cliente que el restaurante aceptó su pedido
   emitToUser(order.userId, 'order:updated', { orderId, estado: 'ACEPTADO' })
-  await createNotification(order.userId, 'pedido', 'Pedido aceptado', 'El restaurante aceptó tu pedido y ya lo está preparando.')
+  await createNotification(
+    order.userId,
+    'pedido',
+    'Pedido aceptado',
+    `El restaurante "${order.restaurant.nombre}" aceptó tu pedido y ya lo está preparando.`
+  )
+
+  // 2. Notificar a los repartidores el local, la dirección del local y el número de pedido
+  const numeroPedido = orderId.slice(0, 8).toUpperCase()
+  broadcastToDrivers('order:available', {
+    orderId,
+    numeroPedido,
+    restaurantNombre: order.restaurant.nombre,
+    restaurantDireccion: order.restaurant.direccion,
+    total: order.total,
+  })
+
+  // Enviar notificación persistente y push en tiempo real a todos los repartidores activos
+  const activeDrivers = await prisma.user.findMany({
+    where: { rol: 'REPARTIDOR', status: 'ACTIVO' },
+    select: { id: true },
+  })
+  await Promise.all(
+    activeDrivers.map(d =>
+      createNotification(
+        d.id,
+        'pedido',
+        'Nuevo pedido disponible',
+        `Pedido #${numeroPedido} en "${order.restaurant.nombre}". Dirección: ${order.restaurant.direccion}.`
+      )
+    )
+  )
+
   return updated
 }
 
@@ -257,8 +315,15 @@ export async function rejectOrder(orderId: string, ownerUserId: string) {
     throw new AppError('Este pedido ya fue procesado.', 409)
   }
   const updated = await transitionStatus(orderId, 'RECHAZADO')
+
+  // Si el local RECHAZA el pedido solo se le notifica al cliente que se rechazó su pedido (NO a repartidores)
   emitToUser(order.userId, 'order:updated', { orderId, estado: 'RECHAZADO' })
-  await createNotification(order.userId, 'pedido', 'Pedido rechazado', 'El restaurante no pudo tomar tu pedido esta vez. Cualquier cargo será cancelado.')
+  await createNotification(
+    order.userId,
+    'pedido',
+    'Pedido rechazado',
+    `El restaurante "${order.restaurant.nombre}" no pudo tomar tu pedido esta vez. Cualquier cargo será cancelado.`
+  )
   return updated
 }
 
@@ -269,17 +334,26 @@ export async function markOrderReady(orderId: string, ownerUserId: string) {
   }
   const updated = await transitionStatus(orderId, 'LISTO')
 
-  // Broadcast efímero a todo el pool de repartidores conectados — no se
-  // persiste, es solo el aviso instantáneo de "hay algo nuevo que ver".
-  const restaurant = await prisma.restaurant.findUnique({
-    where: { id: order.restaurantId },
-    select: { nombre: true, direccion: true },
-  })
-  broadcastToDrivers('order:available', {
-    orderId,
-    restaurantNombre: restaurant?.nombre,
-    restaurantDireccion: restaurant?.direccion,
-  })
+  // Si aún no tiene repartidor asignado, refrescar aviso a los repartidores
+  if (!order.repartidorId) {
+    const numeroPedido = orderId.slice(0, 8).toUpperCase()
+    broadcastToDrivers('order:available', {
+      orderId,
+      numeroPedido,
+      restaurantNombre: order.restaurant.nombre,
+      restaurantDireccion: order.restaurant.direccion,
+      total: order.total,
+    })
+  } else {
+    // Si ya tiene repartidor asignado, avisar a ese repartidor que el pedido está listo para recoger
+    emitToUser(order.repartidorId, 'order:updated', { orderId, estado: 'LISTO' })
+    await createNotification(
+      order.repartidorId,
+      'pedido',
+      'Pedido listo',
+      `El pedido #${orderId.slice(0, 8).toUpperCase()} ya está listo para recoger en "${order.restaurant.nombre}".`
+    )
+  }
 
   return updated
 }
@@ -371,7 +445,7 @@ export async function rateOrder(
 export async function listAvailableOrders() {
   return prisma.order.findMany({
     where: {
-      estado: 'LISTO',
+      estado: { in: ['ACEPTADO', 'LISTO'] },
       repartidorId: null,
     },
     orderBy: { createdAt: 'desc' },
@@ -395,11 +469,12 @@ export async function claimOrder(orderId: string, driverUserId: string) {
     throw new AppError('Ya tienes una entrega en curso. Complétala antes de tomar otra.', 409)
   }
 
-  // Operación atómica de reclamo
+  // Operación atómica de reclamo: solo el primer repartidor que acepte el pedido
+  // lo obtiene con éxito (count === 1); cualquier otro intento concurrente recibe count === 0
   const updateResult = await prisma.order.updateMany({
     where: {
       id: orderId,
-      estado: 'LISTO',
+      estado: { in: ['ACEPTADO', 'LISTO'] },
       repartidorId: null,
     },
     data: {
@@ -426,11 +501,19 @@ export async function claimOrder(orderId: string, driverUserId: string) {
   const order = await getOrderDetail(orderId, { userId: driverUserId, rol: 'REPARTIDOR' })
 
   if (order) {
-    // Que desaparezca de la pantalla de los DEMÁS repartidores al
-    // instante, sin esperar a que su próximo polling descubra el 409.
+    // Que desaparezca de la pantalla de los DEMÁS repartidores al instante
     broadcastToDrivers('order:claimed', { orderId })
-    emitToUser(order.userId, 'order:updated', { orderId, estado: 'REPARTIDOR_ASIGNADO' })
-    await createNotification(order.userId, 'pedido', 'Repartidor asignado', 'Un repartidor va en camino a recoger tu pedido.')
+    emitToUser(order.userId, 'order:updated', {
+      orderId,
+      estado: 'REPARTIDOR_ASIGNADO',
+      repartidor: order.repartidor,
+    })
+    await createNotification(
+      order.userId,
+      'pedido',
+      'Repartidor asignado',
+      `${order.repartidor?.nombre || 'Un repartidor'} aceptó tu pedido y va en camino al restaurante.`
+    )
   }
 
   return order

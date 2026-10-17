@@ -253,6 +253,8 @@ export default function AdminPanel({
     fechaAlta: string
     rating: number
     pedidosTotales: number
+    logoUrl?: string | null
+    coverImg?: string | null
   }
 
   interface RepartidorAdmin {
@@ -270,6 +272,7 @@ export default function AdminPanel({
     entregasTotales: number
     gananciasTotales: number
     fotoUrl?: string | null
+    licenciaUrl?: string | null
   }
 
   interface SupportUser {
@@ -580,6 +583,8 @@ export default function AdminPanel({
             : "Reciente",
           rating: r.ratingPromedio ?? r.rating ?? 5,
           pedidosTotales: r.totalPedidos ?? 0,
+          logoUrl: r.logoUrl || null,
+          coverImg: r.coverImg || null,
         }
       })
       setLocales(mapped)
@@ -681,6 +686,7 @@ export default function AdminPanel({
           entregasTotales: r.driverProfile?.totalEntregas ?? 0,
           gananciasTotales: 0,
           fotoUrl: r.driverProfile?.fotoUrl || null,
+          licenciaUrl: r.driverProfile?.licenciaUrl || null,
         }
       })
       setRepartidores(mapped)
@@ -1198,17 +1204,41 @@ export default function AdminPanel({
         <div className="p-4 max-w-lg mx-auto w-full space-y-5">
           {/* Encabezado del local */}
           <div className="bg-[#232427] border border-[#35373b] rounded-2xl p-5">
-            <div className="flex items-center justify-between mb-1">
-              <h2 className="font-bold text-lg text-white">
-                {selectedLocal.name}
-              </h2>
+            {selectedLocal.coverImg && (
+              <div className="w-full h-32 rounded-xl overflow-hidden mb-3 border border-[#35373b]">
+                <img
+                  data-testid="admin-local-cover-img"
+                  src={getImageUrl(selectedLocal.coverImg)}
+                  alt={`Portada de ${selectedLocal.name}`}
+                  className="w-full h-full object-cover"
+                />
+              </div>
+            )}
+            <div className="flex items-center justify-between gap-3 mb-1">
+              <div className="flex items-center gap-3">
+                {selectedLocal.logoUrl && (
+                  <img
+                    data-testid="admin-local-logo-img"
+                    src={getImageUrl(selectedLocal.logoUrl)}
+                    alt={`Logo de ${selectedLocal.name}`}
+                    className="w-12 h-12 rounded-xl object-cover border border-[#5bc827] shrink-0"
+                  />
+                )}
+                <div>
+                  <h2 className="font-bold text-lg text-white">
+                    {selectedLocal.name}
+                  </h2>
+                  <p className="text-[#9a9da3] text-xs">
+                    {selectedLocal.categoria}
+                  </p>
+                </div>
+              </div>
               <span
                 className={`${selectedLocal.statusColor} ${selectedLocal.bg} text-[10px] uppercase font-bold px-2 py-1 rounded`}
               >
                 {selectedLocal.status}
               </span>
             </div>
-            <p className="text-[#9a9da3] text-xs">{selectedLocal.categoria}</p>
 
             {selectedLocal.status === "Pendiente" && (
               <div className="mt-3 p-3 bg-amber-400/10 border border-amber-400/30 rounded-xl text-xs text-amber-300 flex items-center gap-2.5">
@@ -1820,6 +1850,42 @@ export default function AdminPanel({
               }
               value={selectedRepartidor.fechaAlta}
             />
+          </div>
+
+          {/* Licencia de conducir para revisión del administrador */}
+          <div
+            data-testid="admin-repartidor-licencia-card"
+            className="bg-[#232427] border border-[#35373b] rounded-2xl p-5 space-y-3"
+          >
+            <div className="flex items-center justify-between">
+              <h3 className="text-[#9a9da3] text-xs uppercase tracking-widest font-semibold flex items-center gap-1.5">
+                <span>🪪</span>
+                <span>Licencia de conducir (Revisión de administrador)</span>
+              </h3>
+              <span
+                className={`text-[10px] uppercase font-bold px-2 py-0.5 rounded ${
+                  selectedRepartidor.licenciaUrl
+                    ? "text-[#5bc827] bg-[#5bc827]/10"
+                    : "text-amber-400 bg-amber-400/10"
+                }`}
+              >
+                {selectedRepartidor.licenciaUrl ? "Documento cargado" : "Sin documento"}
+              </span>
+            </div>
+            {selectedRepartidor.licenciaUrl ? (
+              <div className="rounded-xl overflow-hidden border border-[#5bc827]/40 bg-[#1a1b1e]">
+                <img
+                  data-testid="admin-repartidor-licencia-img"
+                  src={getImageUrl(selectedRepartidor.licenciaUrl)}
+                  alt={`Licencia de conducir de ${selectedRepartidor.name}`}
+                  className="w-full max-h-60 object-cover"
+                />
+              </div>
+            ) : (
+              <p className="text-xs text-[#9a9da3] italic">
+                El repartidor aún no ha adjuntado una fotografía de su licencia de conducir.
+              </p>
+            )}
           </div>
 
           {selectedRepartidor.status !== "Pendiente" && (
