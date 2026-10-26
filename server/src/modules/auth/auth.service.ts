@@ -18,7 +18,7 @@ import {
   sendPasswordResetEmail,
   sendAccountLockedAlert,
 } from "../../utils/email"
-import { notifyAdmins } from "../../realtime/socket"
+import { notifyAdmins, disconnectUser } from "../../realtime/socket"
 
 const MAX_FAILED_ATTEMPTS = 5
 const LOCK_DURATION_MS = 15 * 60 * 1000 // 15 minutos
@@ -304,7 +304,26 @@ export async function login(
     )
   }
 
-  // Si es repartidor, verificar que adjunte o ya tenga registrada su licencia de conducir para revisión del administrador
+  if (user.status === "SUSPENDIDO") {
+    throw new AuthError(
+      "Tu cuenta ha sido suspendida. Contacta a soporte.",
+      403,
+    )
+  }
+  if (user.status === "PENDIENTE") {
+    throw new AuthError(
+      "Tu cuenta está pendiente de aprobación. Te avisaremos por correo cuando esté lista.",
+      403,
+    )
+  }
+  if (user.status === "RECHAZADO") {
+    throw new AuthError(
+      "Tu solicitud fue rechazada. Contacta a soporte para más información.",
+      403,
+    )
+  }
+
+  // Si es repartidor ACTIVO, verificar que adjunte o ya tenga registrada su licencia de conducir para revisión del administrador
   if (user.rol === "REPARTIDOR") {
     const driverProfile = await prisma.driverProfile.findUnique({
       where: { userId: user.id },
@@ -325,25 +344,6 @@ export async function login(
         400,
       )
     }
-  }
-
-  if (user.status === "SUSPENDIDO") {
-    throw new AuthError(
-      "Tu cuenta ha sido suspendida. Contacta a soporte.",
-      403,
-    )
-  }
-  if (user.status === "PENDIENTE") {
-    throw new AuthError(
-      "Tu cuenta está pendiente de aprobación. Te avisaremos por correo cuando esté lista.",
-      403,
-    )
-  }
-  if (user.status === "RECHAZADO") {
-    throw new AuthError(
-      "Tu solicitud fue rechazada. Contacta a soporte para más información.",
-      403,
-    )
   }
 
   return issueTokens(user.id, user.rol)
@@ -495,6 +495,7 @@ export async function resetPassword(rawToken: string, newPassword: string) {
     // si alguien más tenía acceso, se cae en cuanto se cambia la clave.
   ])
   await revokeAllSessions(record.userId)
+  disconnectUser(record.userId)
 }
 
 export async function getMe(userId: string) {
@@ -580,4 +581,5 @@ export async function changePassword(
   // Igual que en resetPassword: cambiar la contraseña revoca todas las
   // sesiones activas — si alguien más tenía acceso, se cae de inmediato.
   await revokeAllSessions(userId)
+  disconnectUser(userId)
 }

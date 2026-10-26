@@ -3,6 +3,21 @@ import { AppError } from '../../utils/errors'
 import { emitToUser, emitToAdmins, createNotification, notifyAdmins } from '../../realtime/socket'
 
 export async function sendMessage(userId: string, mensaje: string, orderId?: string) {
+  if (orderId) {
+    const order = await prisma.order.findUnique({
+      where: { id: orderId },
+      include: { restaurant: { select: { ownerId: true } } },
+    })
+    const isRelated =
+      order &&
+      (order.userId === userId ||
+        order.repartidorId === userId ||
+        order.restaurant.ownerId === userId)
+    if (!isRelated) {
+      throw new AppError('Pedido no encontrado o no asociado a tu cuenta.', 404)
+    }
+  }
+
   const message = await prisma.supportMessage.create({
     data: { userId, mensaje, orderId, autor: 'USUARIO' },
   })

@@ -521,19 +521,92 @@ export default function LocalPanel({
         : !p.disponible,
   )
 
-  const currentVentas =
-    selectedVentasTimeframe === "personalizado"
-      ? generarVentasPorFecha(
-          fechaVentasSeleccionada.dia,
-          fechaVentasSeleccionada.mes,
-          fechaVentasSeleccionada.anio,
+  const currentVentas = (() => {
+    const now = new Date()
+    const inPeriod = orders.filter((o) => {
+      if (o.estado !== "ENTREGADO") return false
+      const d = new Date(o.createdAt)
+      if (selectedVentasTimeframe === "hoy") {
+        return (
+          d.getDate() === now.getDate() &&
+          d.getMonth() === now.getMonth() &&
+          d.getFullYear() === now.getFullYear()
         )
-      : DATA_VENTAS[
-          (selectedVentasTimeframe as Exclude<VentasTimeframe, "personalizado">)
-        ]
+      }
+      if (selectedVentasTimeframe === "semana") {
+        const startOfWeek = new Date(now)
+        const dayOfWeek = (now.getDay() + 6) % 7
+        startOfWeek.setDate(now.getDate() - dayOfWeek)
+        startOfWeek.setHours(0, 0, 0, 0)
+        return d >= startOfWeek && d <= now
+      }
+      if (selectedVentasTimeframe === "mes") {
+        return (
+          d.getMonth() === now.getMonth() &&
+          d.getFullYear() === now.getFullYear()
+        )
+      }
+      if (selectedVentasTimeframe === "anio") {
+        return d.getFullYear() === now.getFullYear()
+      }
+      if (selectedVentasTimeframe === "personalizado") {
+        if (fechaVentasSeleccionada.dia !== null) {
+          return (
+            d.getDate() === fechaVentasSeleccionada.dia &&
+            d.getMonth() === fechaVentasSeleccionada.mes &&
+            d.getFullYear() === fechaVentasSeleccionada.anio
+          )
+        }
+        return (
+          d.getMonth() === fechaVentasSeleccionada.mes &&
+          d.getFullYear() === fechaVentasSeleccionada.anio
+        )
+      }
+      return true
+    })
+
+    let total = 0
+    let efectivo = 0
+    let tarjeta = 0
+    let comisionPlataforma = 0
+
+    for (const o of inPeriod) {
+      const sub = Number(o.subtotal ?? o.total ?? 0)
+      total += sub
+      const metodo = (o.metodoPago || "").toUpperCase()
+      if (metodo === "EFECTIVO") {
+        efectivo += sub
+      } else {
+        tarjeta += sub
+      }
+      const comLocal = Number((o as any).comisionLocalMonto ?? sub * 0.05)
+      comisionPlataforma += comLocal
+    }
+
+    const pedidosCount = inPeriod.length
+    const ticketPromedio = pedidosCount > 0 ? total / pedidosCount : 0
+    const netoRecibido = Math.max(0, total - comisionPlataforma)
+
+    return {
+      total,
+      pedidos: pedidosCount,
+      ticketPromedio,
+      efectivo,
+      tarjeta,
+      comisionPlataforma,
+      netoRecibido,
+    }
+  })()
 
   const activeOrdersCount = orders.filter((o) =>
-    ["PENDIENTE", "ACEPTADO", "LISTO"].includes(o.estado),
+    [
+      "PENDIENTE",
+      "ACEPTADO",
+      "LISTO",
+      "REPARTIDOR_ASIGNADO",
+      "RECOGIDO",
+      "EN_CAMINO",
+    ].includes(o.estado),
   ).length
   const activeDishesCount = platillos.filter((p) => p.disponible).length
 
@@ -872,7 +945,14 @@ export default function LocalPanel({
   const displayedOrders =
     orderFilter === "activos"
       ? orders.filter((o) =>
-          ["PENDIENTE", "ACEPTADO", "LISTO"].includes(o.estado),
+          [
+            "PENDIENTE",
+            "ACEPTADO",
+            "LISTO",
+            "REPARTIDOR_ASIGNADO",
+            "RECOGIDO",
+            "EN_CAMINO",
+          ].includes(o.estado),
         )
       : orders
 

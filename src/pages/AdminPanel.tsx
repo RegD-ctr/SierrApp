@@ -1158,17 +1158,43 @@ export default function AdminPanel({
   }
 
   if (selectedLocal) {
-    const ganancias =
-      localTimeframe === "personalizado"
-        ? generarGananciasPorFecha(
-            selectedLocal.id,
-            fechaLocalSeleccionada.dia,
-            fechaLocalSeleccionada.mes,
-            fechaLocalSeleccionada.anio,
-          )
-        : (DATA_GANANCIAS_LOCAL[selectedLocal.id]?.[
-            (localTimeframe as Exclude<LocalTimeframe, "personalizado">)
-          ] ?? { total: 0, efectivo: 0, tarjeta: 0, comisionPlataforma: 0 })
+    const localDelivered = adminOrders.filter((o) => {
+      if (o.estado !== "ENTREGADO") return false
+      const matchesLocal =
+        (o as any).restaurantId === String(selectedLocal.id) ||
+        (o.restaurant?.nombre &&
+          o.restaurant.nombre.toLowerCase() ===
+            selectedLocal.name.toLowerCase())
+      if (!matchesLocal) return false
+      return isOrderInTimeframe(
+        o.createdAt,
+        localTimeframe as Timeframe,
+        fechaLocalSeleccionada,
+      )
+    })
+
+    let totalLocal = 0
+    let efectivoLocal = 0
+    let tarjetaLocal = 0
+    let comisionPlataformaLocal = 0
+
+    for (const o of localDelivered) {
+      const sub = Number(o.subtotal ?? o.total ?? 0)
+      totalLocal += sub
+      if ((o.metodoPago || "").toUpperCase() === "EFECTIVO") {
+        efectivoLocal += sub
+      } else {
+        tarjetaLocal += sub
+      }
+      comisionPlataformaLocal += Number(o.comisionLocalMonto) || 0
+    }
+
+    const ganancias = {
+      total: totalLocal,
+      efectivo: efectivoLocal,
+      tarjeta: tarjetaLocal,
+      comisionPlataforma: comisionPlataformaLocal,
+    }
 
     return (
       <div className="min-h-screen bg-[#1a1b1e] text-white pb-10">
@@ -2751,8 +2777,10 @@ export default function AdminPanel({
                 { id: "TODOS", label: "Todos" },
                 { id: "PENDIENTE", label: "Pendientes" },
                 { id: "EN_PREPARACION", label: "En Preparación" },
+                { id: "RECOGIDO", label: "Recogidos" },
                 { id: "EN_CAMINO", label: "En Camino" },
                 { id: "ENTREGADO", label: "Entregados" },
+                { id: "RECHAZADO", label: "Rechazados" },
                 { id: "CANCELADO", label: "Cancelados" },
               ].map((f) => (
                 <button
@@ -2796,10 +2824,25 @@ export default function AdminPanel({
                     badgeColor =
                       "text-amber-400 bg-amber-400/10 border-amber-400/30"
                     estadoLabel = "Pendiente"
-                  } else if (order.estado === "EN_PREPARACION") {
+                  } else if (
+                    order.estado === "EN_PREPARACION" ||
+                    order.estado === "ACEPTADO"
+                  ) {
                     badgeColor =
                       "text-blue-400 bg-blue-400/10 border-blue-400/30"
                     estadoLabel = "En Preparación"
+                  } else if (order.estado === "LISTO") {
+                    badgeColor =
+                      "text-cyan-400 bg-cyan-400/10 border-cyan-400/30"
+                    estadoLabel = "Listo en Local"
+                  } else if (order.estado === "REPARTIDOR_ASIGNADO") {
+                    badgeColor =
+                      "text-indigo-400 bg-indigo-400/10 border-indigo-400/30"
+                    estadoLabel = "Repartidor Asignado"
+                  } else if (order.estado === "RECOGIDO") {
+                    badgeColor =
+                      "text-purple-400 bg-purple-400/10 border-purple-400/30"
+                    estadoLabel = "Recogido"
                   } else if (order.estado === "EN_CAMINO") {
                     badgeColor =
                       "text-purple-400 bg-purple-400/10 border-purple-400/30"
@@ -2808,6 +2851,9 @@ export default function AdminPanel({
                     badgeColor =
                       "text-[#5bc827] bg-[#5bc827]/10 border-[#5bc827]/30"
                     estadoLabel = "Entregado"
+                  } else if (order.estado === "RECHAZADO") {
+                    badgeColor = "text-red-400 bg-red-400/10 border-red-400/30"
+                    estadoLabel = "Rechazado"
                   } else if (order.estado === "CANCELADO") {
                     badgeColor = "text-red-400 bg-red-400/10 border-red-400/30"
                     estadoLabel = "Cancelado"

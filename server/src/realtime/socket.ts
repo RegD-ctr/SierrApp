@@ -6,9 +6,10 @@ import { prisma } from '../db/prisma'
 let io: SocketIOServer | null = null
 
 export function initSocket(httpServer: HTTPServer) {
+  const allowedOrigins = [process.env.CORS_ORIGIN, 'http://localhost:8443'].filter(Boolean) as string[]
   io = new SocketIOServer(httpServer, {
     cors: {
-      origin: process.env.NODE_ENV === 'production' ? (process.env.CORS_ORIGIN || 'http://localhost:8443') : true,
+      origin: process.env.NODE_ENV === 'production' ? allowedOrigins : true,
       credentials: true,
     },
   })
@@ -16,13 +17,20 @@ export function initSocket(httpServer: HTTPServer) {
   // Autenticación del socket: el cliente manda el mismo accessToken que
   // ya usa para las llamadas REST, en el handshake (no en una cookie —
   // los sockets no comparten el mecanismo httpOnly del refresh token).
-  io.use((socket, next) => {
+  io.use(async (socket, next) => {
     const token = socket.handshake.auth?.token
     if (!token) return next(new Error('No autenticado.'))
     try {
       const payload = verifyAccessToken(token)
-      socket.data.userId = payload.userId
-      socket.data.rol = payload.rol
+      const user = await prisma.user.findUnique({
+        where: { id: payload.userId },
+        select: { id: true, rol: true, status: true },
+      })
+      if (!user || user.status !== 'ACTIVO') {
+        return next(new Error('Cuenta inactiva o suspendida.'))
+      }
+      socket.data.userId = user.id
+      socket.data.rol = user.rol
       next()
     } catch {
       next(new Error('Token inválido o expirado.'))

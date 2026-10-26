@@ -1,4 +1,5 @@
 import type { CartItem } from '@/data'
+import { getImageUrl } from '@/lib/api'
 
 interface Props {
   open: boolean
@@ -19,7 +20,8 @@ interface Props {
 export default function CartDrawer({ open, onClose, items, onUpdateQty, onRemove, onCheckout, onExplore }: Props) {
   const subtotal = items.reduce((s, i) => s + (i.platillo.precio + i.extrasTotal) * i.cantidad, 0)
   const envio = items.length > 0 ? (items[0].restaurant.deliveryFee ?? 0) : 0
-  const total = subtotal + envio
+  const comisionServicio = items.length > 0 ? 5 : 0
+  const total = subtotal + envio + comisionServicio
 
   const formatSelecciones = (item: CartItem) => {
     const parts: string[] = []
@@ -75,7 +77,7 @@ export default function CartDrawer({ open, onClose, items, onUpdateQty, onRemove
                 <div key={item.cartId} className="bg-[#232427] border border-[#35373b] rounded-2xl p-3">
                   <div className="flex gap-3">
                     {item.platillo.imagen ? (
-                      <img src={item.platillo.imagen} alt={item.platillo.nombre} className="w-14 h-14 rounded-xl object-cover shrink-0" />
+                      <img src={getImageUrl(item.platillo.imagen)} alt={item.platillo.nombre} className="w-14 h-14 rounded-xl object-cover shrink-0" />
                     ) : (
                       <div className="w-14 h-14 rounded-xl bg-[#1a3320] flex items-center justify-center text-xl shrink-0">🍽️</div>
                     )}
@@ -84,7 +86,7 @@ export default function CartDrawer({ open, onClose, items, onUpdateQty, onRemove
                         <p className="text-white font-semibold text-sm leading-tight">{item.platillo.nombre}</p>
                         <button onClick={() => onRemove(item.cartId)} className="text-[#9a9da3] hover:text-red-400 transition-colors shrink-0 text-xs mt-0.5">✕</button>
                       </div>
-                      <p className="text-[#9a9da3] text-[10px] mt-0.5">{item.restaurant.name}</p>
+                      <p className="text-[#9a9da3] text-[10px] mt-0.5">{item.restaurant.nombre || item.restaurant.name}</p>
                       {sels && <p className="text-[#5bc827] text-[10px] mt-0.5 truncate">{sels}</p>}
                     </div>
                   </div>
@@ -128,6 +130,10 @@ export default function CartDrawer({ open, onClose, items, onUpdateQty, onRemove
                 <span className={envio === 0 ? 'text-[#5bc827] font-semibold' : 'text-white'}>
                   {envio === 0 ? 'Gratis' : `$${envio}`}
                 </span>
+              </div>
+              <div className="flex justify-between text-sm">
+                <span className="text-[#9a9da3]">Cargo por servicio</span>
+                <span className="text-white">${comisionServicio}</span>
               </div>
               <div className="flex justify-between font-bold text-base border-t border-[#35373b] pt-2 mt-2">
                 <span className="text-white">Total</span>

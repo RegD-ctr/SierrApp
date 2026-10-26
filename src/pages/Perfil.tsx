@@ -1,6 +1,6 @@
-import { useState } from "react"
+import { useState, useEffect } from "react"
 import logoImg from "@/imports/logo.jpeg"
-import { getImageUrl, type CurrentUser } from "@/lib/api"
+import { api, getImageUrl, type CurrentUser } from "@/lib/api"
 import EditProfileModal from "@/components/EditProfileModal"
 
 type Role = "usuario" | "local" | "repartidor" | "admin"
@@ -65,6 +65,42 @@ export default function Perfil({
   const [editModalTab, setEditModalTab] = useState<"perfil" | "password">(
     "perfil",
   )
+  const [orderStats, setOrderStats] = useState({
+    pedidos: "0",
+    gastado: "$0",
+    rating: "—",
+  })
+
+  useEffect(() => {
+    if (role === "usuario") {
+      api
+        .get<any[]>("/api/orders/me")
+        .then((orders) => {
+          if (Array.isArray(orders)) {
+            const totalCount = orders.length
+            const deliveredOrders = orders.filter(
+              (o) => o.estado === "ENTREGADO",
+            )
+            const totalSpent = deliveredOrders.reduce(
+              (acc, o) => acc + (Number(o.total) || 0),
+              0,
+            )
+            setOrderStats({
+              pedidos: String(totalCount),
+              gastado: `$${Math.round(totalSpent)}`,
+              rating: "5.0 ★",
+            })
+          }
+        })
+        .catch(() => {})
+    }
+  }, [role])
+
+  const computedStats = [
+    { n: orderStats.pedidos, l: "Pedidos" },
+    { n: orderStats.gastado, l: "Gastado" },
+    { n: orderStats.rating, l: "Mi rating" },
+  ]
 
   return (
     <div className="min-h-screen bg-[#1a1b1e] pb-24">
@@ -166,11 +202,11 @@ export default function Perfil({
 
         {/* Stats */}
         <div className="flex mt-4 bg-[#1a1b1e] rounded-2xl border border-[#35373b] overflow-hidden">
-          {stats.map((s, i) => (
+          {computedStats.map((s, i) => (
             <div
               key={s.l}
               className={`flex-1 py-3 text-center ${
-                i < stats.length - 1 ? "border-r border-[#35373b]" : ""
+                i < computedStats.length - 1 ? "border-r border-[#35373b]" : ""
               }`}
             >
               <p

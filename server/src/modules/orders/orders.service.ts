@@ -77,10 +77,11 @@ export async function createOrder(userId: string, input: {
     }
 
     const selectedOptions = itemInput.selectedOptionItemIds.map(id => allOptionsById.get(id)!)
-    const extrasTotal = selectedOptions.reduce((sum, o) => sum + o.extraPrecio, 0)
+    const extrasTotal = Math.round(selectedOptions.reduce((sum, o) => sum + o.extraPrecio, 0) * 100) / 100
     const precioUnitarioSnapshot = dish.precio
-    const lineTotal = (precioUnitarioSnapshot + extrasTotal) * itemInput.cantidad
-    subtotal += lineTotal
+    const lineUnit = Math.max(0, precioUnitarioSnapshot + extrasTotal)
+    const lineTotal = Math.round(lineUnit * itemInput.cantidad * 100) / 100
+    subtotal = Math.round((subtotal + lineTotal) * 100) / 100
 
     itemsData.push({
       dishId: dish.id,
@@ -214,11 +215,13 @@ export async function cancelOrder(orderId: string, userId: string) {
   if (!order || order.userId !== userId) {
     throw new AppError('Pedido no encontrado.', 404)
   }
-  if (order.estado !== 'PENDIENTE') {
-    throw new AppError('Ya no puedes cancelar este pedido, el local ya lo está preparando.', 409)
-  }
 
-  const updated = await transitionStatus(orderId, 'CANCELADO')
+  const updated = await transitionStatusAtomic(
+    orderId,
+    ['PENDIENTE'],
+    'CANCELADO',
+    'Ya no puedes cancelar este pedido, el local ya lo está preparando.'
+  )
 
   const restaurant = await prisma.restaurant.findUnique({
     where: { id: order.restaurantId },
@@ -266,10 +269,12 @@ export async function listRestaurantOrders(ownerUserId: string) {
 
 export async function acceptOrder(orderId: string, ownerUserId: string) {
   const order = await getOwnRestaurantOrderOrThrow(orderId, ownerUserId)
-  if (order.estado !== 'PENDIENTE') {
-    throw new AppError('Este pedido ya fue procesado.', 409)
-  }
-  const updated = await transitionStatus(orderId, 'ACEPTADO')
+  const updated = await transitionStatusAtomic(
+    orderId,
+    ['PENDIENTE'],
+    'ACEPTADO',
+    'Este pedido ya fue procesado.'
+  )
 
   // 1. Notificar al cliente que el restaurante aceptó su pedido
   emitToUser(order.userId, 'order:updated', { orderId, estado: 'ACEPTADO' })
@@ -311,10 +316,12 @@ export async function acceptOrder(orderId: string, ownerUserId: string) {
 
 export async function rejectOrder(orderId: string, ownerUserId: string) {
   const order = await getOwnRestaurantOrderOrThrow(orderId, ownerUserId)
-  if (order.estado !== 'PENDIENTE') {
-    throw new AppError('Este pedido ya fue procesado.', 409)
-  }
-  const updated = await transitionStatus(orderId, 'RECHAZADO')
+  const updated = await transitionStatusAtomic(
+    orderId,
+    ['PENDIENTE'],
+    'RECHAZADO',
+    'Este pedido ya fue procesado.'
+  )
 
   // Si el local RECHAZA el pedido solo se le notifica al cliente que se rechazó su pedido (NO a repartidores)
   emitToUser(order.userId, 'order:updated', { orderId, estado: 'RECHAZADO' })
@@ -329,14 +336,23 @@ export async function rejectOrder(orderId: string, ownerUserId: string) {
 
 export async function markOrderReady(orderId: string, ownerUserId: string) {
   const order = await getOwnRestaurantOrderOrThrow(orderId, ownerUserId)
-  if (order.estado !== 'ACEPTADO') {
+  if (order.estado !== 'ACEPTADO' && order.estado !== 'REPARTIDOR_ASIGNADO') {
     throw new AppError('El pedido debe estar aceptado antes de marcarlo listo.', 409)
   }
-  const updated = await transitionStatus(orderId, 'LISTO')
 
-  // Si aún no tiene repartidor asignado, refrescar aviso a los repartidores
+  const numeroPedido = orderId.slice(0, 8).toUpperCase()
+
+  // Si aún no tiene repartidor asignado, pasa a LISTO; si ya fue reclamado por un
+  // repartidor mientras el local cocinaba, conserva REPARTIDOR_ASIGNADO para que el
+  // repartidor pueda recogerlo sin conflicto de estado, registrando LISTO en el historial.
   if (!order.repartidorId) {
-    const numeroPedido = orderId.slice(0, 8).toUpperCase()
+    const updated = await transitionStatusAtomic(
+      orderId,
+      ['ACEPTADO'],
+      'LISTO',
+      'El pedido ya cambió de estado.'
+    )
+    emitToUser(order.userId, 'order:updated', { orderId, estado: 'LISTO' })
     broadcastToDrivers('order:available', {
       orderId,
       numeroPedido,
@@ -344,18 +360,22 @@ export async function markOrderReady(orderId: string, ownerUserId: string) {
       restaurantDireccion: order.restaurant.direccion,
       total: order.total,
     })
+    return updated
   } else {
-    // Si ya tiene repartidor asignado, avisar a ese repartidor que el pedido está listo para recoger
-    emitToUser(order.repartidorId, 'order:updated', { orderId, estado: 'LISTO' })
+    await prisma.orderStatusHistory.create({
+      data: { orderId, estado: 'LISTO' },
+    })
+    const updated = await prisma.order.findUnique({ where: { id: orderId } })
+    emitToUser(order.userId, 'order:updated', { orderId, estado: 'REPARTIDOR_ASIGNADO', listoParaRecoger: true })
+    emitToUser(order.repartidorId, 'order:updated', { orderId, estado: 'REPARTIDOR_ASIGNADO', listoParaRecoger: true })
     await createNotification(
       order.repartidorId,
       'pedido',
       'Pedido listo',
-      `El pedido #${orderId.slice(0, 8).toUpperCase()} ya está listo para recoger en "${order.restaurant.nombre}".`
+      `El pedido #${numeroPedido} ya está listo para recoger en "${order.restaurant.nombre}".`
     )
+    return updated
   }
-
-  return updated
 }
 
 export async function transitionStatus(orderId: string, estado: OrderStatus, extraData: Record<string, unknown> = {}) {
@@ -366,6 +386,27 @@ export async function transitionStatus(orderId: string, estado: OrderStatus, ext
       ...extraData,
       statusHistory: { create: { estado } },
     },
+  })
+}
+
+async function transitionStatusAtomic(
+  orderId: string,
+  allowedFrom: OrderStatus[],
+  toEstado: OrderStatus,
+  conflictMessage: string
+) {
+  return prisma.$transaction(async (tx) => {
+    const res = await tx.order.updateMany({
+      where: { id: orderId, estado: { in: allowedFrom } },
+      data: { estado: toEstado },
+    })
+    if (res.count === 0) {
+      throw new AppError(conflictMessage, 409)
+    }
+    await tx.orderStatusHistory.create({
+      data: { orderId, estado: toEstado },
+    })
+    return tx.order.findUniqueOrThrow({ where: { id: orderId } })
   })
 }
 
@@ -458,44 +499,46 @@ export async function listAvailableOrders() {
 }
 
 export async function claimOrder(orderId: string, driverUserId: string) {
-  // Verificar si el repartidor ya tiene una entrega activa
-  const activeExisting = await prisma.order.findFirst({
-    where: {
-      repartidorId: driverUserId,
-      estado: { in: ['REPARTIDOR_ASIGNADO', 'RECOGIDO', 'EN_CAMINO'] },
-    },
-  })
-  if (activeExisting) {
-    throw new AppError('Ya tienes una entrega en curso. Complétala antes de tomar otra.', 409)
-  }
-
-  // Operación atómica de reclamo: solo el primer repartidor que acepte el pedido
-  // lo obtiene con éxito (count === 1); cualquier otro intento concurrente recibe count === 0
-  const updateResult = await prisma.order.updateMany({
-    where: {
-      id: orderId,
-      estado: { in: ['ACEPTADO', 'LISTO'] },
-      repartidorId: null,
-    },
-    data: {
-      repartidorId: driverUserId,
-      estado: 'REPARTIDOR_ASIGNADO',
-    },
-  })
-
-  if (updateResult.count === 0) {
-    const existing = await prisma.order.findUnique({ where: { id: orderId } })
-    if (!existing) {
-      throw new AppError('Pedido no encontrado.', 404)
+  await prisma.$transaction(async (tx) => {
+    // Verificar dentro de la transacción si el repartidor ya tiene una entrega activa
+    const activeExisting = await tx.order.findFirst({
+      where: {
+        repartidorId: driverUserId,
+        estado: { in: ['REPARTIDOR_ASIGNADO', 'RECOGIDO', 'EN_CAMINO'] },
+      },
+    })
+    if (activeExisting) {
+      throw new AppError('Ya tienes una entrega en curso. Complétala antes de tomar otra.', 409)
     }
-    throw new AppError('Este pedido ya no está disponible.', 409)
-  }
 
-  await prisma.orderStatusHistory.create({
-    data: {
-      orderId,
-      estado: 'REPARTIDOR_ASIGNADO',
-    },
+    // Operación atómica de reclamo: solo el primer repartidor que acepte el pedido
+    // lo obtiene con éxito (count === 1); cualquier otro intento concurrente recibe count === 0
+    const updateResult = await tx.order.updateMany({
+      where: {
+        id: orderId,
+        estado: { in: ['ACEPTADO', 'LISTO'] },
+        repartidorId: null,
+      },
+      data: {
+        repartidorId: driverUserId,
+        estado: 'REPARTIDOR_ASIGNADO',
+      },
+    })
+
+    if (updateResult.count === 0) {
+      const existing = await tx.order.findUnique({ where: { id: orderId } })
+      if (!existing) {
+        throw new AppError('Pedido no encontrado.', 404)
+      }
+      throw new AppError('Este pedido ya no está disponible.', 409)
+    }
+
+    await tx.orderStatusHistory.create({
+      data: {
+        orderId,
+        estado: 'REPARTIDOR_ASIGNADO',
+      },
+    })
   })
 
   const order = await getOrderDetail(orderId, { userId: driverUserId, rol: 'REPARTIDOR' })
@@ -508,6 +551,13 @@ export async function claimOrder(orderId: string, driverUserId: string) {
       estado: 'REPARTIDOR_ASIGNADO',
       repartidor: order.repartidor,
     })
+    if (order.restaurant?.ownerId) {
+      emitToUser(order.restaurant.ownerId, 'order:updated', {
+        orderId,
+        estado: 'REPARTIDOR_ASIGNADO',
+        repartidor: order.repartidor,
+      })
+    }
     await createNotification(
       order.userId,
       'pedido',
@@ -520,67 +570,101 @@ export async function claimOrder(orderId: string, driverUserId: string) {
 }
 
 export async function markOrderPickedUp(orderId: string, driverUserId: string) {
-  const order = await prisma.order.findUnique({ where: { id: orderId } })
+  const order = await prisma.order.findUnique({
+    where: { id: orderId },
+    include: { restaurant: { select: { ownerId: true, nombre: true } } },
+  })
   if (!order || order.repartidorId !== driverUserId) {
     throw new AppError('Pedido no encontrado o no asignado a ti.', 404)
   }
-  if (order.estado !== 'REPARTIDOR_ASIGNADO') {
-    throw new AppError('El pedido no está en espera de ser recogido.', 409)
+  await transitionStatusAtomic(
+    orderId,
+    ['REPARTIDOR_ASIGNADO', 'LISTO'],
+    'RECOGIDO',
+    'El pedido no está en espera de ser recogido.'
+  )
+  emitToUser(order.userId, 'order:updated', { orderId, estado: 'RECOGIDO' })
+  if (order.restaurant?.ownerId) {
+    emitToUser(order.restaurant.ownerId, 'order:updated', { orderId, estado: 'RECOGIDO' })
   }
-  await transitionStatus(orderId, 'RECOGIDO')
+  await createNotification(
+    order.userId,
+    'pedido',
+    'Pedido recogido',
+    'El repartidor ya recogió tu pedido en el restaurante.'
+  )
   return getOrderDetail(orderId, { userId: driverUserId, rol: 'REPARTIDOR' })
 }
 
 export async function startOrderDelivery(orderId: string, driverUserId: string) {
-  const order = await prisma.order.findUnique({ where: { id: orderId } })
+  const order = await prisma.order.findUnique({
+    where: { id: orderId },
+    include: { restaurant: { select: { ownerId: true } } },
+  })
   if (!order || order.repartidorId !== driverUserId) {
     throw new AppError('Pedido no encontrado o no asignado a ti.', 404)
   }
-  if (order.estado !== 'RECOGIDO') {
-    throw new AppError('El pedido debe estar recogido antes de iniciar camino.', 409)
-  }
-  await transitionStatus(orderId, 'EN_CAMINO')
+  await transitionStatusAtomic(
+    orderId,
+    ['RECOGIDO'],
+    'EN_CAMINO',
+    'El pedido debe estar recogido antes de iniciar camino.'
+  )
   emitToUser(order.userId, 'order:updated', { orderId, estado: 'EN_CAMINO' })
+  if (order.restaurant?.ownerId) {
+    emitToUser(order.restaurant.ownerId, 'order:updated', { orderId, estado: 'EN_CAMINO' })
+  }
   await createNotification(order.userId, 'pedido', 'Pedido en camino', 'Tu repartidor va en camino a tu dirección.')
   return getOrderDetail(orderId, { userId: driverUserId, rol: 'REPARTIDOR' })
 }
 
 export async function deliverOrder(orderId: string, driverUserId: string) {
-  const order = await prisma.order.findUnique({ where: { id: orderId } })
+  const order = await prisma.order.findUnique({
+    where: { id: orderId },
+    include: { restaurant: { select: { ownerId: true } } },
+  })
   if (!order || order.repartidorId !== driverUserId) {
     throw new AppError('Pedido no encontrado o no asignado a ti.', 404)
   }
-  if (order.estado !== 'EN_CAMINO') {
-    throw new AppError('El pedido debe estar en camino para poder entregarlo.', 409)
-  }
 
   const updated = await prisma.$transaction(async (tx) => {
-    const res = await tx.order.update({
-      where: { id: orderId },
-      data: {
-        estado: 'ENTREGADO',
-        statusHistory: { create: { estado: 'ENTREGADO' } },
-      },
-      include: {
-        items: { include: { opciones: true } },
-        restaurant: { select: { id: true, nombre: true, direccion: true, coverImg: true } },
-        user: { select: { id: true, nombre: true, telefono: true } },
-      },
+    const claimDeliver = await tx.order.updateMany({
+      where: { id: orderId, repartidorId: driverUserId, estado: 'EN_CAMINO' },
+      data: { estado: 'ENTREGADO' },
+    })
+    if (claimDeliver.count === 0) {
+      throw new AppError('El pedido debe estar en camino para poder entregarlo.', 409)
+    }
+
+    await tx.orderStatusHistory.create({
+      data: { orderId, estado: 'ENTREGADO' },
     })
 
-    // Crear DriverEarning con la comisionRepartidorFija del pedido
-    await tx.driverEarning.create({
-      data: {
+    // Upsert de DriverEarning para evitar P2002 en caso de reintentos
+    await tx.driverEarning.upsert({
+      where: { orderId: order.id },
+      update: {},
+      create: {
         repartidorId: driverUserId,
         orderId: order.id,
         monto: order.comisionRepartidorFija,
       },
     })
 
-    return res
+    return tx.order.findUniqueOrThrow({
+      where: { id: orderId },
+      include: {
+        items: { include: { opciones: true } },
+        restaurant: { select: { id: true, nombre: true, direccion: true, coverImg: true } },
+        user: { select: { id: true, nombre: true, telefono: true } },
+      },
+    })
   })
 
   emitToUser(order.userId, 'order:updated', { orderId, estado: 'ENTREGADO' })
+  if (order.restaurant?.ownerId) {
+    emitToUser(order.restaurant.ownerId, 'order:updated', { orderId, estado: 'ENTREGADO' })
+  }
   await createNotification(order.userId, 'pedido', '¡Pedido entregado!', 'Tu pedido fue entregado. ¡Esperamos que lo disfrutes!')
 
   return updated
@@ -618,15 +702,41 @@ export async function listDriverDeliveries(driverUserId: string) {
   })
 }
 
+const VALID_ORDER_STATUSES = new Set<string>([
+  'PENDIENTE',
+  'ACEPTADO',
+  'LISTO',
+  'REPARTIDOR_ASIGNADO',
+  'RECOGIDO',
+  'EN_CAMINO',
+  'ENTREGADO',
+  'CANCELADO',
+  'RECHAZADO',
+])
+
 export async function listAllOrdersForAdmin(filters?: { desde?: string; hasta?: string; estado?: string }) {
   const where: any = {}
-  if (filters?.estado) {
-    where.estado = filters.estado
+  if (filters?.estado && filters.estado !== 'TODOS') {
+    if (filters.estado === 'EN_PREPARACION') {
+      where.estado = { in: ['ACEPTADO', 'LISTO', 'REPARTIDOR_ASIGNADO'] }
+    } else if (VALID_ORDER_STATUSES.has(filters.estado)) {
+      where.estado = filters.estado
+    } else {
+      throw new AppError('Estado de pedido inválido.', 400)
+    }
   }
   if (filters?.desde || filters?.hasta) {
     where.createdAt = {}
-    if (filters.desde) where.createdAt.gte = new Date(filters.desde)
-    if (filters.hasta) where.createdAt.lte = new Date(filters.hasta)
+    if (filters.desde) {
+      const d = new Date(filters.desde)
+      if (isNaN(d.getTime())) throw new AppError('Fecha "desde" inválida.', 400)
+      where.createdAt.gte = d
+    }
+    if (filters.hasta) {
+      const h = new Date(filters.hasta)
+      if (isNaN(h.getTime())) throw new AppError('Fecha "hasta" inválida.', 400)
+      where.createdAt.lte = h
+    }
   }
 
   return prisma.order.findMany({

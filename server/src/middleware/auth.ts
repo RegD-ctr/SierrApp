@@ -2,6 +2,7 @@
 
 import type { Request, Response, NextFunction } from 'express'
 import { verifyAccessToken } from '../utils/tokens'
+import { prisma } from '../db/prisma'
 
 // Extiende el tipo Request para poder usar req.user en el resto del código
 declare global {
@@ -12,7 +13,7 @@ declare global {
   }
 }
 
-export function requireAuth(req: Request, res: Response, next: NextFunction) {
+export async function requireAuth(req: Request, res: Response, next: NextFunction) {
   const authHeader = req.headers.authorization
 
   if (!authHeader?.startsWith('Bearer ')) {
@@ -23,7 +24,14 @@ export function requireAuth(req: Request, res: Response, next: NextFunction) {
 
   try {
     const payload = verifyAccessToken(token)
-    req.user = payload
+    const user = await prisma.user.findUnique({
+      where: { id: payload.userId },
+      select: { id: true, rol: true, status: true },
+    })
+    if (!user || user.status !== 'ACTIVO') {
+      return res.status(403).json({ error: 'Cuenta inactiva o suspendida.' })
+    }
+    req.user = { userId: user.id, rol: user.rol }
     next()
   } catch {
     // Cubre tanto token inválido como expirado — el frontend debe

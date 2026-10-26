@@ -163,16 +163,10 @@ async function setRestaurantStatus(id: string, status: 'ACTIVO' | 'SUSPENDIDO') 
     throw new AppError('Restaurante no encontrado.', 404)
   }
 
-  if (status === 'ACTIVO') {
-    await prisma.user.update({ where: { id: restaurant.ownerId }, data: { status: 'ACTIVO' } })
-  }
-  if (status === 'SUSPENDIDO') {
-    await prisma.user.update({ where: { id: restaurant.ownerId }, data: { status: 'SUSPENDIDO' } })
-    await revokeAllSessions(restaurant.ownerId)
-    disconnectUser(restaurant.ownerId)
-  }
-
-  const updated = await prisma.restaurant.update({ where: { id }, data: { status } })
+  const [, updated] = await prisma.$transaction([
+    prisma.user.update({ where: { id: restaurant.ownerId }, data: { status } }),
+    prisma.restaurant.update({ where: { id }, data: { status } }),
+  ])
 
   emitToUser(restaurant.ownerId, 'account:updated', { status })
   await createNotification(
@@ -183,6 +177,11 @@ async function setRestaurantStatus(id: string, status: 'ACTIVO' | 'SUSPENDIDO') 
       ? 'Tu restaurante ya está activo y visible para los clientes.'
       : 'Tu restaurante fue suspendido y ya no aparece para los clientes. Contacta a soporte para más información.'
   )
+
+  if (status === 'SUSPENDIDO') {
+    await revokeAllSessions(restaurant.ownerId)
+    disconnectUser(restaurant.ownerId)
+  }
 
   return updated
 }

@@ -31,7 +31,8 @@ export default function Checkout({ items, savedAddresses, deliveryAddressId, onC
 
   const subtotal = items.reduce((s, i) => s + (i.platillo.precio + i.extrasTotal) * i.cantidad, 0)
   const envio = items.length > 0 ? (items[0].restaurant.deliveryFee ?? 0) : 0
-  const total = subtotal + envio
+  const comisionServicio = items.length > 0 ? 5 : 0
+  const total = subtotal + envio + comisionServicio
 
   const handleConfirmOrder = async () => {
     if (items.length === 0 || submitting) return
@@ -111,6 +112,9 @@ export default function Checkout({ items, savedAddresses, deliveryAddressId, onC
               </div>
               <div className="flex justify-between text-sm text-[#9a9da3]">
                 <span>Envío</span><span>{envio === 0 ? 'Gratis' : `$${envio}`}</span>
+              </div>
+              <div className="flex justify-between text-sm text-[#9a9da3]">
+                <span>Cargo por servicio</span><span>${comisionServicio}</span>
               </div>
               <div className="flex justify-between text-[#5bc827] font-bold text-lg mt-2 pt-2 border-t border-[#35373b]">
                 <span className="text-white font-bold">Total</span><span>${total.toFixed(0)}</span>

@@ -1,3 +1,5 @@
+import { updateSocketToken } from './socket'
+
 export function getApiBaseUrl(): string {
   if (import.meta.env.VITE_API_URL) {
     return import.meta.env.VITE_API_URL
@@ -53,6 +55,9 @@ async function tryRefresh(): Promise<boolean> {
         if (!res.ok) return false
         const data = await res.json()
         setAccessToken(data.accessToken)
+        if (data.accessToken) {
+          updateSocketToken(data.accessToken)
+        }
         return true
       })
       .catch(() => false)

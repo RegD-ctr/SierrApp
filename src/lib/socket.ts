@@ -1,21 +1,32 @@
 import { io, type Socket } from 'socket.io-client'
 import { getApiBaseUrl } from './api'
 
-const SOCKET_URL = getApiBaseUrl()
-
 let socket: Socket | null = null
 
-// Se llama justo después de un login exitoso (o de restoreSession()), 
+// Se llama justo después de un login exitoso (o de restoreSession()),
 // pasándole el accessToken vigente.
 export function connectSocket(accessToken: string) {
-  if (socket?.connected) return socket
+  if (socket) {
+    socket.auth = { token: accessToken }
+    if (!socket.connected) {
+      socket.connect()
+    }
+    return socket
+  }
 
-  socket = io(SOCKET_URL || undefined, {
+  const socketUrl = getApiBaseUrl()
+  socket = io(socketUrl || undefined, {
     auth: { token: accessToken },
     autoConnect: true,
   })
 
   return socket
+}
+
+export function updateSocketToken(accessToken: string) {
+  if (socket) {
+    socket.auth = { token: accessToken }
+  }
 }
 
 // Se llama en logout.

@@ -3,11 +3,13 @@ import logoImg from "@/imports/logo.jpeg"
 import EarningsRepartidor from "@/pages/EarningsRepartidor"
 import Terminos from "@/pages/Terminos"
 import Privacidad from "@/pages/Privacidad"
+import Notifications from "@/pages/Notifications"
+import Support from "@/pages/Support"
 import { api, getImageUrl, type CurrentUser } from "@/lib/api"
 import { getSocket } from "@/lib/socket"
 import EditProfileModal from "@/components/EditProfileModal"
 
-type RepView = "mapa" | "ordenes" | "activa" | "historial" | "perfil" | "ganancias" | "terminos" | "privacidad"
+type RepView = "mapa" | "ordenes" | "activa" | "historial" | "perfil" | "ganancias" | "terminos" | "privacidad" | "notificaciones" | "ayuda"
 type OrderStatus = "nueva" | "dirigete" | "esperando" | "recibido" | "en_camino" | "entregado"
 
 interface Order {
@@ -133,7 +135,7 @@ function getOrderMapsDestination(order?: Order | null): {
   url: string
 } {
   if (!order) {
-    const fallbackAddr = "Huatusco, Veracruz, México"
+    const fallbackAddr = "El Salto, Pueblo Nuevo, Durango, México"
     return {
       targetType: "local",
       label: "Zona de cobertura",
@@ -154,7 +156,7 @@ function getOrderMapsDestination(order?: Order | null): {
     const addr =
       order.clienteDir && order.clienteDir !== "—"
         ? order.clienteDir
-        : "Huatusco, Veracruz"
+        : "El Salto, Pueblo Nuevo, Durango"
     return {
       targetType: "cliente",
       label: `Ir al domicilio del cliente (${order.cliente})`,
@@ -166,7 +168,7 @@ function getOrderMapsDestination(order?: Order | null): {
   const addr =
     order.localDir && order.localDir !== "—"
       ? order.localDir
-      : `${order.local}, Huatusco, Veracruz`
+      : `${order.local}, El Salto, Pueblo Nuevo, Durango`
   return {
     targetType: "local",
     label: `Ir al local (${order.local})`,
@@ -437,6 +439,12 @@ export default function RepartidorPanel({
   }
   if (view === "privacidad") {
     return <Privacidad onBack={() => setView("perfil")} />
+  }
+  if (view === "notificaciones") {
+    return <Notifications onBack={() => setView("perfil")} />
+  }
+  if (view === "ayuda") {
+    return <Support onBack={() => setView("perfil")} orderId={activeOrder?.id} />
   }
 
   return (
@@ -1116,8 +1124,13 @@ export default function RepartidorPanel({
               <button
                 key={item.label}
                 onClick={() => {
-                  if (item.label === "Mis ganancias") setView("ganancias")
-                  else if (item.label === "Mi vehículo") {
+                  if (item.label === "Mis ganancias" || item.label === "Datos de pago")
+                    setView("ganancias")
+                  else if (item.label === "Notificaciones") {
+                    setView("notificaciones")
+                  } else if (item.label === "Ayuda") {
+                    setView("ayuda")
+                  } else if (item.label === "Mi vehículo") {
                     setEditModalTab("perfil")
                     setEditModalOpen(true)
                   } else if (item.label === "Seguridad") {

@@ -24,10 +24,20 @@ const allCategories = [
 
 const filters = ['Más populares', 'Más rápidos', 'Mejor precio', 'Mejor rating']
 
-export default function Explorar({ onSelectRestaurant }: { onSelectRestaurant?: (r: Restaurant) => void }) {
-  const [search, setSearch] = useState('')
+export default function Explorar({
+  onSelectRestaurant,
+  initialSearch = '',
+}: {
+  onSelectRestaurant?: (r: Restaurant) => void
+  initialSearch?: string
+}) {
+  const [search, setSearch] = useState(initialSearch)
   const [activeFilter, setActiveFilter] = useState('Más populares')
   const [activeCategory, setActiveCategory] = useState<string | null>(null)
+
+  useEffect(() => {
+    setSearch(initialSearch)
+  }, [initialSearch])
   const [restaurants, setRestaurants] = useState<Restaurant[]>([])
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)

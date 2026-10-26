@@ -1,7 +1,17 @@
 import { prisma } from '../../db/prisma'
 import { AppError } from '../../utils/errors'
-import { emitToUser, createNotification, disconnectUser } from '../../realtime/socket'
+import { emitToUser, broadcastToDrivers, createNotification, disconnectUser } from '../../realtime/socket'
 import { revokeAllSessions } from '../auth/auth.service'
+
+const SAFE_USER_SELECT = {
+  id: true,
+  nombre: true,
+  email: true,
+  telefono: true,
+  rol: true,
+  status: true,
+  createdAt: true,
+} as const
 
 // ------------------------------------------------------------
 // REPARTIDORES
@@ -42,7 +52,7 @@ export async function approveRepartidor(id: string) {
   if (user.status !== 'PENDIENTE') {
     throw new AppError('Esta solicitud ya fue procesada.', 409)
   }
-  const updated = await prisma.user.update({ where: { id }, data: { status: 'ACTIVO' } })
+  const updated = await prisma.user.update({ where: { id }, data: { status: 'ACTIVO' }, select: SAFE_USER_SELECT })
   emitToUser(id, 'account:updated', { status: 'ACTIVO' })
   await createNotification(id, 'cuenta', '¡Cuenta aprobada!', 'Tu cuenta de repartidor fue aprobada. Ya puedes iniciar sesión y empezar a recibir pedidos.')
   return updated
@@ -53,27 +63,45 @@ export async function rejectRepartidor(id: string) {
   if (user.status !== 'PENDIENTE') {
     throw new AppError('Esta solicitud ya fue procesada.', 409)
   }
-  const updated = await prisma.user.update({ where: { id }, data: { status: 'RECHAZADO' } })
+  const updated = await prisma.user.update({ where: { id }, data: { status: 'RECHAZADO' }, select: SAFE_USER_SELECT })
   await revokeAllSessions(id)
   emitToUser(id, 'account:updated', { status: 'RECHAZADO' })
-  disconnectUser(id)
   await createNotification(id, 'cuenta', 'Solicitud rechazada', 'Tu solicitud para ser repartidor fue rechazada. Contacta a soporte para más información.')
+  disconnectUser(id)
   return updated
 }
 
 export async function suspendRepartidor(id: string) {
   await getRepartidorOrThrow(id)
-  const updated = await prisma.user.update({ where: { id }, data: { status: 'SUSPENDIDO' } })
+  const updated = await prisma.user.update({ where: { id }, data: { status: 'SUSPENDIDO' }, select: SAFE_USER_SELECT })
+  // Liberar pedidos asignados que aún no han sido recogidos para que otro repartidor pueda tomarlos
+  const assignedOrders = await prisma.order.findMany({
+    where: { repartidorId: id, estado: 'REPARTIDOR_ASIGNADO' },
+    include: { restaurant: { select: { nombre: true, direccion: true } } },
+  })
+  for (const ord of assignedOrders) {
+    await prisma.order.update({
+      where: { id: ord.id },
+      data: { repartidorId: null, estado: 'LISTO' },
+    })
+    broadcastToDrivers('order:available', {
+      orderId: ord.id,
+      numeroPedido: ord.id.slice(0, 8).toUpperCase(),
+      restaurantNombre: ord.restaurant.nombre,
+      restaurantDireccion: ord.restaurant.direccion,
+      total: ord.total,
+    })
+  }
   await revokeAllSessions(id)
   emitToUser(id, 'account:updated', { status: 'SUSPENDIDO' })
-  disconnectUser(id)
   await createNotification(id, 'cuenta', 'Cuenta suspendida', 'Tu cuenta de repartidor fue suspendida. Contacta a soporte para más información.')
+  disconnectUser(id)
   return updated
 }
 
 export async function reactivateRepartidor(id: string) {
   await getRepartidorOrThrow(id)
-  const updated = await prisma.user.update({ where: { id }, data: { status: 'ACTIVO' } })
+  const updated = await prisma.user.update({ where: { id }, data: { status: 'ACTIVO' }, select: SAFE_USER_SELECT })
   emitToUser(id, 'account:updated', { status: 'ACTIVO' })
   await createNotification(id, 'cuenta', 'Cuenta reactivada', 'Tu cuenta de repartidor fue reactivada. Ya puedes volver a recibir pedidos.')
   return updated
@@ -101,17 +129,17 @@ async function getUsuarioOrThrow(id: string) {
 
 export async function suspendUsuario(id: string) {
   await getUsuarioOrThrow(id)
-  const updated = await prisma.user.update({ where: { id }, data: { status: 'SUSPENDIDO' } })
+  const updated = await prisma.user.update({ where: { id }, data: { status: 'SUSPENDIDO' }, select: SAFE_USER_SELECT })
   await revokeAllSessions(id)
   emitToUser(id, 'account:updated', { status: 'SUSPENDIDO' })
-  disconnectUser(id)
   await createNotification(id, 'cuenta', 'Cuenta suspendida', 'Tu cuenta fue suspendida. Contacta a soporte para más información.')
+  disconnectUser(id)
   return updated
 }
 
 export async function reactivateUsuario(id: string) {
   await getUsuarioOrThrow(id)
-  const updated = await prisma.user.update({ where: { id }, data: { status: 'ACTIVO' } })
+  const updated = await prisma.user.update({ where: { id }, data: { status: 'ACTIVO' }, select: SAFE_USER_SELECT })
   emitToUser(id, 'account:updated', { status: 'ACTIVO' })
   await createNotification(id, 'cuenta', 'Cuenta reactivada', 'Tu cuenta fue reactivada.')
   return updated

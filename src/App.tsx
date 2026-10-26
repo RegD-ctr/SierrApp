@@ -131,15 +131,18 @@ export default function App() {
   }, [])
 
   useEffect(() => {
+    let cleanupDisconnect: (() => void) | undefined
     if (currentUser) {
       const token = getAccessToken()
       if (token) {
         const s = connectSocket(token)
-        s.on("disconnect", (reason) => {
-          if (currentUser) {
-            console.warn("Socket desconectado:", reason)
-          }
-        })
+        const handleDisconnect = (reason: string) => {
+          console.warn("Socket desconectado:", reason)
+        }
+        s.on("disconnect", handleDisconnect)
+        cleanupDisconnect = () => {
+          s.off("disconnect", handleDisconnect)
+        }
       }
       api
         .get<{ count: number }>("/api/notifications/unread-count")
@@ -147,6 +150,9 @@ export default function App() {
         .catch(() => {})
     } else {
       setUnreadCount(0)
+    }
+    return () => {
+      cleanupDisconnect?.()
     }
   }, [currentUser])
 
@@ -311,6 +317,15 @@ export default function App() {
    */
   const addToCart = (item: CartItem) => {
     setCartItems((items) => {
+      if (
+        items.length > 0 &&
+        String(items[0].restaurant.id) !== String(item.restaurant.id)
+      ) {
+        showToast(
+          "Se actualizó tu carrito con el nuevo restaurante seleccionado",
+        )
+        return [item]
+      }
       const existing = items.find((i) => i.cartId === item.cartId)
       if (existing)
         return items.map((i) =>
@@ -620,6 +635,7 @@ export default function App() {
           <button
             onClick={() => {
               setUnreadCount(0)
+              api.patch("/api/notifications/read-all").catch(() => {})
               navigateTo("notifications")
             }}
             className="relative shrink-0 text-[#9a9da3] hover:text-white transition-colors mr-1"
@@ -691,7 +707,10 @@ export default function App() {
             />
           )}
           {view === "explorar" && (
-            <Explorar onSelectRestaurant={setSelectedRestaurant} />
+            <Explorar
+              onSelectRestaurant={setSelectedRestaurant}
+              initialSearch={searchValue}
+            />
           )}
           {view === "pedidos" && (
             <Pedidos

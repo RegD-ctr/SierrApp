@@ -735,7 +735,7 @@ export default function Login({
               <div className="pt-1">
                 <ImageCaptureField
                   label="Foto de licencia de conducir"
-                  sublabel="Para revisión del administrador"
+                  sublabel="Para revisión del administrador (requerida en primer ingreso o para actualizarla)"
                   placeholderText="Sube o toma foto de tu licencia de conducir"
                   icon="🪪"
                   preview={loginLicenciaPreview}
@@ -751,7 +751,6 @@ export default function Login({
                   accentColor="#7ed944"
                   heightClass="h-24"
                   testId="login-repartidor-licencia"
-                  required
                 />
               </div>
             )}

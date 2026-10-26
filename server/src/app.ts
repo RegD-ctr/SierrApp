@@ -21,6 +21,7 @@ import { UPLOAD_DIR } from './modules/uploads/uploads.service'
 import { generalLimiter } from './middleware/rateLimiter'
 
 export const app = express()
+app.set('trust proxy', 1)
 
 // Cabeceras HTTP seguras por default (previene varios ataques comunes:
 // sniffing de MIME, clickjacking, etc.)
