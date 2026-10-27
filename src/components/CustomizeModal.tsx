@@ -1,5 +1,6 @@
 import { useState, useEffect } from 'react'
-import type { Platillo, Restaurant, CartItem } from '@/data'
+import type { Platillo, Restaurant, CartItem, OpcionItem } from '@/data'
+import { getImageUrl } from '@/lib/api'
 
 interface Props {
   platillo: Platillo
@@ -20,29 +21,32 @@ export default function CustomizeModal({ platillo, restaurant, onClose, onAdd }:
   const [notas, setNotas] = useState('')
   const [missingRequired, setMissingRequired] = useState<string[]>([])
 
+  const groups = platillo.optionGroups || platillo.opciones || []
+
+  const getExtraPrice = (opt: OpcionItem) => opt.extraPrecio ?? opt.extra ?? 0
+
   useEffect(() => {
     const initial: Record<string, string | string[]> = {}
-    platillo.opciones?.forEach(g => {
-      if (g.tipo === 'radio' && g.obligatoria && g.opciones.length > 0) {
-        initial[g.id] = g.opciones[0].id
-      } else if (g.tipo === 'checkbox') {
+    groups.forEach(g => {
+      if (g.tipo === 'CHECKBOX') {
         initial[g.id] = []
       }
     })
     setSelecciones(initial)
+    setMissingRequired([])
   }, [platillo])
 
   const extrasTotal = (() => {
     let ex = 0
-    platillo.opciones?.forEach(g => {
+    groups.forEach(g => {
       const sel = selecciones[g.id]
-      if (g.tipo === 'radio' && typeof sel === 'string') {
+      if (g.tipo === 'RADIO' && typeof sel === 'string') {
         const opt = g.opciones.find(o => o.id === sel)
-        if (opt) ex += opt.extra
-      } else if (g.tipo === 'checkbox' && Array.isArray(sel)) {
+        if (opt) ex += getExtraPrice(opt)
+      } else if (g.tipo === 'CHECKBOX' && Array.isArray(sel)) {
         sel.forEach(id => {
           const opt = g.opciones.find(o => o.id === id)
-          if (opt) ex += opt.extra
+          if (opt) ex += getExtraPrice(opt)
         })
       }
     })
@@ -68,17 +72,17 @@ export default function CustomizeModal({ platillo, restaurant, onClose, onAdd }:
   }
 
   const getSelLabel = (groupId: string, optId: string) => {
-    const g = platillo.opciones?.find(g => g.id === groupId)
+    const g = groups.find(g => g.id === groupId)
     return g?.opciones.find(o => o.id === optId)?.label ?? optId
   }
 
   const buildSelsForCart = () => {
     const out: Record<string, string | string[]> = {}
-    platillo.opciones?.forEach(g => {
+    groups.forEach(g => {
       const sel = selecciones[g.id]
-      if (g.tipo === 'radio' && typeof sel === 'string') {
+      if (g.tipo === 'RADIO' && typeof sel === 'string') {
         out[g.titulo] = getSelLabel(g.id, sel)
-      } else if (g.tipo === 'checkbox' && Array.isArray(sel) && sel.length > 0) {
+      } else if (g.tipo === 'CHECKBOX' && Array.isArray(sel) && sel.length > 0) {
         out[g.titulo] = sel.map(id => getSelLabel(g.id, id))
       }
     })
@@ -87,10 +91,22 @@ export default function CustomizeModal({ platillo, restaurant, onClose, onAdd }:
 
   const handleAdd = () => {
     const missing: string[] = []
-    platillo.opciones?.forEach(g => {
-      if (g.obligatoria && g.tipo === 'radio' && !selecciones[g.id]) missing.push(g.id)
+    groups.forEach(g => {
+      if (g.obligatoria && g.tipo === 'RADIO' && !selecciones[g.id]) missing.push(g.id)
     })
     if (missing.length > 0) { setMissingRequired(missing); return }
+
+    const selectedOptionItemIds: string[] = []
+    groups.forEach(g => {
+      const sel = selecciones[g.id]
+      if (g.tipo === 'RADIO' && typeof sel === 'string' && sel) {
+        selectedOptionItemIds.push(sel)
+      } else if (g.tipo === 'CHECKBOX' && Array.isArray(sel)) {
+        sel.forEach(id => {
+          if (id) selectedOptionItemIds.push(id)
+        })
+      }
+    })
 
     onAdd({
       cartId: `${platillo.id}-${Date.now()}`,
@@ -98,13 +114,14 @@ export default function CustomizeModal({ platillo, restaurant, onClose, onAdd }:
       restaurant,
       cantidad,
       selecciones: buildSelsForCart(),
+      selectedOptionItemIds,
       extrasTotal,
       notas,
     })
     onClose()
   }
 
-  const hasOptions = platillo.opciones && platillo.opciones.length > 0
+  const hasOptions = groups.length > 0
 
   return (
     <div className="fixed inset-0 bg-black/70 z-50 flex items-end sm:items-center justify-center p-0 sm:p-4">
@@ -112,66 +129,71 @@ export default function CustomizeModal({ platillo, restaurant, onClose, onAdd }:
         {/* Image header */}
         <div className="relative h-40 shrink-0">
           {platillo.imagen ? (
-            <img src={platillo.imagen} alt={platillo.nombre} className="w-full h-full object-cover" />
+            <img src={getImageUrl(platillo.imagen)} alt={platillo.nombre} className="w-full h-full object-cover" />
           ) : (
             <div className="w-full h-full bg-[#232427] flex items-center justify-center text-5xl opacity-40">🍽️</div>
           )}
           <div className="absolute inset-0 bg-gradient-to-t from-[#1a1b1e] to-transparent" />
-          <button onClick={onClose} className="absolute top-3 right-3 bg-[#1a1b1e]/70 rounded-full w-8 h-8 flex items-center justify-center text-white hover:bg-[#1a1b1e] transition-colors">
+          <button onClick={onClose} className="absolute top-3 right-3 bg-[#1a1b1e]/70 rounded-full w-8 h-8 flex items-center justify-center text-white hover:bg-[#1a1b1e] transition-colors cursor-pointer">
             ✕
           </button>
           <div className="absolute bottom-3 left-4 right-4">
             <h2 className="text-white font-bold text-lg leading-tight">{platillo.nombre}</h2>
-            <p className="text-[#9a9da3] text-xs">{platillo.descripcion}</p>
+            <p className="text-[#9a9da3] text-xs line-clamp-2">{platillo.descripcion}</p>
           </div>
         </div>
 
         {/* Scrollable options */}
         <div className="overflow-y-auto flex-1 px-4 py-3">
-          {hasOptions && platillo.opciones!.map(group => (
-            <div key={group.id} className="mb-5">
-              <div className="flex items-center gap-2 mb-2">
-                <h3 className="text-white font-bold text-sm">{group.titulo}</h3>
-                {group.obligatoria && (
-                  <span className={`text-[10px] font-bold px-2 py-0.5 rounded-full ${missingRequired.includes(group.id) ? 'bg-red-900/50 text-red-400 border border-red-800' : 'bg-[#5bc827]/20 text-[#5bc827]'}`}>
-                    {missingRequired.includes(group.id) ? '¡Requerido!' : 'Obligatorio'}
-                  </span>
-                )}
-                {!group.obligatoria && <span className="text-[#9a9da3] text-[10px]">Opcional</span>}
-              </div>
-              <div className="space-y-1.5">
-                {group.opciones.map(opt => {
-                  const sel = selecciones[group.id]
-                  const isSelected = group.tipo === 'radio'
-                    ? sel === opt.id
-                    : Array.isArray(sel) && sel.includes(opt.id)
-                  return (
-                    <button
-                      key={opt.id}
-                      onClick={() => group.tipo === 'radio' ? handleRadio(group.id, opt.id) : handleCheckbox(group.id, opt.id)}
-                      className={`w-full flex items-center justify-between px-4 py-2.5 rounded-xl border transition-all text-left ${
-                        isSelected ? 'bg-[#5bc827]/15 border-[#5bc827] text-white' : 'bg-[#232427] border-[#35373b] text-[#c4c6ca] hover:border-[#5bc827]/50'
-                      }`}
-                    >
-                      <div className="flex items-center gap-2.5">
-                        <div className={`w-4 h-4 shrink-0 flex items-center justify-center border transition-all ${
-                          group.tipo === 'radio' ? 'rounded-full' : 'rounded'
-                        } ${isSelected ? 'border-[#5bc827] bg-[#5bc827]' : 'border-[#35373b]'}`}>
-                          {isSelected && <span className="text-[#1a1b1e] text-[8px] font-black">✓</span>}
+          {hasOptions && groups.map(group => {
+            const isRadio = group.tipo === 'RADIO'
+            return (
+              <div key={group.id} className="mb-5">
+                <div className="flex items-center gap-2 mb-2">
+                  <h3 className="text-white font-bold text-sm">{group.titulo}</h3>
+                  {group.obligatoria && (
+                    <span className={`text-[10px] font-bold px-2 py-0.5 rounded-full ${missingRequired.includes(group.id) ? 'bg-red-900/50 text-red-400 border border-red-800' : 'bg-[#5bc827]/20 text-[#5bc827]'}`}>
+                      {missingRequired.includes(group.id) ? '¡Requerido!' : 'Obligatorio'}
+                    </span>
+                  )}
+                  {!group.obligatoria && <span className="text-[#9a9da3] text-[10px]">Opcional</span>}
+                </div>
+                <div className="space-y-1.5">
+                  {group.opciones.map(opt => {
+                    const sel = selecciones[group.id]
+                    const isSelected = isRadio
+                      ? sel === opt.id
+                      : Array.isArray(sel) && sel.includes(opt.id)
+                    const extra = getExtraPrice(opt)
+                    return (
+                      <button
+                        key={opt.id}
+                        type="button"
+                        onClick={() => isRadio ? handleRadio(group.id, opt.id) : handleCheckbox(group.id, opt.id)}
+                        className={`w-full flex items-center justify-between px-4 py-2.5 rounded-xl border transition-all text-left cursor-pointer ${
+                          isSelected ? 'bg-[#5bc827]/15 border-[#5bc827] text-white' : 'bg-[#232427] border-[#35373b] text-[#c4c6ca] hover:border-[#5bc827]/50'
+                        }`}
+                      >
+                        <div className="flex items-center gap-2.5">
+                          <div className={`w-4 h-4 shrink-0 flex items-center justify-center border transition-all ${
+                            isRadio ? 'rounded-full' : 'rounded'
+                          } ${isSelected ? 'border-[#5bc827] bg-[#5bc827]' : 'border-[#35373b]'}`}>
+                            {isSelected && <span className="text-[#1a1b1e] text-[8px] font-black">✓</span>}
+                          </div>
+                          <span className="text-sm">{opt.label}</span>
                         </div>
-                        <span className="text-sm">{opt.label}</span>
-                      </div>
-                      {opt.extra !== 0 && (
-                        <span className={`text-xs font-semibold ${opt.extra > 0 ? 'text-[#5bc827]' : 'text-[#9a9da3]'}`}>
-                          {opt.extra > 0 ? `+$${opt.extra}` : `-$${Math.abs(opt.extra)}`}
-                        </span>
-                      )}
-                    </button>
-                  )
-                })}
+                        {extra !== 0 && (
+                          <span className={`text-xs font-semibold ${extra > 0 ? 'text-[#5bc827]' : 'text-[#9a9da3]'}`}>
+                            {extra > 0 ? `+$${extra}` : `-$${Math.abs(extra)}`}
+                          </span>
+                        )}
+                      </button>
+                    )
+                  })}
+                </div>
               </div>
-            </div>
-          ))}
+            )
+          })}
 
           {/* Notas */}
           <div className="mb-3">
@@ -194,14 +216,14 @@ export default function CustomizeModal({ platillo, restaurant, onClose, onAdd }:
           <div className="flex items-center justify-between mb-3">
             <span className="text-[#c4c6ca] text-sm font-semibold">Cantidad</span>
             <div className="flex items-center gap-3 bg-[#232427] border border-[#35373b] rounded-full px-2 py-1">
-              <button onClick={() => setCantidad(c => Math.max(1, c - 1))} className="w-7 h-7 rounded-full flex items-center justify-center text-[#5bc827] hover:bg-[#1a1b1e] transition-colors font-bold text-lg leading-none">−</button>
+              <button onClick={() => setCantidad(c => Math.max(1, c - 1))} className="w-7 h-7 rounded-full flex items-center justify-center text-[#5bc827] hover:bg-[#1a1b1e] transition-colors font-bold text-lg leading-none cursor-pointer">−</button>
               <span className="text-white font-bold text-base w-6 text-center">{cantidad}</span>
-              <button onClick={() => setCantidad(c => c + 1)} className="w-7 h-7 rounded-full flex items-center justify-center text-[#5bc827] hover:bg-[#1a1b1e] transition-colors font-bold text-lg leading-none">+</button>
+              <button onClick={() => setCantidad(c => c + 1)} className="w-7 h-7 rounded-full flex items-center justify-center text-[#5bc827] hover:bg-[#1a1b1e] transition-colors font-bold text-lg leading-none cursor-pointer">+</button>
             </div>
           </div>
           <button
             onClick={handleAdd}
-            className="w-full py-3.5 rounded-xl bg-[#5bc827] hover:bg-[#7ed944] text-[#1a1b1e] font-bold text-base transition-all hover:scale-[1.01] active:scale-[0.98] shadow-lg shadow-[#5bc827]/20 flex items-center justify-center gap-2"
+            className="w-full py-3.5 rounded-xl bg-[#5bc827] hover:bg-[#7ed944] text-[#1a1b1e] font-bold text-base transition-all hover:scale-[1.01] active:scale-[0.98] shadow-lg shadow-[#5bc827]/20 flex items-center justify-center gap-2 cursor-pointer"
           >
             <span>Agregar al carrito</span>
             <span className="bg-[#1a1b1e]/20 px-2 py-0.5 rounded-full text-sm">${totalPrice.toFixed(0)}</span>
@@ -211,3 +233,4 @@ export default function CustomizeModal({ platillo, restaurant, onClose, onAdd }:
     </div>
   )
 }
+

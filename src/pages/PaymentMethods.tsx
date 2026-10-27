@@ -1,8 +1,6 @@
 export default function PaymentMethods({ onBack }: { onBack: () => void }) {
-  const methods = [
-    { id: 1, type: 'Visa', last4: '4242', exp: '12/25', default: true },
-    { id: 2, type: 'Mastercard', last4: '8811', exp: '08/26', default: false },
-  ]
+  // TODO: reemplazar con datos reales del backend (GET /api/payments/methods)
+  const methods: { id: number; type: string; last4: string; exp: string; default: boolean }[] = []
 
   return (
     <div className="min-h-screen bg-[#1a1b1e] text-white flex flex-col">

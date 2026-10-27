@@ -1,4 +1,8 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
+if ! lsof -i :4000 >/dev/null 2>&1; then
+  pnpm --prefix server run dev &
+fi
+
 pnpm run dev
